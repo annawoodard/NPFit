@@ -1,0 +1,58 @@
+#!/usr/bin/env python
+
+import argparse
+import logging
+import os
+import yaml
+
+parser = argparse.ArgumentParser(description='extended interpretation for ttV')
+parser.add_argument('config', metavar='config', type=str,
+                    help='a configuration file to use')
+parser.add_argument('-v', '--verbose', action="count", default=0,
+                    help="increase verbosity")
+parser.add_argument('-q', '--quiet', action="count", default=0,
+                    help="decrease verbosity")
+ag = parser.add_argument_group('analysis options')
+ag.add_argument('-m', '--make', action='store_true', default=False,
+                help="produce makeflow file")
+ag.add_argument('-p', '--parse',
+                help="parse gen-level file to extract cross sections")
+ag.add_argument('-c', '--concatenate', action='store_true', default=False,
+                help="concatenate cross sections")
+args = parser.parse_args()
+
+if 'LOCALRT' not in os.environ:
+    parser.error("need to do a `cmsenv` first")
+
+if not any([args.make, args.parse, args.concatenate]):
+    parser.error("need to either make, parse or concatenate")
+
+logging.basicConfig(
+    datefmt="%Y-%m-%d %H:%M:%S",
+    format="%(asctime)s [%(levelname)s] - %(filename)s %(lineno)d: %(message)s")
+
+logging.__dict__['root'].level = (2 + args.quiet - args.verbose) * 10
+
+with open(args.config) as f:
+    config = yaml.load(f)
+
+for k in ('indir', 'outdir'):
+    if k in config:
+        config[k] = os.path.expanduser(os.path.expandvars(config[k]))
+
+from EffectiveTTV.EffectiveTTV.actionable import make, parse, concatenate
+
+if not os.path.exists(config["outdir"]):
+    os.makedirs(config["outdir"])
+
+actions = []
+
+if args.make:
+    actions.append(make)
+if args.parse:
+    actions.append(parse)
+if args.concatenate:
+    actions.append(concatenate)
+
+for action in actions:
+    action(args, config)
