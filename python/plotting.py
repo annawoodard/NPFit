@@ -20,15 +20,8 @@ class Plotter(object):
         self.config = config
         atexit.register(self.webify)
 
-        path = os.path.join(os.environ['LOCALRT'], 'src', 'EffectiveTTV', 'EffectiveTTV', 'data', 'web')
-        try:
-            shutil.copytree(os.path.join(path, 'stylesheets'), os.path.join(config['outdir'], 'stylesheets'))
-            shutil.copytree(os.path.join(path, 'javascripts'), os.path.join(config['outdir'], 'javascripts'))
-        except OSError:
-            pass
-
     def webify(self):
-        path = os.path.join(os.environ['LOCALRT'], 'src', 'EffectiveTTV', 'EffectiveTTV', 'data', 'web')
+        path = os.path.join(os.environ['LOCALRT'], 'src', 'EffectiveTTV', 'EffectiveTTV', 'data')
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(path))
         env.filters["datetime"] = lambda d: datetime.fromtimestamp(d).strftime('%a, %d %b %Y, %H:%M')
         env.filters["basename"] = lambda d: os.path.basename(d)
@@ -66,7 +59,6 @@ class Plotter(object):
                         dirs=sorted(dirs),
                         files=sorted(files),
                         plots=plots,
-                        base=os.path.relpath(self.config['outdir'], path)+'/'
                     ).encode('utf-8'))
 
     @contextlib.contextmanager
