@@ -178,7 +178,7 @@ $("#search").keyup(function() {
 </table>
 {% for p in plots %}
 <div class="pic photo-link smoothbox" id="{png}">
-	<a href="{pdf}" rel="gallery">
+	<a href="{{ p }}.pdf" rel="gallery">
 		<img src="{{ p }}.png" class="pic"/>
 	</a>
 </div>
