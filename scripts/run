@@ -19,13 +19,15 @@ ag.add_argument('-p', '--parse',
                 help="parse gen-level file to extract cross sections")
 ag.add_argument('-c', '--concatenate', action='store_true', default=False,
                 help="concatenate cross sections")
+ag.add_argument('-l', '--plot', action='store_true', default=False,
+                help="plot cross section scans")
 args = parser.parse_args()
 
 if 'LOCALRT' not in os.environ:
     parser.error("need to do a `cmsenv` first")
 
-if not any([args.make, args.parse, args.concatenate]):
-    parser.error("need to either make, parse or concatenate")
+if not any([args.make, args.parse, args.concatenate, args.plot]):
+    parser.error("need to either make, parse, concatenate, or plot")
 
 logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
@@ -40,7 +42,7 @@ for k in ('indir', 'outdir'):
     if k in config:
         config[k] = os.path.expanduser(os.path.expandvars(config[k]))
 
-from EffectiveTTV.EffectiveTTV.actionable import make, parse, concatenate
+from EffectiveTTV.EffectiveTTV.actionable import make, parse, concatenate, plot
 
 if not os.path.exists(config["outdir"]):
     os.makedirs(config["outdir"])
@@ -53,6 +55,8 @@ if args.parse:
     actions.append(parse)
 if args.concatenate:
     actions.append(concatenate)
+if args.plot:
+    actions.append(plot)
 
 for action in actions:
     action(args, config)
