@@ -12,7 +12,6 @@ import stat
 def make(args, config):
     outdir = config['outdir']
     indir = config['indir']
-    config = os.path.basename(args.config)
 
     # Makeflow is a bit picky about whitespace
     frag = """\n{out}: {ins}\n\t{cmd}\n"""
@@ -50,7 +49,7 @@ def make(args, config):
         outs = ' '.join(outputs)
         ins = ' '.join(inputs)
         if rename:
-            ins = ' '.join(["{0}->{1}".format(p, os.path.basename(p)) for p in inputs])
+            outs = ' '.join(["{0}->{1}".format(p, os.path.basename(p)) for p in outputs])
 
         with open(makefile, 'a') as f:
             s = frag.format(
@@ -61,14 +60,61 @@ def make(args, config):
 
     files = glob.glob(os.path.join(indir, '*.root'))
     for f in files:
-        inputs = [config]
+        inputs = [os.path.basename(args.config)]
         outputs = os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npy'))
-        makeflowify(inputs, outputs, ['run', '-p', f, config], False)
+        makeflowify(inputs, outputs, ['run', '-p', f, os.path.basename(args.config)], False)
 
-    inputs = [os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npy')) for f in files] + [config]
+    inputs = [os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npy')) for f in files] + [os.path.basename(args.config)]
     outputs = 'cross_sections.npy'
-    makeflowify(inputs, outputs, ['run', '-c', config], False)
+    makeflowify(inputs, outputs, ['run', '-c', os.path.basename(args.config)], False)
 
+    for path in ('workspaces', 'scans'):
+        if not os.path.exists(os.path.join(config['outdir'], path)):
+            os.makedirs(os.path.join(config['outdir'], path))
+
+    lowers = np.arange(0, config['points'], config['chunk size'])
+    uppers = np.arange(config['chunk size'], config['points'] + config['chunk size'], config['chunk size'])
+
+    combinations = [sorted(list(x)) for x in itertools.combinations(config['operators'], config['dimension'])]
+    for operators in combinations:
+        label = '_'.join(operators)
+        workspace = os.path.join('workspaces', '{}.root'.format(label))
+        cmd = [
+            'mkdir workspaces;',
+            'text2workspace.py', config['card'],
+            '-P', 'EffectiveTTV.EffectiveTTV.models:eff_op',
+            '-m', '125',
+            '--PO', 'data={}'.format(config['outdir']),
+            ' '.join(['--PO process={}'.format(x) for x in config['processes']]),
+            ' '.join(['--PO poi={}'.format(x) for x in operators]),
+            '-o', workspace
+        ]
+
+        makeflowify(['cross_sections.npy'], [workspace], cmd, False)
+
+        scans = []
+        for index, (first, last) in enumerate(zip(lowers, uppers)):
+            cmd = [
+                'combine',
+                '-M', 'MultiDimFit',
+                workspace,
+                '-m', '125',
+                '--algo=grid',
+                '--points={}'.format(config['points']),
+                '--setPhysicsModelParameters', ','.join(['{}=0.0'.format(x) for x in operators]),
+                '--setPhysicsModelParameterRanges', ':'.join(['{}=-1,1'.format(x) for x in operators]),
+                '-n', '_{}_part_{}'.format(label, index),
+                '--firstPoint {}'.format(first),
+                '--lastPoint {}'.format(last)
+            ]
+
+            scan = os.path.join('scans', 'higgsCombine_{}_part_{}.MultiDimFit.mH125.root'.format(label, index))
+            scans.append(scan)
+
+            makeflowify([workspace], [scan], cmd)
+
+        outfile = '{}.total.root'.format(label)
+        makeflowify(scans, [outfile], ['hadd', '-f', outfile] + scans)
 
 def parse(args, config):
     import DataFormats.FWLite
@@ -89,7 +135,7 @@ def parse(args, config):
         operators = np.array(get_collection(run, 'vector<string>', 'annotator:operators:LHE'))
         process = str(get_collection(run, 'std::string', 'annotator:process:LHE'))
         dtype=[(name, 'f8') for name in operators]
-        coefficients = np.array(get_collection(run, 'vector<double>', 'annotator:wilsonCoefficients:LHE'), dtype=dtype)
+        coefficients = np.array(tuple(get_collection(run, 'vector<double>', 'annotator:wilsonCoefficients:LHE')), dtype=dtype)
 
         row = np.array((coefficients, cross_section), dtype=[('coefficients', coefficients.dtype, coefficients.shape), ('cross section', 'f8')])
 
@@ -146,6 +192,4 @@ def plot(args, config):
 
     for operator in data.keys():
         plotter.plot(data[operator], operator, '$\sigma_{NP+SM} / \sigma_{SM}$', '', 'ratios_{}'.format(operator), series_labels=labels[operator])
-
-
 

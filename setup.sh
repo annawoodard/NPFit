@@ -23,8 +23,6 @@ git clone -b v6.3.0 https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit.
 git clone https://github.com/cms-analysis/CombineHarvester.git CombineHarvester
 git clone git@github.com:annawoodard/EffectiveTTV.git EffectiveTTV/EffectiveTTV
 
-ln -s EffectiveTTV/EffectiveTTV/python/models.py HiggsAnalysis/CombinedLimit/python/EffectiveTTVModels.py
-
 scram b -j 32
 ) > setup.log
 
