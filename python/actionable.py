@@ -6,12 +6,10 @@ import numpy as np
 import os
 import shutil
 import stat
+import yaml
 
 
 def make(args, config):
-    outdir = config['outdir']
-    indir = config['indir']
-
     # Makeflow is a bit picky about whitespace
     frag = """\n{out}: {ins}\n\t{cmd}\n"""
 
@@ -25,14 +23,14 @@ def make(args, config):
     exec "$@"
     """.format(os.environ["LOCALRT"])
 
-    wrapfile = os.path.join(outdir, 'w.sh')
+    wrapfile = os.path.join(config['outdir'], 'w.sh')
     with open(wrapfile, 'w') as f:
         f.write(wrap)
     os.chmod(wrapfile, os.stat(wrapfile).st_mode | stat.S_IEXEC)
     shutil.copy(args.config, outdir)
 
-    makefile = os.path.join(outdir, 'Makeflow')
-    logging.info('writing Makeflow file to {}'.format(outdir))
+    makefile = os.path.join(config['outdir'], 'Makeflow')
+    logging.info('writing Makeflow file to {}'.format(config['outdir']))
     with open(makefile, 'w') as f:
         factory = os.path.join(os.environ['LOCALRT'], 'src', 'EffectiveTTV', 'EffectiveTTV', 'data', 'factory.json')
         f.write("# to run, issue the following commands:\n")
@@ -57,7 +55,7 @@ def make(args, config):
                     cmd=' '.join(cmd))
             f.write(s)
 
-    files = glob.glob(os.path.join(indir, '*.root'))
+    files = glob.glob(os.path.join(config['indir'], '*.root'))
     for f in files:
         inputs = [os.path.basename(args.config)]
         outputs = os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npy'))
