@@ -4,7 +4,6 @@ import logging
 import itertools
 import numpy as np
 import os
-import re
 import shutil
 import stat
 
