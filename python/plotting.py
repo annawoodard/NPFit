@@ -28,9 +28,8 @@ class Plotter(object):
         env.tests["sum"] = lambda s: s == "Total"
         template = env.get_template('template.html')
 
-        for root, dirs, files in os.walk(self.config['outdir']):
+        for root, dirs, files in os.walk(os.path.abspath(self.config['outdir'])):
             for path in [os.path.join(root, d) for d in dirs] + [root]:
-                logging.info('updating {}'.format(path))
                 pngs = glob.glob(os.path.join(path, '*.png'))
                 pdfs = glob.glob(os.path.join(path, '*.pdf'))
                 plots = [os.path.splitext(os.path.basename(name))[0] for name in pngs]

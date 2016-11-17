@@ -27,7 +27,12 @@ def make(args, config):
     with open(wrapfile, 'w') as f:
         f.write(wrap)
     os.chmod(wrapfile, os.stat(wrapfile).st_mode | stat.S_IEXEC)
-    shutil.copy(args.config, outdir)
+
+    configfile = os.path.join(config['outdir'], 'run.yaml')
+    local_config = config.copy()
+    local_config['outdir'] = ''
+    with open(configfile, 'w') as f:
+        yaml.dump(local_config, f)
 
     makefile = os.path.join(config['outdir'], 'Makeflow')
     logging.info('writing Makeflow file to {}'.format(config['outdir']))
@@ -38,10 +43,10 @@ def make(args, config):
         f.write("# nohup work_queue_factory -T condor -M ttV_FTW -C {} >& makeflow_factory.log &\n".format(factory))
 
     def makeflowify(inputs, outputs, cmd='run', rename=True):
+        if isinstance(inputs, basestring):
+            inputs = [inputs]
         if isinstance(outputs, basestring):
             outputs = [outputs]
-        if isinstance(cmd, basestring):
-            cmd = [cmd]
 
         outs = ' '.join(outputs)
         ins = ' '.join(inputs)
@@ -57,13 +62,12 @@ def make(args, config):
 
     files = glob.glob(os.path.join(config['indir'], '*.root'))
     for f in files:
-        inputs = [os.path.basename(args.config)]
         outputs = os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npy'))
-        makeflowify(inputs, outputs, ['run', '-p', f, os.path.basename(args.config)], False)
+        makeflowify('run.yaml', outputs, ['run', '--parse', f, 'run.yaml'])
 
-    inputs = [os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npy')) for f in files] + [os.path.basename(args.config)]
+    inputs = [os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npy')) for f in files] + ['run.yaml']
     outputs = 'cross_sections.npy'
-    makeflowify(inputs, outputs, ['run', '-c', os.path.basename(args.config)], False)
+    makeflowify(inputs, outputs, ['run', '--concatenate', 'run.yaml'])
 
     for path in ('workspaces', 'scans'):
         if not os.path.exists(os.path.join(config['outdir'], path)):
