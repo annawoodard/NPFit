@@ -69,6 +69,8 @@ def make(args, config):
     outputs = 'cross_sections.npy'
     makeflowify(inputs, outputs, ['run', '--concatenate', 'run.yaml'])
 
+    inputs = ['cross_sections.npy', 'run.yaml']
+    makeflowify(inputs, [], ['LOCAL', 'run', '--plot', 'run.yaml'])
 
     lowers = np.arange(0, config['points'], config['chunk size'])
     uppers = np.arange(config['chunk size'], config['points'] + config['chunk size'], config['chunk size'])
@@ -112,7 +114,7 @@ def make(args, config):
             makeflowify(workspace, scan, cmd, rename=True)
 
         outfile = '{}.total.root'.format(label)
-        makeflowify(scans, [outfile], ['hadd', '-f', outfile] + scans)
+        makeflowify(scans, outfile, ['LOCAL', 'hadd', '-f', outfile] + scans)
 
 def parse(args, config):
     import DataFormats.FWLite
@@ -185,5 +187,11 @@ def plot(args, config):
                 labels[operator] = [process]
 
     for operator in data.keys():
-        plotter.plot(data[operator], operator, '$\sigma_{NP+SM} / \sigma_{SM}$', '', 'ratios_{}'.format(operator), series_labels=labels[operator])
+        plotter.plot(data[operator],
+                operator,
+                '$\sigma_{NP+SM} / \sigma_{SM}$',
+                '',
+                os.path.join(config['outdir'], 'plots', 'cross_section_ratios', operator),
+                series_labels=labels[operator],
+        )
 

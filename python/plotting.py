@@ -16,9 +16,8 @@ import numpy as np
 class Plotter(object):
 
     def __init__(self, config):
-        logging.info('calling init')
-        self.config = config
         atexit.register(self.webify)
+        self.config = config
 
     def webify(self):
         path = os.path.join(os.environ['LOCALRT'], 'src', 'EffectiveTTV', 'EffectiveTTV', 'data')
@@ -54,6 +53,7 @@ class Plotter(object):
                             files.append({'name': name, 'timestamp': os.path.getmtime(fullname)})
 
                 with open(os.path.join(path, 'index.html'), 'w') as f:
+                    logging.info('updating index {}'.format(os.path.join(path, 'index.html')))
                     f.write(template.render(
                         dirs=sorted(dirs),
                         files=sorted(files),
