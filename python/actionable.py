@@ -69,9 +69,6 @@ def make(args, config):
     outputs = 'cross_sections.npy'
     makeflowify(inputs, outputs, ['run', '--concatenate', 'run.yaml'])
 
-    for path in ('workspaces', 'scans'):
-        if not os.path.exists(os.path.join(config['outdir'], path)):
-            os.makedirs(os.path.join(config['outdir'], path))
 
     lowers = np.arange(0, config['points'], config['chunk size'])
     uppers = np.arange(config['chunk size'], config['points'] + config['chunk size'], config['chunk size'])
@@ -144,10 +141,6 @@ def parse(args, config):
             cross_sections = np.vstack([cross_sections, row])
         except UnboundLocalError:
             cross_sections = row
-
-    outdir = os.path.join(config["outdir"], 'cross_sections')
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
 
     outfile = os.path.join(config['outdir'], 'cross_sections', os.path.basename(args.parse).replace('.root', '.npy'))
     np.save(outfile, {process: cross_sections})
