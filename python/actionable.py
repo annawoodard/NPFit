@@ -42,7 +42,7 @@ def make(args, config):
         f.write("# makeflow -T wq -M ttV_FTW --wrapper ./w.sh --wrapper-input w.sh\n")
         f.write("# nohup work_queue_factory -T condor -M ttV_FTW -C {} >& makeflow_factory.log &\n".format(factory))
 
-    def makeflowify(inputs, outputs, cmd='run', rename=True):
+    def makeflowify(inputs, outputs, cmd='run', rename=False):
         if isinstance(inputs, basestring):
             inputs = [inputs]
         if isinstance(outputs, basestring):
@@ -91,7 +91,7 @@ def make(args, config):
             '-o', workspace
         ]
 
-        makeflowify(['cross_sections.npy'], [workspace], cmd, False)
+        makeflowify('cross_sections.npy', workspace, cmd)
 
         scans = []
         for index, (first, last) in enumerate(zip(lowers, uppers)):
@@ -112,7 +112,7 @@ def make(args, config):
             scan = os.path.join('scans', 'higgsCombine_{}_part_{}.MultiDimFit.mH125.root'.format(label, index))
             scans.append(scan)
 
-            makeflowify([workspace], [scan], cmd)
+            makeflowify(workspace, scan, cmd, rename=True)
 
         outfile = '{}.total.root'.format(label)
         makeflowify(scans, [outfile], ['hadd', '-f', outfile] + scans)
