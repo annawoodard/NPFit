@@ -163,35 +163,7 @@ def concatenate(args, config):
     np.save(outfile, res)
 
 def plot(args, config):
-    from EffectiveTTV.EffectiveTTV.plotting import NumPyPlotter
-    plotter = NumPyPlotter(config)
+    from EffectiveTTV.EffectiveTTV.plotting import plot_xsecs, plot_nll
 
-    data = {}
-    labels = {}
-
-    fn = os.path.join(config['outdir'], 'cross_sections.npy')
-    for process, info in np.load(fn)[()].items():
-        coefficients = info['coefficients']
-        cross_section = info['cross section']
-        sm_coefficients = np.array([tuple([0.0] * len(coefficients.dtype))], dtype=coefficients.dtype)
-        sm_cross_section = np.mean(cross_section[coefficients == sm_coefficients])
-
-        for operator in coefficients.dtype.names:
-            x = coefficients[operator][coefficients[operator] != 0]
-            y = cross_section[coefficients[operator] != 0] / sm_cross_section
-            try:
-                data[operator].append((x, y))
-                labels[operator].append(process)
-            except KeyError:
-                data[operator] = [(x, y)]
-                labels[operator] = [process]
-
-    for operator in data.keys():
-        plotter.plot(data[operator],
-                operator,
-                '$\sigma_{NP+SM} / \sigma_{SM}$',
-                '',
-                os.path.join(config['outdir'], 'plots', 'cross_section_ratios', operator),
-                series_labels=labels[operator],
-        )
-
+    # plot_xsecs(config)
+    plot_nll(config)
