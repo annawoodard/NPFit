@@ -17,7 +17,6 @@ cd CMSSW_7_4_7/src
 set +o xtrace
 eval $(scramv1 runtime -sh)
 set -o xtrace
-git cms-init > /dev/null
 
 git clone -b v6.3.0 https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit.git HiggsAnalysis/CombinedLimit
 git clone https://github.com/cms-analysis/CombineHarvester.git CombineHarvester
