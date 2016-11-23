@@ -18,7 +18,6 @@ def make(args, config):
     source /cvmfs/cms.cern.ch/cmsset_default.sh
     cd {0}
     cmsenv
-    source /afs/crc.nd.edu/user/a/awoodard/.profile
     cd -
     exec "$@"
     """.format(os.environ["LOCALRT"])
