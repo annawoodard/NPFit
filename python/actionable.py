@@ -39,10 +39,15 @@ def make(args, config):
     makefile = os.path.join(config['outdir'], 'Makeflow')
     logging.info('writing Makeflow file to {}'.format(config['outdir']))
     with open(makefile, 'w') as f:
-        factory = os.path.join(os.environ['LOCALRT'], 'src', 'EffectiveTTV', 'EffectiveTTV', 'data', 'factory.json')
-        f.write("# to run, issue the following commands:\n")
-        f.write("# makeflow -T wq -M ttV_FTW --wrapper ./w.sh --wrapper-input w.sh\n")
-        f.write("# nohup work_queue_factory -T condor -M ttV_FTW -C {} >& makeflow_factory.log &\n".format(factory))
+        factory = os.path.join(data, 'factory.json')
+        msg = ('# to run, issue the following commands:\n'
+        '# cd {}\n'
+        '# makeflow -T wq -M ttV_FTW --wrapper ./w.sh --wrapper-input w.sh\n'
+        '# nohup work_queue_factory -T condor -M ttV_FTW -C {} >& makeflow_factory.log &\n'
+        ).format(config['outdir'], factory)
+        
+        f.write(msg)
+        logging.info(msg.replace('# ', ''))
 
     def makeflowify(inputs, outputs, cmd='run', rename=False):
         if isinstance(inputs, basestring):
