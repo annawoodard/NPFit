@@ -33,6 +33,9 @@ def make(args, config):
     with open(configfile, 'w') as f:
         yaml.dump(local_config, f)
 
+    data = os.path.join(os.environ['LOCALRT'], 'src', 'EffectiveTTV', 'EffectiveTTV', 'data')
+    shutil.copy(os.path.join(data, 'matplotlibrc'), config['outdir'])
+
     makefile = os.path.join(config['outdir'], 'Makeflow')
     logging.info('writing Makeflow file to {}'.format(config['outdir']))
     with open(makefile, 'w') as f:
