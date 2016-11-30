@@ -15,7 +15,7 @@ class EffectiveOperatorModel(PhysicsModel):
         for option, value in [x.split('=') for x in options]:
             if option == 'poi':
                 self.pois.append(value)
-            if option == 'process':
+            if option == 'process': # processes which will be scaled
                 self.processes.append(value)
             if option == 'data':
                 self.data = value
