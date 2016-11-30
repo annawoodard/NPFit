@@ -24,7 +24,7 @@ class EffectiveOperatorModel(PhysicsModel):
         fn = os.path.join(self.data, 'cross_sections.npy')
         info = np.load(fn)[()]
         for process in self.processes:
-            self.modelBuilder.out.var(process.upper())
+            self.modelBuilder.out.var(process)
             coefficients = info[process]['coefficients']
             cross_section = info[process]['cross section']
             sm_coefficients = np.array([tuple([0.0] * len(coefficients.dtype))], dtype=coefficients.dtype)
@@ -33,7 +33,7 @@ class EffectiveOperatorModel(PhysicsModel):
             functions = []
             for poi in self.pois:
                 x_var = self.modelBuilder.out.var(poi)
-                name = 'x_sec_{0}_{1}'.format(process.upper(), poi)
+                name = 'x_sec_{0}_{1}'.format(process, poi)
                 if not self.modelBuilder.out.function(name):
                     functions += [name]
                     x = coefficients[poi][coefficients[poi] != 0]
@@ -41,7 +41,7 @@ class EffectiveOperatorModel(PhysicsModel):
                     spline = ROOT.RooSpline1D(name, poi, x_var, len(x), x, y)
                     self.modelBuilder.out._import(spline)
 
-            self.modelBuilder.factory_('sum::x_sec_{0}({1})'.format(process.upper(), ', '.join(functions)))
+            self.modelBuilder.factory_('sum::x_sec_{0}({1})'.format(process, ', '.join(functions)))
 
     def doParametersOfInterest(self):
         for poi in self.pois:
@@ -52,7 +52,16 @@ class EffectiveOperatorModel(PhysicsModel):
         self.setup()
 
     def getYieldScale(self, bin, process):
-        if not self.DC.isSignal[process]:
+        card_names = {
+            'TTH': 'ttH',
+            'TTZ': 'ttZ',
+            'TTW': 'ttW'
+        }
+
+        if process in card_names:
+            process = card_names[process]
+        if process not in self.processes:
+        # if not self.DC.isSignal[process]:
             return 1
         else:
             name = 'x_sec_{0}'.format(process)
