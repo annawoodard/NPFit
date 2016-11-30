@@ -160,6 +160,9 @@ def make(args, config):
         outfile = '{}.total.root'.format(label)
         makeflowify(scans, outfile, ['LOCAL', 'hadd', '-f', outfile] + scans)
 
+    inputs = ['{}.total.root'.format('_'.join(o)) for o in combinations] + ['cross_sections.npy', 'run.yaml'] 
+    makeflowify(inputs, [], ['LOCAL', 'sh', os.path.join(data, 'env.sh'), 'run', '--plot', 'run.yaml'])
+
 def parse(args, config):
     import DataFormats.FWLite
 
@@ -205,9 +208,3 @@ def concatenate(args, config):
 
     outfile = os.path.join(config['outdir'], 'cross_sections.npy')
     np.save(outfile, res)
-
-def plot(args, config):
-    from EffectiveTTV.EffectiveTTV.plotting import plot_xsecs, plot_nll
-
-    # plot_xsecs(config)
-    plot_nll(config)

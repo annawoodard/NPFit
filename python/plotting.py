@@ -2,16 +2,34 @@ import atexit
 import contextlib
 from datetime import datetime
 import glob
-import jinja2
 import logging
 import os
 import shutil
 import tarfile
-import matplotlib
-import matplotlib.pyplot as plt
-from matplotlib.mlab import griddata
-import numpy as np
 
+import jinja2
+import matplotlib
+matplotlib.use('agg')
+from matplotlib.mlab import griddata
+import matplotlib.pyplot as plt
+import numpy as np
+from numpy.polynomial import Polynomial
+
+labels = {
+    'ttW': r'$\mathrm{t\bar{t}W}$ $\mathrm{cross}$ $\mathrm{section}$ $\mathrm{[fb]}$',
+    'ttZ': r'$\mathrm{t\bar{t}Z}$ $\mathrm{cross}$ $\mathrm{section}$ $\mathrm{[fb]}$',
+    'cuB': r'$\bar{c}_{uB}$',
+    'cHQ': r'$\bar{c}_{HQ}$',
+    'cHu': r'$\bar{c}_{Hu}$',
+    'c3W': r'$\bar{c}_{3W}$',
+    'cpHQ': r"$\bar{c}'_{HQ}$"
+}
+
+cross_sections = {
+    'ttW': 203.,
+    'ttZ': 206.,
+    'ttH': 130.
+}
 
 class Plotter(object):
 
@@ -61,7 +79,7 @@ class Plotter(object):
                     ).encode('utf-8'))
 
     @contextlib.contextmanager
-    def saved_figure(self, x_label, y_label, title, name):
+    def saved_figure(self, x_label, y_label, name, title=None):
         fig, ax = plt.subplots(figsize=(11,11))
 
         try:
@@ -69,7 +87,8 @@ class Plotter(object):
 
         finally:
             logging.info('saving {}'.format(name))
-            plt.title(title)
+            if title:
+                plt.title(title)
             plt.xlabel(x_label)
             plt.ylabel(y_label)
             plt.savefig(os.path.join(self.config['outdir'], '{}.pdf'.format(name)), bbox_inches='tight')
@@ -80,17 +99,22 @@ class NumPyPlotter(Plotter):
     def hist(self, data, num_bins, xlim, xlabel, title, name):
         data[data > xlim] = xlim
         data[data < (xlim * -1)] = xlim * -1
-        info = u"$\mu$ = {0:.3g}\n$\sigma$ = {1:.3g}\nmedian = {2:.3g}".format(np.average(data), np.std(data), np.median(data))
+
+        info = u"$\mu$ = {0:.3g}\n$\sigma$ = {1:.3g}\nmedian = {2:.3g}"
 
         with self.saved_figure(xlabel, 'counts', title, name) as ax:
-            # ax.set_xlim(xlim)
             ax.hist(data, bins=num_bins)
-            ax.text(0.95, 0.95, info,
-                     horizontalalignment='right', verticalalignment='top', transform=ax.transAxes, backgroundcolor='white')
-            # ax.text(0.95, 0.01, 'colored text in axes coords', verticalalignment='bottom', horizontalalignment='right', transform=ax.transAxes, fontsize=15)
+            ax.text(
+                0.95, 0.95,
+                info.format(np.average(data), np.std(data), np.median(data)),
+                horizontalalignment='right',
+                verticalalignment='top',
+                transform=ax.transAxes,
+                backgroundcolor='white'
+            )
 
-    def plot(self, data, xlabel, ylabel, title, name, series_labels=None):
-        with self.saved_figure(xlabel, ylabel, title, name) as ax:
+    def plot(self, data, xlabel, ylabel, name, series_labels=None, title=None):
+        with self.saved_figure(xlabel, ylabel, name, title) as ax:
             if series_labels:
                 for (x, y), l in zip(data, series_labels):
                     ax.plot(x, y, 'o', label=l)
@@ -108,6 +132,7 @@ class NumPyPlotter(Plotter):
             extent = (min(x), max(x), min(y), max(y))
             xi, yi = np.mgrid[extent[0]:extent[1]:500j, extent[2]:extent[3]:500j]
             zi = griddata(x, y, z, xi, yi)
+            
 
             plt.imshow(zi.T, extent=extent, aspect='auto', origin='lower', cmap=cmap)
             bar = plt.colorbar()
@@ -129,11 +154,9 @@ class NumPyPlotter(Plotter):
             plt.scatter(x, y, c=color, s=100, **kwargs)
 
 
-def plot_xsecs(config):
-    plotter = NumPyPlotter(config)
-
+def xsecs(config, plotter):
     data = {}
-    labels = {}
+    series_labels = {}
 
     fn = os.path.join(config['outdir'], 'cross_sections.npy')
     for process, info in np.load(fn)[()].items():
@@ -141,44 +164,184 @@ def plot_xsecs(config):
         cross_section = info['cross section']
         sm_coefficients = np.array([tuple([0.0] * len(coefficients.dtype))], dtype=coefficients.dtype)
         sm_cross_section = np.mean(cross_section[coefficients == sm_coefficients])
+        logging.info('for process {} SM cross section at LO is {}'.format(process, sm_cross_section))
 
         for operator in coefficients.dtype.names:
             x = coefficients[operator][coefficients[operator] != 0]
-            y = cross_section[coefficients[operator] != 0] / sm_cross_section
+            y = cross_section[coefficients[operator] != 0] 
+            fit = Polynomial.fit(x, y, 2)
+            with plotter.saved_figure(operator, '$\sigma_{NP+SM}$', os.path.join(config['outdir'], 'plots', 'cross_sections', process, operator), '') as ax:
+                ax.plot(x, y * cross_sections[process] / sm_cross_section, 'o')
+                ax.plot(x, fit(x) * cross_sections[process] / sm_cross_section, '-', label='quadratic fit')
+
             try:
-                data[operator].append((x, y))
-                labels[operator].append(process)
+                data[operator].append((x, y / sm_cross_section))
+                series_labels[operator].append(process)
             except KeyError:
-                data[operator] = [(x, y)]
-                labels[operator] = [process]
+                data[operator] = [(x, y / sm_cross_section)]
+                series_labels[operator] = [process]
 
     for operator in data.keys():
         plotter.plot(data[operator],
                 operator,
                 '$\sigma_{NP+SM} / \sigma_{SM}$',
-                '',
-                os.path.join(config['outdir'], 'plots', 'cross_section_ratios', operator),
-                series_labels=labels[operator],
+                os.path.join(config['outdir'], 'plots', 'cross_sections', 'ratios', operator),
+                series_labels=series_labels[operator],
         )
 
-def plot_nll(config):
-    # from root_numpy import root2array
+def nll(config, plotter):
+    from root_numpy import root2array
 
-    plotter = NumPyPlotter(config)
+    def slopes(x, y):
+        rise = y[1:] - y[:-1]
+        run = x[1:] - x[:-1]
+
+        return rise / run
+
+    def intercepts(x, y):
+        return y[1:] - slopes(x, y) * x[1:]
+
+    def crossings(x, y, q):
+        crossings = (q - intercepts(x, y)) / slopes(x, y)
+        
+        return crossings[(crossings > x[:-1]) & (crossings < x[1:])]
+
+    def intervals(x, y, q):
+        points = crossings(x, y, q) 
+
+        return [(points[i:i + 2], [q, q]) for i in range(0, len(points), 2)]
 
     for operator in config['operators']:
-        logging.info('doing {}'.format(operator))
-        # data = root2array(os.path.join(config['outdir'], '{}.total.root'.format(operator)))
-        data = np.load(os.path.join(config['outdir'], '{}.total.npy'.format(operator)))
-        data = data[data['deltaNLL'] > 0]
-        data = data[data['deltaNLL'] < 100]
+        data = root2array(os.path.join(config['outdir'], '{}.total.root'.format(operator)))
+        data = data[data['deltaNLL'] < 5]
 
-        plotter.plot([(data[operator], 2*data['deltaNLL'])],
-                operator,
-                '-2 $\Delta$ ln L',
-                '',
-                os.path.join(config['outdir'], 'plots', 'nll', operator),
-        )
+        sorted = np.argsort(data[operator])
+        x = data[operator][sorted]
+        y =  2 * data['deltaNLL'][sorted]
 
-    
+        one_sigma = intervals(x, y, 1.0)
+        two_sigma = intervals(x, y, 3.84)
 
+        left_x = x[x < 0]
+        left_y = y[x < 0]
+        right_x = x[x > 0]
+        right_y = y[x > 0]
+        best_fit_x = (left_x[left_y.argmin()], right_x[right_y.argmin()])
+        best_fit_y = (min(left_y), min(right_y))
+
+        with plotter.saved_figure(labels[operator], '-2 $\Delta$ ln L', os.path.join(config['outdir'], 'plots', 'nll', operator), '') as ax:
+            ax.plot(x, y, 'o')
+
+            for x, y in one_sigma:
+                ax.plot(x, y, '-', label='$1\sigma$ CL [{:03.2f}, {:03.2f}]'.format(x[0], x[1]))
+            for x, y in two_sigma:
+                ax.plot(x, y, '-', label='$2\sigma$ CL [{:03.2f}, {:03.2f}]'.format(x[0], x[1]))
+
+            ax.plot(best_fit_x, best_fit_y, 'ro', label='best fit: {:03.2f} and {:03.2f}'.format(best_fit_x[0], best_fit_x[1]))
+
+            ax.legend()
+
+
+def ttZ_ttW_2D(config, ax): 
+    from root_numpy import root2array
+    limits = root2array('ttZ_ttW_2D.total.root')
+
+    x = limits['r_ttW'] * cross_sections['ttW']
+    y = limits['r_ttZ'] * cross_sections['ttZ']
+    z = 2 * limits['deltaNLL']
+
+    extent = (0, 600, 0, 600)
+    x_min, x_max, y_min, y_max = extent
+
+    levels = {
+        2.30: '  1 $\sigma$',
+        5.99: '  2 $\sigma$',
+        11.83: ' 3 $\sigma$',
+        19.33: ' 4 $\sigma$',
+        28.74: ' 5 $\sigma$'
+    }
+
+    xi = np.linspace(x_min, x_max, 100)
+    yi = np.linspace(y_min, y_max, 100)
+    zi = griddata(x, y, z, xi, yi)
+    cs = plt.contour(xi, yi, zi, sorted(levels.keys()), colors='black', linewidths=2)
+    plt.clabel(cs, fmt=levels)
+    ax.set_ylim((0, 550))
+
+    plt.plot(
+        [cross_sections['ttW']],
+        [cross_sections['ttZ']],
+        color='black',
+        mew=3,
+        marker="o",
+        label='SM',
+        mfc='None'
+    )
+
+    plt.plot(
+        x[z.argmin()],
+        y[z.argmin()],
+        color='black',
+        mew=3,
+        marker="*",
+        label=r'Best fit ($\mathrm{t}\bar{\mathrm{t}}\mathrm{W}$, $\mathrm{t}\bar{\mathrm{t}}\mathrm{Z}$)',
+    )
+    # ax.legend(loc=2)
+
+
+
+def wilson_coefficients_in_window(config, plotter):
+
+    fits = {}
+
+    fn = os.path.join(config['outdir'], 'cross_sections.npy')
+    for process in ['ttZ', 'ttW']:
+        info = np.load(fn)[()][process]
+        coefficients = info['coefficients']
+        cross_section = info['cross section']
+        sm_coefficients = np.array([tuple([0.0] * len(coefficients.dtype))], dtype=coefficients.dtype)
+        sm_cross_section = np.mean(cross_section[coefficients == sm_coefficients])
+
+        for operator in config['operators']:
+            x = coefficients[operator][coefficients[operator] != 0]
+            y = cross_section[coefficients[operator] != 0] * cross_sections[process] / sm_cross_section
+
+            try:
+                fits[operator][process] = Polynomial.fit(x, y, 2)
+            except KeyError:
+                fits[operator] = {process: Polynomial.fit(x, y, 2)}
+
+    for operator in config['operators']:
+        with plotter.saved_figure(labels['ttW'], labels['ttZ'], 'plots/ttZ_ttW_2D_cross_section_with_sampled_{}'.format(operator)) as ax:
+            ttZ_ttW_2D(config, ax)
+            
+            ax.set_color_cycle([plt.cm.cool(i) for i in np.linspace(0, 1, 28)])
+
+            high = min(max((fits[operator]['ttW'] - 600).roots().real), max((fits[operator]['ttZ'] - 600).roots().real))
+            low = max(min((fits[operator]['ttW'] - 600).roots().real), min((fits[operator]['ttZ'] - 600).roots().real))
+            coefficients = np.linspace(low, high, 28)
+            # avoid overlapping due to symmetric points
+            for coefficient in np.hstack([coefficients[:14:2], coefficients[14::2]]):
+                plt.plot(fits[operator]['ttW'](coefficient),
+                    fits[operator]['ttZ'](coefficient),
+                    marker='x',
+                    markersize=17,
+                    mew=3,
+                    label='{}={:03.2f}'.format(operator, coefficient),
+                    linestyle="None"
+                )
+
+            ax.legend(numpoints=1, bbox_to_anchor=(1.02, 1), loc=2, borderaxespad=0., frameon=False)
+
+def plot(args, config):
+
+    from root_numpy import root2array
+    plotter = NumPyPlotter(config)
+
+    nll(config, plotter)
+    xsecs(config, plotter)
+
+    with plotter.saved_figure(labels['ttW'], labels['ttZ'], 'plots/ttZ_ttW_2D_cross_section') as ax:
+        ttZ_ttW_2D(config, ax)
+
+    wilson_coefficients_in_window(config, plotter)
