@@ -67,10 +67,20 @@ def make(args, config):
                     cmd=' '.join(cmd))
             f.write(s)
 
-    files = glob.glob(os.path.join(config['indir'], '*.root'))
-    for f in files:
-        outputs = os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npy'))
-        makeflowify('run.yaml', outputs, ['run', '--parse', f, 'run.yaml'])
+    if 'indir' in config:
+        files = glob.glob(os.path.join(config['indir'], '*.root'))
+        for f in files:
+            outputs = os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npy'))
+            makeflowify(['run.yaml', f], outputs, ['run', '--parse', f, 'run.yaml'])
+
+        inputs = [os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npy')) for f in files] + ['run.yaml']
+        outputs = 'cross_sections.npy'
+        makeflowify(inputs, outputs, ['run', '--concatenate', 'run.yaml'])
+    elif 'cross sections' in config:
+        shutil.copy(config['cross sections'], os.path.join(config['outdir'], 'cross_sections.npy'))
+    else:
+        raise RuntimeError('must specify either `indir` or `cross sections`')
+
 
     inputs = [os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npy')) for f in files] + ['run.yaml']
     outputs = 'cross_sections.npy'
