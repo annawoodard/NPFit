@@ -81,16 +81,45 @@ def make(args, config):
     else:
         raise RuntimeError('must specify either `indir` or `cross sections`')
 
+    lowers = np.arange(1, config['2d points'], config['chunk size'])
+    uppers = np.arange(config['chunk size'], config['2d points'] + config['chunk size'], config['chunk size'])
 
-    inputs = [os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npy')) for f in files] + ['run.yaml']
-    outputs = 'cross_sections.npy'
-    makeflowify(inputs, outputs, ['run', '--concatenate', 'run.yaml'])
+    workspace = os.path.join('workspaces', 'ttW_ttZ_2D.root')
+    cmd = [
+        'mkdir workspaces;',
+        'text2workspace.py', config['card'],
+        '-P', 'EffectiveTTV.EffectiveTTV.models:two_signal_model',
+        '--PO', 'pois=r_ttZ,r_ttW',
+        '-o', workspace
+    ]
 
-    inputs = ['cross_sections.npy', 'run.yaml']
-    makeflowify(inputs, [], ['LOCAL', 'run', '--plot', 'run.yaml'])
+    makeflowify([], workspace, cmd)
+    
+    scans = []
+    for index, (first, last) in enumerate(zip(lowers, uppers)):
+        cmd = [
+            'combine',
+            '-M', 'MultiDimFit',
+            workspace,
+            '--algo=grid',
+            '--points={}'.format(config['2d points']),
+            '-n', '_ttW_ttZ_2D_part_{}'.format(index),
+            '--setPhysicsModelParameterRanges r_ttZ=0,3:r_ttW=0,3',
+            '--setPhysicsModelParameters r_ttZ=0.5,r_ttW=0.5',
+            '--firstPoint {}'.format(first),
+            '--lastPoint {}'.format(last)
+        ]
 
-    lowers = np.arange(0, config['points'], config['chunk size'])
-    uppers = np.arange(config['chunk size'], config['points'] + config['chunk size'], config['chunk size'])
+        scan = os.path.join('scans', 'higgsCombine_ttW_ttZ_2D_part_{}.MultiDimFit.mH120.root'.format(index))
+        scans.append(scan)
+
+        makeflowify(workspace, scan, cmd, rename=True)
+
+    outfile = 'ttZ_ttW_2D.total.root'
+    makeflowify(scans, outfile, ['LOCAL', 'hadd', '-f', outfile] + scans)
+
+    lowers = np.arange(1, config['1d points'], config['chunk size'])
+    uppers = np.arange(config['chunk size'], config['1d points'] + config['chunk size'], config['chunk size'])
 
     combinations = [sorted(list(x)) for x in itertools.combinations(config['operators'], config['dimension'])]
     for operators in combinations:
@@ -100,7 +129,6 @@ def make(args, config):
             'mkdir workspaces;',
             'text2workspace.py', config['card'],
             '-P', 'EffectiveTTV.EffectiveTTV.models:eff_op',
-            '-m', '125',
             '--PO', 'data={}'.format(config['outdir']),
             ' '.join(['--PO process={}'.format(x) for x in config['processes']]),
             ' '.join(['--PO poi={}'.format(x) for x in operators]),
@@ -115,9 +143,8 @@ def make(args, config):
                 'combine',
                 '-M', 'MultiDimFit',
                 workspace,
-                '-m', '125',
                 '--algo=grid',
-                '--points={}'.format(config['points']),
+                '--points={}'.format(config['1d points']),
                 '--setPhysicsModelParameters', ','.join(['{}=0.0'.format(x) for x in operators]),
                 '--setPhysicsModelParameterRanges', ':'.join(['{}=-1,1'.format(x) for x in operators]),
                 '-n', '_{}_part_{}'.format(label, index),
@@ -125,7 +152,7 @@ def make(args, config):
                 '--lastPoint {}'.format(last)
             ]
 
-            scan = os.path.join('scans', 'higgsCombine_{}_part_{}.MultiDimFit.mH125.root'.format(label, index))
+            scan = os.path.join('scans', 'higgsCombine_{}_part_{}.MultiDimFit.mH120.root'.format(label, index))
             scans.append(scan)
 
             makeflowify(workspace, scan, cmd, rename=True)
