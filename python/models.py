@@ -1,11 +1,12 @@
-from array import array
-from HiggsAnalysis.CombinedLimit.PhysicsModel import PhysicsModel
-from HiggsAnalysis.CombinedLimit.SMHiggsBuilder import SMHiggsBuilder
-import numpy as np
 import os
 import re
+
+import numpy as np
+from numpy.polynomial import Polynomial
 import ROOT
 
+from HiggsAnalysis.CombinedLimit.PhysicsModel import PhysicsModel
+from HiggsAnalysis.CombinedLimit.SMHiggsBuilder import SMHiggsBuilder
 
 class EffectiveOperatorModel(PhysicsModel):
 
