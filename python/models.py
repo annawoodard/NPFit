@@ -19,6 +19,8 @@ class EffectiveOperatorModel(PhysicsModel):
                 self.processes.append(value)
             if option == 'data':
                 self.data = value
+            if option == 'plots':
+                self.plots = value
 
     def setup(self):
         info = np.load(self.data)[()]
@@ -31,14 +33,35 @@ class EffectiveOperatorModel(PhysicsModel):
 
             functions = []
             for poi in self.pois:
-                x_var = self.modelBuilder.out.var(poi)
+                x = self.modelBuilder.out.var(poi)
                 name = 'x_sec_{0}_{1}'.format(process, poi)
                 if not self.modelBuilder.out.function(name):
                     functions += [name]
-                    x = coefficients[poi][coefficients[poi] != 0]
-                    y = cross_section[coefficients[poi] != 0] / sm_cross_section
-                    spline = ROOT.RooSpline1D(name, poi, x_var, len(x), x, y)
-                    self.modelBuilder.out._import(spline)
+                    xi = coefficients[poi][coefficients[poi] != 0]
+                    yi = cross_section[coefficients[poi] != 0] / sm_cross_section
+                    fit = Polynomial.fit(xi, yi, 2)
+
+                    template = "expr::{name}('{a0} + ({a1} * {poi}) + ({a2} * {poi} * {poi})', {poi})"
+                    quadratic = self.modelBuilder.factory_(template.format(name=name, a0=fit.coef[0], a1=fit.coef[1], a2=fit.coef[2], poi=poi))
+                    self.modelBuilder.out._import(quadratic)
+                    
+                    c1 = ROOT.TCanvas()
+                    proj = quadratic.plotOn(x.frame())
+                    graph = ROOT.TGraph(len(xi), xi, yi)
+                    graph.SetMarkerStyle(20)
+                    graph.SetMarkerSize(1)
+                    graph.SetMarkerColor(6)
+                    graph.GetXaxis().SetRangeUser(-1, 1)
+                    graph.SetTitle("")
+                    graph.GetXaxis().SetTitle(poi)
+                    graph.GetYaxis().SetTitle("#frac{#sigma_{NP+SM}}{#sigma_{SM}}")
+                    graph.Draw()
+                    proj.Draw("same")
+                    ROOT.gPad.BuildLegend()
+                    path = os.path.join(self.plots, 'cross_sections', process, '{}.pdf'.format(poi))
+                    c1.SaveAs(path)
+
+                    del c1
 
             self.modelBuilder.factory_('sum::x_sec_{0}({1})'.format(process, ', '.join(functions)))
 

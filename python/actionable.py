@@ -132,6 +132,7 @@ def make(args, config):
             '--PO', 'data={}'.format(os.path.join(config['outdir'], 'cross_sections.npy')),
             ' '.join(['--PO process={}'.format(x) for x in config['processes']]),
             ' '.join(['--PO poi={}'.format(x) for x in operators]),
+            '--PO', 'plots={}'.format(os.path.join(config['outdir'], 'plots')),
             '-o', workspace
         ]
 
