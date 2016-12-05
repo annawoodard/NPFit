@@ -21,8 +21,7 @@ class EffectiveOperatorModel(PhysicsModel):
                 self.data = value
 
     def setup(self):
-        fn = os.path.join(self.data, 'cross_sections.npy')
-        info = np.load(fn)[()]
+        info = np.load(self.data)[()]
         for process in self.processes:
             self.modelBuilder.out.var(process)
             coefficients = info[process]['coefficients']
