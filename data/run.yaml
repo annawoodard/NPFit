@@ -1,0 +1,17 @@
+# indir: /hadoop/store/user/awoodard/ttV/8/1/*gen*
+cross sections: /afs/crc.nd.edu/user/a/awoodard/www/ttV/8/1/1/cross_sections.npy
+outdir: ~/www/ttV/8/1/3
+dimension: 1
+cards:
+  2lss: /afs/crc.nd.edu/user/a/awoodard/releases/effective-ttV/CMSSW_7_4_7/src/EffectiveTTV/EffectiveTTV/data/cards/21Nov_2016/2L.txt
+  3l: /afs/crc.nd.edu/user/a/awoodard/releases/effective-ttV/CMSSW_7_4_7/src/EffectiveTTV/EffectiveTTV/data/cards/21Nov_2016/3L.txt
+  4l: /afs/crc.nd.edu/user/a/awoodard/releases/effective-ttV/CMSSW_7_4_7/src/EffectiveTTV/EffectiveTTV/data/cards/21Nov_2016/4L.txt
+1d points: 200
+2d points: 10000
+chunk size: 50
+
+processes: ['ttH', 'ttZ', 'ttW'] # processes to scale
+operators: ['cpHQ', 'cHQ', 'cuB', 'c3W', 'cHu']
+# operators: ['c2W', 'c3G', 'c3W', 'cA', 'cB', 'cG', 'cHB', 'cHQ', 'cHW',
+           # 'cHd', 'cHu', 'cHud', 'cT', 'cWW', 'cpHQ', 'cu', 'cuB',
+           # 'cuG', 'cuW', 'tc3G', 'tc3W', 'tcG', 'tcHW']

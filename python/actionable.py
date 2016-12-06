@@ -4,7 +4,9 @@ import logging
 import itertools
 import numpy as np
 import os
+import re
 import shutil
+import subprocess
 import stat
 import yaml
 
@@ -35,6 +37,31 @@ def make(args, config):
 
     data = os.path.join(os.environ['LOCALRT'], 'src', 'EffectiveTTV', 'EffectiveTTV', 'data')
     shutil.copy(os.path.join(data, 'matplotlibrc'), config['outdir'])
+
+    def cardify(name):
+        return os.path.join(config['outdir'], '{}.txt'.format(name))
+
+    for name, card in config['cards'].items():
+        shutil.copy(card, cardify(name))
+
+    subprocess.call('combineCards.py {} {} > {}'.format(cardify('3l'), cardify('4l'), cardify('ttZ')), shell=True)
+    subprocess.call('combineCards.py {} {} > {}'.format(cardify('ttZ'), cardify('2lss'), cardify('ttV')), shell=True)
+    
+    with open(cardify('ttV'), 'r') as f:
+        card = f.read()
+
+    processes = re.compile(r'\nprocess.*')
+    for index, process in enumerate(['ttW', 'ttZ']):
+        names, numbers = processes.findall(card)
+        for column in [i for i, name in enumerate(names.split()) if name == process]:
+            number = numbers.split()[column]
+            card = card.replace(numbers, numbers.replace(number, '{}'.format(index * -1)))
+
+    jmax = re.search('jmax (\d*)', card).group(0)
+    card = card.replace(jmax, 'jmax {}'.format(len(set(names.split()[1:])) - 1))
+
+    with open(cardify('ttV'), 'w') as f:
+        f.write(card)
 
     makefile = os.path.join(config['outdir'], 'Makeflow')
     logging.info('writing Makeflow file to {}'.format(config['outdir']))
@@ -87,7 +114,7 @@ def make(args, config):
     workspace = os.path.join('workspaces', 'ttW_ttZ_2D.root')
     cmd = [
         'mkdir workspaces;',
-        'text2workspace.py', config['card'],
+        'text2workspace.py', os.path.join(config['outdir'], 'ttV.txt'),
         '-P', 'HiggsAnalysis.CombinedLimit.PhysicsModel:multiSignalModel',
         '--PO', 'map=.*/ttZ:r_ttZ[1,0,4]',
         '--PO', 'map=.*/ttW:r_ttW[1,0,4]',
@@ -126,7 +153,7 @@ def make(args, config):
         workspace = os.path.join('workspaces', '{}.root'.format(label))
         cmd = [
             'mkdir workspaces;',
-            'text2workspace.py', config['card'],
+            'text2workspace.py', os.path.join(config['outdir'], 'ttV.txt'),
             '-P', 'EffectiveTTV.EffectiveTTV.models:eff_op',
             '--PO', 'data={}'.format(os.path.join(config['outdir'], 'cross_sections.npy')),
             ' '.join(['--PO process={}'.format(x) for x in config['processes']]),
