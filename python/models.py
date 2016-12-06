@@ -107,26 +107,6 @@ class TTbarWTTbarZSignalModel(PhysicsModel):
         else:
             return 1
 
-class TwoSignalModel(PhysicsModel):
-    def setPhysicsOptions(self, options):
-        self.poi_map = {'r_ttH': 'TTH', 'r_ttW': 'TTW', 'r_ttZ': 'TTZ'}
-        self.pois = []
-        for option, value in [x.split('=') for x in options]:
-            if option == 'signals':
-                self.pois.extend(value.split(','))
-
-    def doParametersOfInterest(self):
-        """Create POI out of signal strength"""
-        for poi in self.pois:
-            self.modelBuilder.doVar("%s[0.5,0,2]" % poi)
-        self.modelBuilder.doSet("POI",','.join(self.pois))
-
-    def getYieldScale(self, bin, process):
-        for poi in self.pois:
-            if process == self.poi_map[poi]:
-                return poi
-        return 1
-
 class CvCaZSimpleModel(PhysicsModel):
     def doParametersOfInterest(self):
         self.modelBuilder.doVar("cV[0.244,-1.3,1.3]")
@@ -159,4 +139,3 @@ ttW_ttZ_signal_model = TTbarWTTbarZSignalModel()
 eff_op = EffectiveOperatorModel()
 cVcAZ = CvCaZSimpleModel()
 cVcA = CvCaModel()
-two_signal_model = TwoSignalModel()

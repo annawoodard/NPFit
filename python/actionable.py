@@ -88,8 +88,9 @@ def make(args, config):
     cmd = [
         'mkdir workspaces;',
         'text2workspace.py', config['card'],
-        '-P', 'EffectiveTTV.EffectiveTTV.models:two_signal_model',
-        '--PO', 'pois=r_ttZ,r_ttW',
+        '-P', 'HiggsAnalysis.CombinedLimit.PhysicsModel:multiSignalModel',
+        '--PO', 'map=.*/ttZ:r_ttZ[1,0,4]',
+        '--PO', 'map=.*/ttW:r_ttW[1,0,4]',
         '-o', workspace
     ]
 
@@ -104,8 +105,6 @@ def make(args, config):
             '--algo=grid',
             '--points={}'.format(config['2d points']),
             '-n', '_ttW_ttZ_2D_part_{}'.format(index),
-            '--setPhysicsModelParameterRanges r_ttZ=0,3:r_ttW=0,3',
-            '--setPhysicsModelParameters r_ttZ=0.5,r_ttW=0.5',
             '--firstPoint {}'.format(first),
             '--lastPoint {}'.format(last)
         ]
