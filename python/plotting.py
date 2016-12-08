@@ -182,8 +182,10 @@ def xsecs(config, plotter):
                 series_labels=series_labels[operator],
         )
 
-def nll(config, plotter):
+
+def fit_nll(config):
     from root_numpy import root2array
+    import scipy.signal
 
     def slopes(x, y):
         rise = y[1:] - y[:-1]
@@ -269,49 +271,109 @@ def ttZ_ttW_2D(config, ax):
     levels = {
         2.30: '  1 $\sigma$',
         5.99: '  2 $\sigma$',
-        11.83: ' 3 $\sigma$',
-        19.33: ' 4 $\sigma$',
-        28.74: ' 5 $\sigma$'
+        # 11.83: ' 3 $\sigma$',
+        # 19.33: ' 4 $\sigma$',
+        # 28.74: ' 5 $\sigma$'
     }
 
-    xi = np.linspace(x_min, x_max, 100)
-    yi = np.linspace(y_min, y_max, 100)
-    zi = griddata(x, y, z, xi, yi)
+    xi = np.linspace(x_min, x_max, 1000)
+    yi = np.linspace(y_min, y_max, 1000)
+    zi = griddata(x, y, z, xi, yi, interp='linear')
+
     cs = plt.contour(xi, yi, zi, sorted(levels.keys()), colors='black', linewidths=2)
     plt.clabel(cs, fmt=levels)
-    ax.set_ylim((0, 550))
 
-    plt.plot(
-        [cross_sections['ttW']],
-        [cross_sections['ttZ']],
-        color='black',
-        mew=3,
-        marker="o",
-        label='SM',
-        mfc='None'
-    )
+    handles = []
+    labels = []
 
-    plt.plot(
+    bf, = plt.plot(
         x[z.argmin()],
         y[z.argmin()],
         color='black',
         mew=3,
-        marker="*",
-        label=r'Best fit ($\mathrm{t}\bar{\mathrm{t}}\mathrm{W}$, $\mathrm{t}\bar{\mathrm{t}}\mathrm{Z}$)',
+        markersize=17,
+        marker="+",
+        linestyle='None'
     )
-    # ax.legend(loc=2)
+    handles.append(bf)
+    labels.append('2D best fit')
+    print 'best fit ', x[z.argmin()], y[z.argmin()]
 
+    ttW_theory_xsec = plt.axvline(x=cross_sections['ttW'], linestyle='--', color='black')
+    ttW_theory_error = ax.axvspan(
+        cross_sections['ttW'] - cross_sections['ttW'] * 0.12,
+        cross_sections['ttW'] + cross_sections['ttW'] * 0.10,
+        edgecolor='#555555',
+        fill=False,
+        linewidth=0.0,
+        hatch='//'
+    )
+    handles.append((ttW_theory_xsec, ttW_theory_error))
+    labels.append('{} theory'.format(label['ttW']))
 
+    ttZ_theory_xsec = plt.axhline(y=cross_sections['ttZ'], linestyle='--', color='black')
+    ttZ_theory_error = ax.axhspan(
+        cross_sections['ttZ'] - cross_sections['ttZ'] * 0.12,
+        cross_sections['ttZ'] + cross_sections['ttZ'] * 0.10,
+        edgecolor='#555555',
+        fill=False,
+        linewidth=0.0,
+        zorder=2,
+        hatch='\\'
+    )
+    handles.append((ttZ_theory_xsec, ttZ_theory_error))
+    labels.append('{} theory'.format(label['ttZ']))
 
-def wilson_coefficients_in_window(config, plotter):
+    return handles, labels
 
+def ttZ_ttW_2D_1D_ttZ_1D_ttW(config, plotter): 
+    from root_numpy import root2array
+    with plotter.saved_figure(
+            label['sigma ttW'],
+            label['sigma ttZ'],
+            'plots/ttZ_ttW_2D_1D_ttZ_1D_ttW',
+            header=config['plot header']) as ax:
+        handles, labels = ttZ_ttW_2D(config, ax)
+
+        data = root2array('ttW.root')
+
+        print 'ttW 1D: ', data['limit'][0] * cross_sections['ttW']
+        ttW_1D_xsec = plt.axvline(x=data['limit'][0] * cross_sections['ttW'], color='black')
+        ttW_1D_error = ax.axvspan(
+            data['limit'][1] * cross_sections['ttW'],
+            data['limit'][2] * cross_sections['ttW'],
+            alpha=0.5,
+            color='#FA6900',
+            linewidth=0.0
+        )
+        handles.append((ttW_1D_xsec, ttW_1D_error))
+        labels.append('{} 1D $\pm$ $1\sigma$'.format(label['ttW']))
+
+        data = root2array('ttZ.root')
+
+        print 'ttZ 1D: ', data['limit'][0] * cross_sections['ttZ']
+        ttZ_1D_xsec = plt.axhline(y=data['limit'][0] * cross_sections['ttZ'], color='black')
+        ttZ_1D_error = ax.axhspan(
+            data['limit'][1] * cross_sections['ttZ'],
+            data['limit'][2] * cross_sections['ttZ'],
+            color='#69D2E7',
+            alpha=0.5,
+            linewidth=0.0
+        )
+        handles.append((ttZ_1D_xsec, ttZ_1D_error))
+        labels.append('{} 1D $\pm$ $1\sigma$'.format(label['ttZ']))
+
+        plt.legend(handles, labels, fontsize=15)
+
+def load_fits(config):
     fits = {}
 
     fn = os.path.join(config['outdir'], 'cross_sections.npy')
+    print '{:10} {:14} {:12} {:14}'.format('process', '       NLO', '   LO', 'scale factor')
     for process in ['ttZ', 'ttW']:
         info = np.load(fn)[()][process]
         coefficients = info['coefficients']
-        cross_section = info['cross section']
+        cross_section = info['cross section'] * 1000.0
         sm_coefficients = np.array([tuple([0.0] * len(coefficients.dtype))], dtype=coefficients.dtype)
         sm_cross_section = np.mean(cross_section[coefficients == sm_coefficients])
 
@@ -319,13 +381,66 @@ def wilson_coefficients_in_window(config, plotter):
             x = coefficients[operator][coefficients[operator] != 0]
             y = cross_section[coefficients[operator] != 0] * cross_sections[process] / sm_cross_section
 
+            if operator == 'cpHQ':
+                print '{:10} {:-10.0f} {:10.0f} {:10.2f}'.format(process, cross_sections[process], sm_cross_section, cross_sections[process] / sm_cross_section)
             try:
                 fits[operator][process] = Polynomial.fit(x, y, 2)
             except KeyError:
                 fits[operator] = {process: Polynomial.fit(x, y, 2)}
 
+    return fits
+
+def ttZ_ttW_2D_1D_eff_op(config, plotter):
+    from root_numpy import root2array
+    fits = load_fits(config)
+
     for operator in config['operators']:
-        with plotter.saved_figure(labels['ttW'], labels['ttZ'], 'plots/ttZ_ttW_2D_cross_section_with_sampled_{}'.format(operator)) as ax:
+        with plotter.saved_figure(
+                label['sigma ttW'],
+                label['sigma ttZ'],
+                'plots/ttZ_ttW_2D_1D_{}'.format(operator),
+                header=config['plot header']) as ax:
+            handles, labels = ttZ_ttW_2D(config, ax)
+
+            data = root2array('best-fit-{}.root'.format(operator))
+
+            # p = np.linspace(data[operator][1], data[operator][2], 1000)
+            # x = fits[operator]['ttW'](p)
+            # y = fits[operator]['ttZ'](p)
+            # band = plt.fill_between(x, y - y * 0.1, y + y * 0.1)
+            # line = plt.plot(x, y, color='#A8D46F')
+            # plt.fill_betweenx(y, x - x * 0.1, x + x * 0.1)
+
+            bf, = plt.plot(
+                fits[operator]['ttW'](data[operator][0]),
+                fits[operator]['ttZ'](data[operator][0]),
+                color='black',
+                mew=3,
+                markersize=17,
+                marker="*",
+                linestyle='None'
+            )
+            handles.append(bf)
+            labels.append('best fit {}\n{:03.2f} [{:03.2f}, {:03.2f}]'.format(
+                label[operator],
+                round(data[operator][0], 2) + 0,
+                data[operator][1],
+                data[operator][2]
+                )
+            )
+
+            plt.legend(handles, labels, fontsize=15)
+
+def wilson_coefficients_in_window(config, plotter):
+
+    fits = load_fits(config)
+
+    for operator in config['operators']:
+        with plotter.saved_figure(
+                label['sigma ttW'],
+                label['sigma ttZ'],
+                'plots/ttZ_ttW_2D_cross_section_with_sampled_{}'.format(operator),
+                header=config['plot header']) as ax:
             ttZ_ttW_2D(config, ax)
             
             ax.set_color_cycle([plt.cm.cool(i) for i in np.linspace(0, 1, 28)])
@@ -354,7 +469,7 @@ def plot(args, config):
     nll(config, plotter)
     xsecs(config, plotter)
 
-    with plotter.saved_figure(labels['ttW'], labels['ttZ'], 'plots/ttZ_ttW_2D_cross_section') as ax:
-        ttZ_ttW_2D(config, ax)
 
     wilson_coefficients_in_window(config, plotter)
+    ttZ_ttW_2D_1D_ttZ_1D_ttW(config, plotter)
+    ttZ_ttW_2D_1D_eff_op(config, plotter)
