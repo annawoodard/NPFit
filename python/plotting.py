@@ -45,9 +45,9 @@ label = {
 }
 
 cross_sections = {
-    'ttW': 203.,
-    'ttZ': 206.,
-    'ttH': 130.
+    'ttW': 601.,
+    'ttZ': 839.,
+    'ttH': 496.
 }
 
 class Plotter(object):
@@ -269,7 +269,7 @@ def ttZ_ttW_2D(config, ax):
     y = limits['r_ttZ'] * cross_sections['ttZ']
     z = 2 * limits['deltaNLL']
 
-    extent = (0, 600, 0, 600)
+    extent = (0, 1800, 0, 2200)
     x_min, x_max, y_min, y_max = extent
 
     levels = {
@@ -336,8 +336,8 @@ def wilson_coefficients_in_window(config, plotter):
             
             ax.set_color_cycle([plt.cm.cool(i) for i in np.linspace(0, 1, 28)])
 
-            high = min(max((fits[operator]['ttW'] - 600).roots().real), max((fits[operator]['ttZ'] - 600).roots().real))
-            low = max(min((fits[operator]['ttW'] - 600).roots().real), min((fits[operator]['ttZ'] - 600).roots().real))
+            high = min(max((fits[operator]['ttW'] - 1000).roots().real), max((fits[operator]['ttZ'] - 1000).roots().real))
+            low = max(min((fits[operator]['ttW'] - 1000).roots().real), min((fits[operator]['ttZ'] - 1000).roots().real))
             coefficients = np.linspace(low, high, 28)
             # avoid overlapping due to symmetric points
             for coefficient in np.hstack([coefficients[:14:2], coefficients[14::2]]):
