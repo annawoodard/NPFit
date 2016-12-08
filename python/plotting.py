@@ -173,13 +173,42 @@ def xsecs(config, plotter):
                 series_labels[operator] = [process]
 
     for operator in data.keys():
-        plotter.plot(data[operator],
-                operator,
+        with plotter.saved_figure(
+                label[operator],
                 '$\sigma_{NP+SM} / \sigma_{SM}$',
-                os.path.join(config['outdir'], 'plots', 'cross_sections', 'ratios', operator),
-                series_labels=series_labels[operator],
-        )
+                os.path.join(config['outdir'], 'plots', 'cross_sections', 'ratios', operator)
+                ) as ax:
+            for (x, y), l in zip(data[operator], series_labels[operator]):
+                ax.plot(x, y, 'o', label=l)
 
+            if operator in config['operators']:
+                info = root2array('best-fit-{}.root'.format(operator))
+                plt.axvline(
+                    x=info[operator][0],
+                    ymax=0.5,
+                    linestyle='-',
+                    color='black',
+                    label='best fit {}$={:.2f}$'.format(label[operator], round(info[operator][0], 2) + 0)
+                )
+                plt.axvline(
+                    x=info[operator][1],
+                    ymax=0.5,
+                    linestyle='--',
+                    color='black',
+                    label='$1 \sigma [{:03.2f}, {:03.2f}]$'.format(info[operator][1], info[operator][2])
+                )
+                plt.axvline(
+                    x=info[operator][2],
+                    ymax=0.5,
+                    linestyle='--',
+                    color='black'
+                )
+            ax.legend(loc='upper center')
+
+        # FIXME: add fits
+        # x = np.linspace(-1, 1, 100)
+        # y = fits[operator]['ttZ'](x)
+        # plt.plot(x, y)
 
 def fit_nll(config):
     from root_numpy import root2array
