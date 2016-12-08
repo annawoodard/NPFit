@@ -141,7 +141,7 @@ def make(args, config):
 
         makeflowify(workspace, scan, cmd, rename=True)
 
-    outfile = 'ttZ_ttW_2D.total.root'
+    outfile = 'scans/ttZ_ttW_2D.total.root'
     makeflowify(scans, outfile, ['LOCAL', 'hadd', '-f', outfile] + scans)
 
     lowers = np.arange(1, config['1d points'], config['chunk size'])

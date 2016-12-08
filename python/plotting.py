@@ -199,45 +199,65 @@ def nll(config, plotter):
         
         return crossings[(crossings > x[:-1]) & (crossings < x[1:])]
 
+    def interval(x, y, q, p):
+        points = crossings(x, y, q) 
+        for low, high in [points[i:i + 2] for i in range(0, len(points), 2)]:
+            if p > low and p < high:
+                return [low, high]
+
     def intervals(x, y, q):
         points = crossings(x, y, q) 
 
         return [(points[i:i + 2], [q, q]) for i in range(0, len(points), 2)]
 
+    res = {}
     for operator in config['operators']:
-        data = root2array(os.path.join(config['outdir'], '{}.total.root'.format(operator)))
+        data = root2array(os.path.join(config['outdir'], 'scans', '{}.total.root'.format(operator)))
         data = data[data['deltaNLL'] < 5]
+        _, unique = np.unique(data[operator], return_index=True)
 
-        sorted = np.argsort(data[operator])
-        x = data[operator][sorted]
-        y =  2 * data['deltaNLL'][sorted]
+        x = data[unique][operator]
+        y = 2 * data[unique]['deltaNLL']
+        minima = scipy.signal.argrelmin(y)
+        threshold = y[minima] - min(y) < 0.1
 
-        one_sigma = intervals(x, y, 1.0)
-        two_sigma = intervals(x, y, 3.84)
+        res[operator] = {
+            'x': x,
+            'y': y,
+            'best fit': [],
+            'one sigma': set(),
+            'two sigma': set()
+        }
 
-        left_x = x[x < 0]
-        left_y = y[x < 0]
-        right_x = x[x > 0]
-        right_y = y[x > 0]
-        best_fit_x = (left_x[left_y.argmin()], right_x[right_y.argmin()])
-        best_fit_y = (min(left_y), min(right_y))
+        for xbf, ybf in zip(x[minima][threshold], y[minima][threshold]):
+            res[operator]['best fit'].append((xbf, ybf))
+            res[operator]['one sigma'].add(interval(x, y, 1.0, xbf))
+            res[operator]['two sigma'].add(interval(x, y, 3.84, xbf))
 
-        with plotter.saved_figure(labels[operator], '-2 $\Delta$ ln L', os.path.join(config['outdir'], 'plots', 'nll', operator), '') as ax:
-            ax.plot(x, y, 'o')
+    return res
 
-            for x, y in one_sigma:
-                ax.plot(x, y, '-', label='$1\sigma$ CL [{:03.2f}, {:03.2f}]'.format(x[0], x[1]))
-            for x, y in two_sigma:
-                ax.plot(x, y, '-', label='$2\sigma$ CL [{:03.2f}, {:03.2f}]'.format(x[0], x[1]))
+def nll(config, plotter):
+    data = fit_nll(config)
 
-            ax.plot(best_fit_x, best_fit_y, 'ro', label='best fit: {:03.2f} and {:03.2f}'.format(best_fit_x[0], best_fit_x[1]))
+    for operator, info in data.items():
+        with plotter.saved_figure(label[operator], '-2 $\Delta$ ln L', os.path.join(config['outdir'], 'plots', 'nll', operator), '') as ax:
+            ax.plot(info['x'], info['y'], 'o')
 
-            ax.legend()
+            for x, y in info['best fit']:
+                ax.plot(x, y, 'o', c='#fc4f30', label='best fit: {:03.2f}'.format(round(x, 2) + 0))
+
+            for low, high in info['one sigma']:
+                ax.plot([low, high], [1.0, 1.0], '-', label='$1\sigma$ CL [{:03.2f}, {:03.2f}]'.format(low, high))
+
+            for low, high in info['two sigma']:
+                ax.plot([low, high], [3.84, 3.84], '-', label='$2\sigma$ CL [{:03.2f}, {:03.2f}]'.format(low, high))
+
+            ax.legend(loc='upper center')
 
 
 def ttZ_ttW_2D(config, ax): 
     from root_numpy import root2array
-    limits = root2array('ttZ_ttW_2D.total.root')
+    limits = root2array(os.path.join('scans', 'ttZ_ttW_2D.total.root'))
 
     x = limits['r_ttW'] * cross_sections['ttW']
     y = limits['r_ttZ'] * cross_sections['ttZ']
