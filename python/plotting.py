@@ -15,14 +15,34 @@ import matplotlib.pyplot as plt
 import numpy as np
 from numpy.polynomial import Polynomial
 
-labels = {
-    'ttW': r'$\mathrm{t\bar{t}W}$ $\mathrm{cross}$ $\mathrm{section}$ $\mathrm{[fb]}$',
-    'ttZ': r'$\mathrm{t\bar{t}Z}$ $\mathrm{cross}$ $\mathrm{section}$ $\mathrm{[fb]}$',
+label = {
+    'sigma ttW': r'$\sigma_{\mathrm{t\bar{t}W}}$ $\mathrm{[fb]}$',
+    'sigma ttZ': r'$\sigma_{\mathrm{t\bar{t}Z}}$ $\mathrm{[fb]}$',
+    'ttW': r'$\mathrm{t\bar{t}W}}$',
+    'ttZ': r'$\mathrm{t\bar{t}Z}}$',
     'cuB': r'$\bar{c}_{uB}$',
     'cHQ': r'$\bar{c}_{HQ}$',
     'cHu': r'$\bar{c}_{Hu}$',
     'c3W': r'$\bar{c}_{3W}$',
-    'cpHQ': r"$\bar{c}'_{HQ}$"
+    'cpHQ': r"$\bar{c}'_{HQ}$",
+    'c2W': r'$\bar{c}_{2W}$',
+    'c3G': r'$\bar{c}_{3G}$',
+    'cA': r'$\bar{c}_{A}$',
+    'cB': r'$\bar{c}_{B}$',
+    'cG': r'$\bar{c}_{G}$',
+    'cHB': r'$\bar{c}_{HB}$',
+    'cHW': r'$\bar{c}_{HW}$',
+    'cHd': r'$\bar{c}_{Hd}$',
+    'cHud': r'$\bar{c}_{Hud}$',
+    'cT': r'$\bar{c}_{T}$',
+    'cWW': r'$\bar{c}_{WW}$',
+    'cu': r'$\bar{c}_{u}$',
+    'cuG': r'$\bar{c}_{uG}$',
+    'cuW': r'$\bar{c}_{uW}$',
+    'tc3G': r'$\widetilde{c}_{3G}$',
+    'tc3W': r'$\widetilde{c}_{3W}$',
+    'tcG': r'$\widetilde{c}_{G}$',
+    'tcHW': r'$\widetilde{c}_{HW}$',
 }
 
 cross_sections = {
