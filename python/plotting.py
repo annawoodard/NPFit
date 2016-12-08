@@ -98,16 +98,21 @@ class Plotter(object):
                     ).encode('utf-8'))
 
     @contextlib.contextmanager
-    def saved_figure(self, x_label, y_label, name, title=None):
+    def saved_figure(self, x_label, y_label, name, header=False):
         fig, ax = plt.subplots(figsize=(11,11))
+        if header:
+            if header is 'preliminary':
+                plt.title(r'CMS preliminary', loc='left', fontweight='bold')
+            else:
+                plt.title(r'CMS preliminary', loc='left', fontweight='bold')
+            
+            plt.title('{}'.format(self.config['luminosity']) + ' fb$^{-1}$ (13 TeV)', loc='right', fontweight='bold')
 
         try:
             yield ax
 
         finally:
             logging.info('saving {}'.format(name))
-            if title:
-                plt.title(title)
             plt.xlabel(x_label)
             plt.ylabel(y_label)
             plt.savefig(os.path.join(self.config['outdir'], '{}.pdf'.format(name)), bbox_inches='tight')

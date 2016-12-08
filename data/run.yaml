@@ -10,6 +10,8 @@ cards:
 2d points: 10000
 chunk size: 50
 
+plot header: preliminary
+luminosity: 12.9
 processes: ['ttH', 'ttZ', 'ttW'] # processes to scale
 operators: ['cpHQ', 'cHQ', 'cuB', 'c3W', 'cHu']
 # operators: ['c2W', 'c3G', 'c3W', 'cA', 'cB', 'cG', 'cHB', 'cHQ', 'cHW',
