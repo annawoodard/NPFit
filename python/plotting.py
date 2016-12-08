@@ -9,7 +9,6 @@ import tarfile
 
 import jinja2
 import matplotlib
-matplotlib.use('agg')
 from matplotlib.mlab import griddata
 import matplotlib.pyplot as plt
 import numpy as np
