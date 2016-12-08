@@ -147,37 +147,6 @@ class NumPyPlotter(Plotter):
                 for (x, y) in data:
                     ax.plot(x, y, 'o')
 
-    def plot_2d(self, xy, z, xlabel, ylabel, zlabel, title, name, cmap):
-        with self.saved_figure(xlabel, ylabel, title, name) as ax:
-            x = xy[:,0]
-            y = xy[:,1]
-            z = z[:,0]
-
-            extent = (min(x), max(x), min(y), max(y))
-            xi, yi = np.mgrid[extent[0]:extent[1]:500j, extent[2]:extent[3]:500j]
-            zi = griddata(x, y, z, xi, yi)
-            
-
-            plt.imshow(zi.T, extent=extent, aspect='auto', origin='lower', cmap=cmap)
-            bar = plt.colorbar()
-            bar.set_label(zlabel)
-
-    def scatter_3d(self, xy, z, xlabel, ylabel, zlabel, title, name, **kwargs):
-        with self.saved_figure(xlabel, ylabel, title, name) as ax:
-            x = xy[:,0]
-            y = xy[:,1]
-            z = z[:,0]
-
-            plt.scatter(x, y, c=z, s=100, **kwargs)
-            if zlabel:
-                bar = plt.colorbar()
-                bar.set_label(zlabel)
-
-    def scatter(self, x, y, color, xlabel, ylabel, title, name, **kwargs):
-        with self.saved_figure(xlabel, ylabel, title, name) as ax:
-            plt.scatter(x, y, c=color, s=100, **kwargs)
-
-
 def xsecs(config, plotter):
     data = {}
     series_labels = {}
