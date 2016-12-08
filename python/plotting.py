@@ -148,6 +148,8 @@ class NumPyPlotter(Plotter):
                     ax.plot(x, y, 'o')
 
 def xsecs(config, plotter):
+    from root_numpy import root2array
+
     data = {}
     series_labels = {}
 
@@ -162,10 +164,6 @@ def xsecs(config, plotter):
         for operator in coefficients.dtype.names:
             x = coefficients[operator][coefficients[operator] != 0]
             y = cross_section[coefficients[operator] != 0] 
-            fit = Polynomial.fit(x, y, 2)
-            with plotter.saved_figure(operator, '$\sigma_{NP+SM}$', os.path.join(config['outdir'], 'plots', 'cross_sections', process, operator), '') as ax:
-                ax.plot(x, y * cross_sections[process] / sm_cross_section, 'o')
-                ax.plot(x, fit(x) * cross_sections[process] / sm_cross_section, '-', label='quadratic fit')
 
             try:
                 data[operator].append((x, y / sm_cross_section))
