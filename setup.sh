@@ -23,6 +23,10 @@ git clone https://github.com/cms-analysis/CombineHarvester.git CombineHarvester
 git clone git@github.com:annawoodard/EffectiveTTV.git EffectiveTTV/EffectiveTTV
 
 scram b -j 32
+
+cd ../..
+scramv1 project CMSSW_8_1_0_pre16 # needed for a harmonious numpy environment
+ln -s  CMSSW_7_4_7/src/EffectiveTTV/EffectiveTTV/python CMSSW_8_1_0_pre16/python/EffectiveTTV/EffectiveTTV
 ) > setup.log
 
 
