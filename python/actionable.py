@@ -30,10 +30,8 @@ def make(args, config):
     os.chmod(wrapfile, os.stat(wrapfile).st_mode | stat.S_IEXEC)
 
     configfile = os.path.join(config['outdir'], 'run.yaml')
-    local_config = config.copy()
-    local_config['outdir'] = ''
     with open(configfile, 'w') as f:
-        yaml.dump(local_config, f)
+        yaml.dump(config, f)
 
     data = os.path.join(os.environ['LOCALRT'], 'src', 'EffectiveTTV', 'EffectiveTTV', 'data')
     shutil.copy(os.path.join(data, 'matplotlibrc'), config['outdir'])
