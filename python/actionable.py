@@ -5,6 +5,7 @@ import itertools
 import numpy as np
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import stat
@@ -79,6 +80,8 @@ def make(args, config):
             inputs = [inputs]
         if isinstance(outputs, basestring):
             outputs = [outputs]
+        if isinstance(cmd, basestring):
+            cmd = shlex.split(cmd)
 
         outs = ' '.join(outputs)
         ins = ' '.join(inputs)
