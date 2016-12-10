@@ -109,6 +109,9 @@ def make(args, config):
     else:
         raise RuntimeError('must specify either `indir` or `cross sections`')
 
+    makeflowify('ttZ.txt', 'ttZ.root', 'combine -M MaxLikelihoodFit ttZ.txt; mv higgsCombineTest.MaxLikelihoodFit.mH120.root ttZ.root')
+    makeflowify('2lss.txt', 'ttW.root', 'combine -M MaxLikelihoodFit 2lss.txt; mv higgsCombineTest.MaxLikelihoodFit.mH120.root ttW.root')
+
     lowers = np.arange(1, config['2d points'], config['chunk size'])
     uppers = np.arange(config['chunk size'], config['2d points'] + config['chunk size'], config['chunk size'])
 
