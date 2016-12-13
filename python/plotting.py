@@ -147,9 +147,66 @@ class NumPyPlotter(Plotter):
                 for (x, y) in data:
                     ax.plot(x, y, 'o')
 
-def xsecs(config, plotter):
-    from root_numpy import root2array
 
+def fit_nll(config):
+    from root_numpy import root2array
+    import scipy.signal
+
+    def slopes(x, y):
+        rise = y[1:] - y[:-1]
+        run = x[1:] - x[:-1]
+
+        return rise / run
+
+    def intercepts(x, y):
+        return y[1:] - slopes(x, y) * x[1:]
+
+    def crossings(x, y, q):
+        crossings = (q - intercepts(x, y)) / slopes(x, y)
+        
+        return crossings[(crossings > x[:-1]) & (crossings < x[1:])]
+
+    def interval(x, y, q, p, precision=2):
+        points = crossings(x, y, q) 
+        for low, high in [points[i:i + 2] for i in range(0, len(points), 2)]:
+            if p > low and p < high:
+                return (round(low, precision) + 0, round(high, precision) + 0) # turn -0.00 -> 0.00
+
+    def intervals(x, y, q):
+        points = crossings(x, y, q) 
+
+        return ((points[i:i + 2], [q, q]) for i in range(0, len(points), 2))
+
+    res = {}
+    for operator in config['operators']:
+        data = root2array(os.path.join(config['outdir'], 'scans', '{}.total.root'.format(operator)))
+        data = data[data['deltaNLL'] < 5]
+        _, unique = np.unique(data[operator], return_index=True)
+
+        x = data[unique][operator]
+        y = 2 * data[unique]['deltaNLL']
+        minima = scipy.signal.argrelmin(y)
+        threshold = y[minima] - min(y) < 0.1
+
+        res[operator] = {
+            'x': x,
+            'y': y,
+            'best fit': [],
+            'one sigma': [],
+            'two sigma': []
+        }
+
+        for xbf, ybf in zip(x[minima][threshold], y[minima][threshold]):
+            res[operator]['best fit'].append((xbf, ybf))
+            if interval(x, y, 1.0, xbf) not in res[operator]['one sigma']:
+                res[operator]['one sigma'].append(interval(x, y, 1.0, xbf))
+            if interval(x, y, 3.84, xbf) not in res[operator]['two sigma']:
+                res[operator]['two sigma'].append(interval(x, y, 3.84, xbf))
+
+    return res
+
+def xsecs(config, plotter):
+    nll = fit_nll(config)
     data = {}
     series_labels = {}
 
@@ -159,7 +216,6 @@ def xsecs(config, plotter):
         cross_section = info['cross section']
         sm_coefficients = np.array([tuple([0.0] * len(coefficients.dtype))], dtype=coefficients.dtype)
         sm_cross_section = np.mean(cross_section[coefficients == sm_coefficients])
-        logging.info('for process {} SM cross section at LO is {}'.format(process, sm_cross_section))
 
         for operator in coefficients.dtype.names:
             x = coefficients[operator][coefficients[operator] != 0]
@@ -182,27 +238,29 @@ def xsecs(config, plotter):
                 ax.plot(x, y, 'o', label=l)
 
             if operator in config['operators']:
-                info = root2array('best-fit-{}.root'.format(operator))
-                plt.axvline(
-                    x=info[operator][0],
-                    ymax=0.5,
-                    linestyle='-',
-                    color='black',
-                    label='best fit {}$={:.2f}$'.format(label[operator], round(info[operator][0], 2) + 0)
-                )
-                plt.axvline(
-                    x=info[operator][1],
-                    ymax=0.5,
-                    linestyle='--',
-                    color='black',
-                    label='$1 \sigma [{:03.2f}, {:03.2f}]$'.format(info[operator][1], info[operator][2])
-                )
-                plt.axvline(
-                    x=info[operator][2],
-                    ymax=0.5,
-                    linestyle='--',
-                    color='black'
-                )
+                colors = ['black', 'gray']
+                for (x, _), color in zip(nll[operator]['best fit'], colors):
+                    plt.axvline(
+                        x=x,
+                        ymax=0.5,
+                        linestyle='-',
+                        color=color,
+                        label='best fit {}$={:.2f}$'.format(label[operator], x)
+                    )
+                for (low, high), color in zip(nll[operator]['one sigma'], colors):
+                    plt.axvline(
+                        x=low,
+                        ymax=0.5,
+                        linestyle='--',
+                        color=color,
+                        label='$1 \sigma [{:03.2f}, {:03.2f}]$'.format(low, high)
+                    )
+                    plt.axvline(
+                        x=high,
+                        ymax=0.5,
+                        linestyle='--',
+                        color=color
+                    )
             ax.legend(loc='upper center')
 
         # FIXME: add fits
@@ -210,60 +268,6 @@ def xsecs(config, plotter):
         # y = fits[operator]['ttZ'](x)
         # plt.plot(x, y)
 
-def fit_nll(config):
-    from root_numpy import root2array
-    import scipy.signal
-
-    def slopes(x, y):
-        rise = y[1:] - y[:-1]
-        run = x[1:] - x[:-1]
-
-        return rise / run
-
-    def intercepts(x, y):
-        return y[1:] - slopes(x, y) * x[1:]
-
-    def crossings(x, y, q):
-        crossings = (q - intercepts(x, y)) / slopes(x, y)
-        
-        return crossings[(crossings > x[:-1]) & (crossings < x[1:])]
-
-    def interval(x, y, q, p):
-        points = crossings(x, y, q) 
-        for low, high in [points[i:i + 2] for i in range(0, len(points), 2)]:
-            if p > low and p < high:
-                return [low, high]
-
-    def intervals(x, y, q):
-        points = crossings(x, y, q) 
-
-        return [(points[i:i + 2], [q, q]) for i in range(0, len(points), 2)]
-
-    res = {}
-    for operator in config['operators']:
-        data = root2array(os.path.join(config['outdir'], 'scans', '{}.total.root'.format(operator)))
-        data = data[data['deltaNLL'] < 5]
-        _, unique = np.unique(data[operator], return_index=True)
-
-        x = data[unique][operator]
-        y = 2 * data[unique]['deltaNLL']
-        minima = scipy.signal.argrelmin(y)
-        threshold = y[minima] - min(y) < 0.1
-
-        res[operator] = {
-            'x': x,
-            'y': y,
-            'best fit': [],
-            'one sigma': set(),
-            'two sigma': set()
-        }
-
-        for xbf, ybf in zip(x[minima][threshold], y[minima][threshold]):
-            res[operator]['best fit'].append((xbf, ybf))
-            res[operator]['one sigma'].add(interval(x, y, 1.0, xbf))
-            res[operator]['two sigma'].add(interval(x, y, 3.84, xbf))
-
-    return res
 
 def nll(config, plotter):
     data = fit_nll(config)
@@ -273,7 +277,7 @@ def nll(config, plotter):
             ax.plot(info['x'], info['y'], 'o')
 
             for x, y in info['best fit']:
-                ax.plot(x, y, 'o', c='#fc4f30', label='best fit: {:03.2f}'.format(round(x, 2) + 0))
+                ax.plot(x, y, 'o', c='#fc4f30', label='best fit: {:03.2f}'.format(x))
 
             for low, high in info['one sigma']:
                 ax.plot([low, high], [1.0, 1.0], '-', label='$1\sigma$ CL [{:03.2f}, {:03.2f}]'.format(low, high))

@@ -168,6 +168,10 @@ def make(args, config):
 
         makeflowify('cross_sections.npy', workspace, cmd)
 
+        outfile = 'best-fit-{}.root'.format(label, process)
+        cmd = 'combine -M MultiDimFit {} --algo=cross --cl=0.68; mv higgsCombineTest.MultiDimFit.mH120.root {}'
+        makeflowify(workspace, outfile, cmd.format(workspace, outfile))
+
         scans = []
         for index, (first, last) in enumerate(zip(lowers, uppers)):
             cmd = [
@@ -188,7 +192,7 @@ def make(args, config):
 
             makeflowify(workspace, scan, cmd, rename=True)
 
-        outfile = '{}.total.root'.format(label)
+        outfile = 'scans/{}.total.root'.format(label)
         makeflowify(scans, outfile, ['LOCAL', 'hadd', '-f', outfile] + scans)
 
         makeflowify(outfile, [], ['LOCAL', 'rm'] + scans)
