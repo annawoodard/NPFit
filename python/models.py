@@ -8,6 +8,7 @@ import ROOT
 from HiggsAnalysis.CombinedLimit.PhysicsModel import PhysicsModel
 from HiggsAnalysis.CombinedLimit.SMHiggsBuilder import SMHiggsBuilder
 
+
 class EffectiveOperatorModel(PhysicsModel):
 
     def setPhysicsOptions(self, options):
@@ -16,7 +17,7 @@ class EffectiveOperatorModel(PhysicsModel):
         for option, value in [x.split('=') for x in options]:
             if option == 'poi':
                 self.pois.append(value)
-            if option == 'process': # processes which will be scaled
+            if option == 'process':  # processes which will be scaled
                 self.processes.append(value)
             if option == 'data':
                 self.data = value
@@ -45,7 +46,7 @@ class EffectiveOperatorModel(PhysicsModel):
                     template = "expr::{name}('{a0} + ({a1} * {poi}) + ({a2} * {poi} * {poi})', {poi})"
                     quadratic = self.modelBuilder.factory_(template.format(name=name, a0=fit.coef[0], a1=fit.coef[1], a2=fit.coef[2], poi=poi))
                     self.modelBuilder.out._import(quadratic)
-                    
+
                     c1 = ROOT.TCanvas()
                     proj = quadratic.plotOn(x.frame())
                     graph = ROOT.TGraph(len(xi), xi, yi)
@@ -84,7 +85,6 @@ class EffectiveOperatorModel(PhysicsModel):
         if process in card_names:
             process = card_names[process]
         if process not in self.processes:
-        # if not self.DC.isSignal[process]:
             return 1
         else:
             name = 'x_sec_{0}'.format(process)
@@ -97,7 +97,7 @@ class TTbarWTTbarZSignalModel(PhysicsModel):
         """Create POI out of signal strength"""
         self.modelBuilder.doVar("r_ttW[0.5,0,2]")
         self.modelBuilder.doVar("r_ttZ[0.5,0,2]")
-        self.modelBuilder.doSet("POI",'r_ttW,r_ttZ')
+        self.modelBuilder.doSet("POI", 'r_ttW,r_ttZ')
 
     def getYieldScale(self, bin, process):
         if process == 'TTW':
@@ -107,11 +107,13 @@ class TTbarWTTbarZSignalModel(PhysicsModel):
         else:
             return 1
 
+
 class CvCaZSimpleModel(PhysicsModel):
     def doParametersOfInterest(self):
         self.modelBuilder.doVar("cV[0.244,-1.3,1.3]")
         self.modelBuilder.doVar("cA[-0.601,-1,1]")
-        self.modelBuilder.doSet("POI","cV,cA")
+        self.modelBuilder.doSet("POI", "cV,cA")
+
     def getYieldScale(self, bin, process):
         if process == 'TTZ':
             expr = 'expr::r_ttZ("sqrt(0.5 * (@0 / 0.244)^2 + 0.5 * (@1 / -0.0601)^2)", cV, cA)'
@@ -121,11 +123,13 @@ class CvCaZSimpleModel(PhysicsModel):
         else:
             return 1
 
+
 class CvCaModel(PhysicsModel):
     def doParametersOfInterest(self):
         self.modelBuilder.doVar("cV[0.244,-3,3]")
         self.modelBuilder.doVar("cA[-0.601,-3,3]")
-        self.modelBuilder.doSet("POI","cV,cA")
+        self.modelBuilder.doSet("POI", "cV,cA")
+
     def getYieldScale(self, bin, process):
         if process == 'TTZ':
             expr = 'expr::r_ttZ("(1 / 206) * (74.61 + @0 * 0.504 + @0^2 * 189.4 - @1 * 16.265 + @1^2 * 359.7)", cV, cA)'

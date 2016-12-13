@@ -45,7 +45,8 @@ for k in ('indir', 'outdir'):
 from EffectiveTTV.EffectiveTTV.actionable import make, parse, concatenate
 from EffectiveTTV.EffectiveTTV.plotting import plot
 
-for path in ('cross_sections',
+for path in (
+        'cross_sections',
         'workspaces',
         'scans',
         'plots/cross_sections',

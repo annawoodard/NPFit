@@ -45,7 +45,7 @@ def make(args, config):
 
     subprocess.call('combineCards.py {} {} > {}'.format(cardify('3l'), cardify('4l'), cardify('ttZ')), shell=True)
     subprocess.call('combineCards.py {} {} > {}'.format(cardify('ttZ'), cardify('2lss'), cardify('ttV')), shell=True)
-    
+
     with open(cardify('ttV'), 'r') as f:
         card = f.read()
 
@@ -66,12 +66,13 @@ def make(args, config):
     logging.info('writing Makeflow file to {}'.format(config['outdir']))
     with open(makefile, 'w') as f:
         factory = os.path.join(data, 'factory.json')
-        msg = ('# to run, issue the following commands:\n'
-        '# cd {}\n'
-        '# makeflow -T wq -M ttV_FTW --wrapper ./w.sh --wrapper-input w.sh\n'
-        '# nohup work_queue_factory -T condor -M ttV_FTW -C {} >& makeflow_factory.log &\n'
+        msg = (
+            '# to run, issue the following commands:\n'
+            '# cd {}\n'
+            '# makeflow -T wq -M ttV_FTW --wrapper ./w.sh --wrapper-input w.sh\n'
+            '# nohup work_queue_factory -T condor -M ttV_FTW -C {} >& makeflow_factory.log &\n'
         ).format(config['outdir'], factory)
-        
+
         f.write(msg)
         logging.info(msg.replace('# ', ''))
 
@@ -90,9 +91,9 @@ def make(args, config):
 
         with open(makefile, 'a') as f:
             s = frag.format(
-                    out=outs,
-                    ins=ins,
-                    cmd=' '.join(cmd))
+                out=outs,
+                ins=ins,
+                cmd=' '.join(cmd))
             f.write(s)
 
     if 'indir' in config:
@@ -126,7 +127,7 @@ def make(args, config):
     ]
 
     makeflowify([], workspace, cmd)
-    
+
     scans = []
     for index, (first, last) in enumerate(zip(lowers, uppers)):
         cmd = [
@@ -197,9 +198,10 @@ def make(args, config):
 
         makeflowify(outfile, [], ['LOCAL', 'rm'] + scans)
 
-    inputs = ['scans/{}.total.root'.format('_'.join(o)) for o in combinations] + ['cross_sections.npy', 'run.yaml'] 
+    inputs = ['scans/{}.total.root'.format('_'.join(o)) for o in combinations] + ['cross_sections.npy', 'run.yaml']
     plot_rt = os.path.join(os.path.dirname(os.environ['LOCALRT']), 'CMSSW_8_1_0_pre16')
     makeflowify(inputs, [], ['LOCAL', 'cd', plot_rt, '; eval `scramv1 runtime -sh`; cd -', 'run', '--plot', 'run.yaml'])
+
 
 def parse(args, config):
     import DataFormats.FWLite
@@ -219,7 +221,7 @@ def parse(args, config):
         cross_section = get_collection(run, 'GenRunInfoProduct', 'generator::GEN').crossSection()
         operators = np.array(get_collection(run, 'vector<string>', 'annotator:operators:LHE'))
         process = str(get_collection(run, 'std::string', 'annotator:process:LHE'))
-        dtype=[(name, 'f8') for name in operators]
+        dtype = [(name, 'f8') for name in operators]
         coefficients = np.array(tuple(get_collection(run, 'vector<double>', 'annotator:wilsonCoefficients:LHE')), dtype=dtype)
 
         row = np.array((coefficients, cross_section), dtype=[('coefficients', coefficients.dtype, coefficients.shape), ('cross section', 'f8')])

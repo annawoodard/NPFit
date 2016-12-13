@@ -50,6 +50,7 @@ cross_sections = {
     'ttH': 496.
 }
 
+
 class Plotter(object):
 
     def __init__(self, config):
@@ -74,12 +75,12 @@ class Plotter(object):
 
                     tfilename = os.path.join(path, 'plots.tar.gz')
                     tfile = tarfile.open(tfilename, 'w:gz')
-                    [tfile.add(f) for f in [os.path.join(path, name) for name in pngs+pdfs]]
+                    [tfile.add(f) for f in [os.path.join(path, name) for name in pngs + pdfs]]
                     tfile.close()
 
                 dirs = ['..']
                 files = []
-                names = [x for x in os.listdir(path) if not x.startswith('.') and not '#' in x and x != 'index.html']
+                names = [x for x in os.listdir(path) if not x.startswith('.') and '#' not in x and x != 'index.html']
                 for name in names:
                     if '.png' not in name and '.pdf' not in name:
                         fullname = os.path.join(path, name)
@@ -99,13 +100,13 @@ class Plotter(object):
 
     @contextlib.contextmanager
     def saved_figure(self, x_label, y_label, name, header=False):
-        fig, ax = plt.subplots(figsize=(11,11))
+        fig, ax = plt.subplots(figsize=(11, 11))
         if header:
             if header is 'preliminary':
                 plt.title(r'CMS preliminary', loc='left', fontweight='bold')
             else:
                 plt.title(r'CMS preliminary', loc='left', fontweight='bold')
-            
+
             plt.title('{}'.format(self.config['luminosity']) + ' fb$^{-1}$ (13 TeV)', loc='right', fontweight='bold')
 
         try:
@@ -118,6 +119,7 @@ class Plotter(object):
             plt.savefig(os.path.join(self.config['outdir'], '{}.pdf'.format(name)), bbox_inches='tight')
             plt.savefig(os.path.join(self.config['outdir'], '{}.png'.format(name)), bbox_inches='tight')
             plt.close()
+
 
 class NumPyPlotter(Plotter):
     def hist(self, data, num_bins, xlim, xlabel, title, name):
@@ -163,17 +165,17 @@ def fit_nll(config):
 
     def crossings(x, y, q):
         crossings = (q - intercepts(x, y)) / slopes(x, y)
-        
+
         return crossings[(crossings > x[:-1]) & (crossings < x[1:])]
 
     def interval(x, y, q, p, precision=2):
-        points = crossings(x, y, q) 
+        points = crossings(x, y, q)
         for low, high in [points[i:i + 2] for i in range(0, len(points), 2)]:
             if p > low and p < high:
-                return (round(low, precision) + 0, round(high, precision) + 0) # turn -0.00 -> 0.00
+                return (round(low, precision) + 0, round(high, precision) + 0)  # turn -0.00 -> 0.00
 
     def intervals(x, y, q):
-        points = crossings(x, y, q) 
+        points = crossings(x, y, q)
 
         return ((points[i:i + 2], [q, q]) for i in range(0, len(points), 2))
 
@@ -205,6 +207,7 @@ def fit_nll(config):
 
     return res
 
+
 def xsecs(config, plotter):
     nll = fit_nll(config)
     data = {}
@@ -219,7 +222,7 @@ def xsecs(config, plotter):
 
         for operator in coefficients.dtype.names:
             x = coefficients[operator][coefficients[operator] != 0]
-            y = cross_section[coefficients[operator] != 0] 
+            y = cross_section[coefficients[operator] != 0]
 
             try:
                 data[operator].append((x, y / sm_cross_section))
@@ -232,8 +235,7 @@ def xsecs(config, plotter):
         with plotter.saved_figure(
                 label[operator],
                 '$\sigma_{NP+SM} / \sigma_{SM}$',
-                os.path.join(config['outdir'], 'plots', 'cross_sections', 'ratios', operator)
-                ) as ax:
+                os.path.join(config['outdir'], 'plots', 'cross_sections', 'ratios', operator)) as ax:
             for (x, y), l in zip(data[operator], series_labels[operator]):
                 ax.plot(x, y, 'o', label=l)
 
@@ -288,7 +290,7 @@ def nll(config, plotter):
             ax.legend(loc='upper center')
 
 
-def ttZ_ttW_2D(config, ax): 
+def ttZ_ttW_2D(config, ax):
     from root_numpy import root2array
     limits = root2array(os.path.join('scans', 'ttZ_ttW_2D.total.root'))
 
@@ -357,7 +359,8 @@ def ttZ_ttW_2D(config, ax):
 
     return handles, labels
 
-def ttZ_ttW_2D_1D_ttZ_1D_ttW(config, plotter): 
+
+def ttZ_ttW_2D_1D_ttZ_1D_ttW(config, plotter):
     from root_numpy import root2array
     with plotter.saved_figure(
             label['sigma ttW'],
@@ -396,6 +399,7 @@ def ttZ_ttW_2D_1D_ttZ_1D_ttW(config, plotter):
 
         plt.legend(handles, labels, fontsize=15)
 
+
 def load_fits(config):
     fits = {}
 
@@ -420,6 +424,7 @@ def load_fits(config):
                 fits[operator] = {process: Polynomial.fit(x, y, 2)}
 
     return fits
+
 
 def ttZ_ttW_2D_1D_eff_op(config, plotter):
     from root_numpy import root2array
@@ -452,15 +457,17 @@ def ttZ_ttW_2D_1D_eff_op(config, plotter):
                 linestyle='None'
             )
             handles.append(bf)
-            labels.append('best fit {}\n{:03.2f} [{:03.2f}, {:03.2f}]'.format(
-                label[operator],
-                round(data[operator][0], 2) + 0,
-                data[operator][1],
-                data[operator][2]
+            labels.append(
+                'best fit {}\n{:03.2f} [{:03.2f}, {:03.2f}]'.format(
+                    label[operator],
+                    round(data[operator][0], 2) + 0,
+                    data[operator][1],
+                    data[operator][2]
                 )
             )
 
             plt.legend(handles, labels, fontsize=15)
+
 
 def wilson_coefficients_in_window(config, plotter):
 
@@ -473,7 +480,7 @@ def wilson_coefficients_in_window(config, plotter):
                 'plots/ttZ_ttW_2D_cross_section_with_sampled_{}'.format(operator),
                 header=config['plot header']) as ax:
             ttZ_ttW_2D(config, ax)
-            
+
             ax.set_color_cycle([plt.cm.cool(i) for i in np.linspace(0, 1, 28)])
 
             high = min(max((fits[operator]['ttW'] - 1000).roots().real), max((fits[operator]['ttZ'] - 1000).roots().real))
@@ -481,7 +488,8 @@ def wilson_coefficients_in_window(config, plotter):
             coefficients = np.linspace(low, high, 28)
             # avoid overlapping due to symmetric points
             for coefficient in np.hstack([coefficients[:14:2], coefficients[14::2]]):
-                plt.plot(fits[operator]['ttW'](coefficient),
+                plt.plot(
+                    fits[operator]['ttW'](coefficient),
                     fits[operator]['ttZ'](coefficient),
                     marker='x',
                     markersize=17,
@@ -491,6 +499,7 @@ def wilson_coefficients_in_window(config, plotter):
                 )
 
             ax.legend(numpoints=1, bbox_to_anchor=(1.02, 1), loc=2, borderaxespad=0., frameon=False)
+
 
 def plot(args, config):
 
