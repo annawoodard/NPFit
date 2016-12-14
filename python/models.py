@@ -88,6 +88,8 @@ class EffectiveOperatorModel(PhysicsModel):
             return 1
         else:
             name = 'x_sec_{0}'.format(process)
+            # self.modelBuilder.factory_('expr::{}("@0", {})'.format(name, name))
+            # self.modelBuilder.out.Print()
 
             return name
 
