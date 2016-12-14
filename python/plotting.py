@@ -46,7 +46,7 @@ label = {
     'tcHW': r'$\widetilde{c}_{HW}$',
 }
 
-cross_sections = {
+nlo = {
     'ttW': 601.,
     'ttZ': 839.,
     'ttH': 496.
@@ -156,10 +156,9 @@ def fit_nll(config):
     return res
 
 
-def xsecs(config, plotter):
-    nll = fit_nll(config)
-    data = {}
-    series_labels = {}
+def load(config):
+    x = {}
+    y = {}
 
     fn = os.path.join(config['outdir'], 'cross_sections.npy')
     for process, info in np.load(fn)[()].items():
@@ -168,24 +167,32 @@ def xsecs(config, plotter):
         sm_coefficients = np.array([tuple([0.0] * len(coefficients.dtype))], dtype=coefficients.dtype)
         sm_cross_section = np.mean(cross_section[coefficients == sm_coefficients])
 
+        x[process] = {'sm': sm_coefficients}
+        y[process] = {'sm': sm_cross_section}
+
         for operator in coefficients.dtype.names:
-            x = coefficients[operator][coefficients[operator] != 0]
-            y = cross_section[coefficients[operator] != 0]
+            x[process][operator] = coefficients[operator][coefficients[operator] != 0]
+            y[process][operator] = cross_section[coefficients[operator] != 0]
 
-            try:
-                data[operator].append((x, y / sm_cross_section))
-                series_labels[operator].append(process)
-            except KeyError:
-                data[operator] = [(x, y / sm_cross_section)]
-                series_labels[operator] = [process]
+    return x, y
 
-    for operator in data.keys():
+def xsecs(config, plotter):
+    nll = fit_nll(config)
+    coefficients, cross_sections = load(config)
+
+    for operator in coefficients.values()[0]:
+        if operator == 'sm':
+            continue
+
+        data = []
         with plotter.saved_figure(
                 label[operator],
                 '$\sigma_{NP+SM} / \sigma_{SM}$',
                 os.path.join(config['outdir'], 'plots', 'cross_sections', 'ratios', operator)) as ax:
-            for (x, y), l in zip(data[operator], series_labels[operator]):
-                ax.plot(x, y, 'o', label=l)
+            for process in config['processes']:
+                x = coefficients[process][operator]
+                y = cross_sections[process][operator] / cross_sections[process]['sm']
+                ax.plot(x, y, 'o', label=process)
 
             if operator in config['operators']:
                 colors = ['black', 'gray']
@@ -242,8 +249,8 @@ def ttZ_ttW_2D(config, ax):
     from root_numpy import root2array
     limits = root2array(os.path.join('scans', 'ttZ_ttW_2D.total.root'))
 
-    x = limits['r_ttW'] * cross_sections['ttW']
-    y = limits['r_ttZ'] * cross_sections['ttZ']
+    x = limits['r_ttW'] * nlo['ttW']
+    y = limits['r_ttZ'] * nlo['ttZ']
     z = 2 * limits['deltaNLL']
 
     extent = (0, 1800, 0, 2200)
@@ -280,10 +287,10 @@ def ttZ_ttW_2D(config, ax):
     labels.append('2D best fit')
     print 'best fit ', x[z.argmin()], y[z.argmin()]
 
-    ttW_theory_xsec = plt.axvline(x=cross_sections['ttW'], linestyle='--', color='black')
+    ttW_theory_xsec = plt.axvline(x=nlo['ttW'], linestyle='--', color='black')
     ttW_theory_error = ax.axvspan(
-        cross_sections['ttW'] - cross_sections['ttW'] * 0.12,
-        cross_sections['ttW'] + cross_sections['ttW'] * 0.10,
+        nlo['ttW'] - nlo['ttW'] * 0.12,
+        nlo['ttW'] + nlo['ttW'] * 0.10,
         edgecolor='#555555',
         fill=False,
         linewidth=0.0,
@@ -292,10 +299,10 @@ def ttZ_ttW_2D(config, ax):
     handles.append((ttW_theory_xsec, ttW_theory_error))
     labels.append('{} theory'.format(label['ttW']))
 
-    ttZ_theory_xsec = plt.axhline(y=cross_sections['ttZ'], linestyle='--', color='black')
+    ttZ_theory_xsec = plt.axhline(y=nlo['ttZ'], linestyle='--', color='black')
     ttZ_theory_error = ax.axhspan(
-        cross_sections['ttZ'] - cross_sections['ttZ'] * 0.12,
-        cross_sections['ttZ'] + cross_sections['ttZ'] * 0.10,
+        nlo['ttZ'] - nlo['ttZ'] * 0.12,
+        nlo['ttZ'] + nlo['ttZ'] * 0.10,
         edgecolor='#555555',
         fill=False,
         linewidth=0.0,
@@ -319,11 +326,11 @@ def ttZ_ttW_2D_1D_ttZ_1D_ttW(config, plotter):
 
         data = root2array('ttW.root')
 
-        print 'ttW 1D: ', data['limit'][0] * cross_sections['ttW']
-        ttW_1D_xsec = plt.axvline(x=data['limit'][0] * cross_sections['ttW'], color='black')
+        print 'ttW 1D: ', data['limit'][0] * nlo['ttW']
+        ttW_1D_xsec = plt.axvline(x=data['limit'][0] * nlo['ttW'], color='black')
         ttW_1D_error = ax.axvspan(
-            data['limit'][1] * cross_sections['ttW'],
-            data['limit'][2] * cross_sections['ttW'],
+            data['limit'][1] * nlo['ttW'],
+            data['limit'][2] * nlo['ttW'],
             alpha=0.5,
             color='#FA6900',
             linewidth=0.0
@@ -333,11 +340,11 @@ def ttZ_ttW_2D_1D_ttZ_1D_ttW(config, plotter):
 
         data = root2array('ttZ.root')
 
-        print 'ttZ 1D: ', data['limit'][0] * cross_sections['ttZ']
-        ttZ_1D_xsec = plt.axhline(y=data['limit'][0] * cross_sections['ttZ'], color='black')
+        print 'ttZ 1D: ', data['limit'][0] * nlo['ttZ']
+        ttZ_1D_xsec = plt.axhline(y=data['limit'][0] * nlo['ttZ'], color='black')
         ttZ_1D_error = ax.axhspan(
-            data['limit'][1] * cross_sections['ttZ'],
-            data['limit'][2] * cross_sections['ttZ'],
+            data['limit'][1] * nlo['ttZ'],
+            data['limit'][2] * nlo['ttZ'],
             color='#69D2E7',
             alpha=0.5,
             linewidth=0.0
@@ -350,22 +357,17 @@ def ttZ_ttW_2D_1D_ttZ_1D_ttW(config, plotter):
 
 def load_fits(config):
     fits = {}
+    coefficients, cross_sections = load(config)
 
-    fn = os.path.join(config['outdir'], 'cross_sections.npy')
     print '{:10} {:14} {:12} {:14}'.format('process', '       NLO', '   LO', 'scale factor')
     for process in ['ttZ', 'ttW']:
-        info = np.load(fn)[()][process]
-        coefficients = info['coefficients']
-        cross_section = info['cross section'] * 1000.0
-        sm_coefficients = np.array([tuple([0.0] * len(coefficients.dtype))], dtype=coefficients.dtype)
-        sm_cross_section = np.mean(cross_section[coefficients == sm_coefficients])
 
         for operator in config['operators']:
-            x = coefficients[operator][coefficients[operator] != 0]
-            y = cross_section[coefficients[operator] != 0] * cross_sections[process] / sm_cross_section
+            x = coefficients[process][operator]
+            y = cross_sections[process][operator] * nlo[process] / cross_sections[process]['sm']
 
             if operator == 'cpHQ':
-                print '{:10} {:-10.0f} {:10.0f} {:10.2f}'.format(process, cross_sections[process], sm_cross_section, cross_sections[process] / sm_cross_section)
+                print '{:10} {:-10.0f} {:10.0f} {:10.2f}'.format(process, nlo[process], cross_sections[process]['sm'] * 1000., nlo[process] / (cross_sections[process]['sm'] * 1000.))
             try:
                 fits[operator][process] = Polynomial.fit(x, y, 2)
             except KeyError:
@@ -446,7 +448,7 @@ def wilson_coefficients_in_window(config, plotter):
                     linestyle="None"
                 )
 
-            ax.legend(numpoints=1, bbox_to_anchor=(1.02, 1), loc=2, borderaxespad=0., frameon=False)
+            ax.legend(bbox_to_anchor=(1.02, 1), loc=2, borderaxespad=0., frameon=False)
 
 
 def plot(args, config):
