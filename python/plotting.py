@@ -14,6 +14,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from numpy.polynomial import Polynomial
 
+from EffectiveTTV.EffectiveTTV import line
+
 label = {
     'sigma ttW': r'$\sigma_{\mathrm{t\bar{t}W}}$ $\mathrm{[fb]}$',
     'sigma ttZ': r'$\sigma_{\mathrm{t\bar{t}Z}}$ $\mathrm{[fb]}$',
@@ -121,63 +123,9 @@ class Plotter(object):
             plt.close()
 
 
-class NumPyPlotter(Plotter):
-    def hist(self, data, num_bins, xlim, xlabel, title, name):
-        data[data > xlim] = xlim
-        data[data < (xlim * -1)] = xlim * -1
-
-        info = u"$\mu$ = {0:.3g}\n$\sigma$ = {1:.3g}\nmedian = {2:.3g}"
-
-        with self.saved_figure(xlabel, 'counts', title, name) as ax:
-            ax.hist(data, bins=num_bins)
-            ax.text(
-                0.95, 0.95,
-                info.format(np.average(data), np.std(data), np.median(data)),
-                horizontalalignment='right',
-                verticalalignment='top',
-                transform=ax.transAxes,
-                backgroundcolor='white'
-            )
-
-    def plot(self, data, xlabel, ylabel, name, series_labels=None, title=None):
-        with self.saved_figure(xlabel, ylabel, name, title) as ax:
-            if series_labels:
-                for (x, y), l in zip(data, series_labels):
-                    ax.plot(x, y, 'o', label=l)
-                ax.legend(numpoints=1)
-            else:
-                for (x, y) in data:
-                    ax.plot(x, y, 'o')
-
-
 def fit_nll(config):
     from root_numpy import root2array
     import scipy.signal
-
-    def slopes(x, y):
-        rise = y[1:] - y[:-1]
-        run = x[1:] - x[:-1]
-
-        return rise / run
-
-    def intercepts(x, y):
-        return y[1:] - slopes(x, y) * x[1:]
-
-    def crossings(x, y, q):
-        crossings = (q - intercepts(x, y)) / slopes(x, y)
-
-        return crossings[(crossings > x[:-1]) & (crossings < x[1:])]
-
-    def interval(x, y, q, p, precision=2):
-        points = crossings(x, y, q)
-        for low, high in [points[i:i + 2] for i in range(0, len(points), 2)]:
-            if p > low and p < high:
-                return (round(low, precision) + 0, round(high, precision) + 0)  # turn -0.00 -> 0.00
-
-    def intervals(x, y, q):
-        points = crossings(x, y, q)
-
-        return ((points[i:i + 2], [q, q]) for i in range(0, len(points), 2))
 
     res = {}
     for operator in config['operators']:
@@ -200,10 +148,10 @@ def fit_nll(config):
 
         for xbf, ybf in zip(x[minima][threshold], y[minima][threshold]):
             res[operator]['best fit'].append((xbf, ybf))
-            if interval(x, y, 1.0, xbf) not in res[operator]['one sigma']:
-                res[operator]['one sigma'].append(interval(x, y, 1.0, xbf))
-            if interval(x, y, 3.84, xbf) not in res[operator]['two sigma']:
-                res[operator]['two sigma'].append(interval(x, y, 3.84, xbf))
+            if line.interval(x, y, 1.0, xbf) not in res[operator]['one sigma']:
+                res[operator]['one sigma'].append(line.interval(x, y, 1.0, xbf))
+            if line.interval(x, y, 3.84, xbf) not in res[operator]['two sigma']:
+                res[operator]['two sigma'].append(line.interval(x, y, 3.84, xbf))
 
     return res
 
