@@ -452,7 +452,7 @@ def wilson_coefficients_in_window(config, plotter):
 def plot(args, config):
 
     from root_numpy import root2array
-    plotter = NumPyPlotter(config)
+    plotter = Plotter(config)
 
     nll(config, plotter)
     xsecs(config, plotter)
