@@ -47,24 +47,6 @@ class EffectiveOperatorModel(PhysicsModel):
                     quadratic = self.modelBuilder.factory_(template.format(name=name, a0=fit.coef[0], a1=fit.coef[1], a2=fit.coef[2], poi=poi))
                     self.modelBuilder.out._import(quadratic)
 
-                    c1 = ROOT.TCanvas()
-                    proj = quadratic.plotOn(x.frame())
-                    graph = ROOT.TGraph(len(xi), xi, yi)
-                    graph.SetMarkerStyle(20)
-                    graph.SetMarkerSize(1)
-                    graph.SetMarkerColor(6)
-                    graph.GetXaxis().SetRangeUser(-1, 1)
-                    graph.SetTitle("")
-                    graph.GetXaxis().SetTitle(poi)
-                    graph.GetYaxis().SetTitle("#frac{#sigma_{NP+SM}}{#sigma_{SM}}")
-                    graph.Draw()
-                    proj.Draw("same")
-                    ROOT.gPad.BuildLegend()
-                    path = os.path.join(self.plots, 'cross_sections', process, '{}.pdf'.format(poi))
-                    c1.SaveAs(path)
-
-                    del c1
-
             self.modelBuilder.factory_('sum::x_sec_{0}({1})'.format(process, ', '.join(functions)))
 
     def doParametersOfInterest(self):
