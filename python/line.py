@@ -15,8 +15,12 @@ def crossings(x, y, q):
     return crossings[(crossings > x[:-1]) & (crossings < x[1:])]
 
 
-def interval(x, y, q, p, precision=2):
+def interval(x, y, q, p):
     points = crossings(x, y, q)
+
+    if len(points) % 2 != 0:
+        return None
+
     for low, high in [points[i:i + 2] for i in range(0, len(points), 2)]:
         if p > low and p < high:
-            return (round(low, precision) + 0, round(high, precision) + 0)  # turn -0.00 -> 0.00
+            return (low, high)

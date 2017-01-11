@@ -24,9 +24,13 @@ git clone git@github.com:annawoodard/EffectiveTTV.git EffectiveTTV/EffectiveTTV
 
 scram b -j 32
 
+pip install --user tabulate
+
 cd ../..
 scramv1 project CMSSW_8_1_0_pre16 # needed for a harmonious numpy environment
 ln -s  CMSSW_7_4_7/src/EffectiveTTV/EffectiveTTV/python CMSSW_8_1_0_pre16/python/EffectiveTTV/EffectiveTTV
+ln -s /afs/crc.nd.edu/user/a/awoodard/releases/effective-ttV/CMSSW_7_4_7/python/EffectiveTTV/EffectiveTTV /afs/crc.nd.edu/user/a/awoodard/releases/effective-ttV/CMSSW_8_1_0_pre16/python/EffectiveTTV/EffectiveTTV
+# not sure above not working, copy whole ETTV dir?
 ) > setup.log
 
 

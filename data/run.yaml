@@ -1,19 +1,18 @@
-# indir: /hadoop/store/user/awoodard/ttV/8/1/*gen*
-cross sections: /afs/crc.nd.edu/user/a/awoodard/www/ttV/8/1/1/cross_sections.npy
-outdir: ~/www/ttV/8/1/3
+# indir: /hadoop/store/user/awoodard/ttV/34/1/*gen*
+cross sections: /afs/crc.nd.edu/user/a/awoodard/www/ttV/34/1/9/cross_sections.npy
+outdir: /afs/crc.nd.edu/user/a/awoodard/www/ttV/34/1/19
 dimension: 1
 cards:
-  2lss: /afs/crc.nd.edu/user/a/awoodard/releases/effective-ttV/CMSSW_7_4_7/src/EffectiveTTV/EffectiveTTV/data/cards/21Nov_2016/2L.txt
-  3l: /afs/crc.nd.edu/user/a/awoodard/releases/effective-ttV/CMSSW_7_4_7/src/EffectiveTTV/EffectiveTTV/data/cards/21Nov_2016/3L.txt
-  4l: /afs/crc.nd.edu/user/a/awoodard/releases/effective-ttV/CMSSW_7_4_7/src/EffectiveTTV/EffectiveTTV/data/cards/21Nov_2016/4L.txt
-1d points: 200
+  ttW: /afs/crc.nd.edu/user/a/awoodard/releases/effective-ttV/CMSSW_7_4_7/src/EffectiveTTV/EffectiveTTV/data/cards/1Mar_2017/2L.txt
+  ttZ: /afs/crc.nd.edu/user/a/awoodard/releases/effective-ttV/CMSSW_7_4_7/src/EffectiveTTV/EffectiveTTV/data/cards/Moriond17/v4/ttZ.txt
+1d points: 2000
 2d points: 10000
-chunk size: 50
+chunk size: 150
 
-plot header: preliminary
-luminosity: 12.9
+luminosity: 36
 processes: ['ttH', 'ttZ', 'ttW'] # processes to scale
-operators: ['cpHQ', 'cHQ', 'cuB', 'c3W', 'cHu']
-# operators: ['c2W', 'c3G', 'c3W', 'cA', 'cB', 'cG', 'cHB', 'cHQ', 'cHW',
-           # 'cHd', 'cHu', 'cHud', 'cT', 'cWW', 'cpHQ', 'cu', 'cuB',
-           # 'cuG', 'cuW', 'tc3G', 'tc3W', 'tcG', 'tcHW']
+# processes: ['ttX', 'ttother', 'rare', 'WZ', 'ZZ', 'ttH', 'ttZ', 'ttW']
+# operators: ['cpHQ', 'cHQ', 'cuB', 'c3W', 'cHu']
+# operators: ['c2B', 'c2G', 'c2W', 'c3G', 'c3W', 'c6', 'cA', 'cB', 'cG', 'cH', 'cHB', 'cHL', 'cHQ', 'cHW', 'cHd', 'cHe', 'cHu', 'cHud', 'cT', 'cWW', 'cd', 'cdB', 'cdG', 'cdW', 'cl', 'clB', 'clW', 'cpHL', 'cpHQ', 'cu', 'cuB', 'cuG', 'cuW', 'tc3G', 'tc3W', 'tcA', 'tcG', 'tcHB', 'tcHW']
+operators: ['cuW', 'cuB', 'cu', 'cHu']
+# operators: ['cuW']

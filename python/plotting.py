@@ -2,6 +2,7 @@ import atexit
 import contextlib
 from datetime import datetime
 import glob
+import json
 import logging
 import os
 import shutil
@@ -11,46 +12,100 @@ import jinja2
 import matplotlib
 from matplotlib.mlab import griddata
 import matplotlib.pyplot as plt
-import numpy as np
-from numpy.polynomial import Polynomial
+from matplotlib.ticker import FormatStrFormatter
+from matplotlib.backends.backend_pgf import FigureCanvasPgf
+matplotlib.backend_bases.register_backend('pdf', FigureCanvasPgf)
 
-from EffectiveTTV.EffectiveTTV import line
+pgf_with_latex = {
+    "pgf.texsystem": "pdflatex",     # Use xetex for processing
+    # "text.usetex": True,            # use LaTeX to write all text
+    # "font.family": "serif",         # use serif rather than sans-serif
+    # "font.serif": "Ubuntu",         # use Ubuntu as the font
+    # "font.sans-serif": [],          # unset sans-serif
+    # "font.monospace": "Ubuntu Mono",# use Ubuntu for monospace
+    # "axes.labelsize": 10,
+    # "font.size": 10,
+    # "legend.fontsize": 8,
+    # "axes.titlesize": 14,           # Title size when one figure
+    # "xtick.labelsize": 8,
+    # "ytick.labelsize": 8,
+    # "figure.titlesize": 12,         # Overall figure title
+    "pgf.rcfonts": False,           # Ignore Matplotlibrc
+    # "text.latex.unicode": True,     # Unicode in LaTeX
+    # "pgf.preamble": [               # Set-up LaTeX
+    #     r'\usepackage{fontspec}',
+    #     r'\setmainfont{Ubuntu}',
+    #     r'\setmonofont{Ubuntu Mono}',
+    #     r'\usepackage{unicode-math}',
+    #     r'\setmathfont{Ubuntu}'
+    # ]
+}
+
+matplotlib.rcParams.update(pgf_with_latex)
+
+import numpy as np
+import ROOT
+import scipy.optimize as so
+from scipy.stats import kde
+from scipy.stats import gaussian_kde
+
+from EffectiveTTV.EffectiveTTV.parameters import nlo, kappa
+from EffectiveTTV.EffectiveTTV import kde
+from EffectiveTTV.EffectiveTTV.signal_strength import load, load_mus
+from EffectiveTTV.EffectiveTTV.nll import fit_nll
+from EffectiveTTV.EffectiveTTV.fluctuate import par_names
 
 label = {
     'sigma ttW': r'$\sigma_{\mathrm{t\bar{t}W}}$ $\mathrm{[fb]}$',
     'sigma ttZ': r'$\sigma_{\mathrm{t\bar{t}Z}}$ $\mathrm{[fb]}$',
-    'ttW': r'$\mathrm{t\bar{t}W}}$',
-    'ttZ': r'$\mathrm{t\bar{t}Z}}$',
-    'cuB': r'$\bar{c}_{uB}$',
-    'cHQ': r'$\bar{c}_{HQ}$',
-    'cHu': r'$\bar{c}_{Hu}$',
-    'c3W': r'$\bar{c}_{3W}$',
-    'cpHQ': r"$\bar{c}'_{HQ}$",
+    'ttW': r'$\mathrm{t\bar{t}W}$',
+    'ttZ': r'$\mathrm{t\bar{t}Z}$',
+    'ttH': r'$\mathrm{t\bar{t}H}$',
+    'tt': r'$\mathrm{t\bar{t}}$',
+    'c2B': r'$\bar{c}_{2B}$',
+    'c2G': r'$\bar{c}_{2G}$',
     'c2W': r'$\bar{c}_{2W}$',
     'c3G': r'$\bar{c}_{3G}$',
+    'cuB': r'$\bar{c}_{uB}$',
+    'c3W': r'$\bar{c}_{3W}$',
+    'c6': r'$\bar{c}_{6}$',
     'cA': r'$\bar{c}_{A}$',
     'cB': r'$\bar{c}_{B}$',
     'cG': r'$\bar{c}_{G}$',
+    'cH': r'$\bar{c}_{H}$',
     'cHB': r'$\bar{c}_{HB}$',
+    'cHL': r'$\bar{c}_{HL}$',
+    'cHQ': r'$\bar{c}_{HQ}$',
     'cHW': r'$\bar{c}_{HW}$',
     'cHd': r'$\bar{c}_{Hd}$',
+    'cHe': r'$\bar{c}_{He}$',
+    'cHu': r'$\bar{c}_{Hu}$',
     'cHud': r'$\bar{c}_{Hud}$',
     'cT': r'$\bar{c}_{T}$',
     'cWW': r'$\bar{c}_{WW}$',
+    'cd': r'$\bar{c}_{d}$',
+    'cdB': r'$\bar{c}_{dB}$',
+    'cdG': r'$\bar{c}_{dG}$',
+    'cdW': r'$\bar{c}_{dW}$',
+    'cl': r'$\bar{c}_{l}$',
+    'clB': r'$\bar{c}_{lB}$',
+    'clW': r'$\bar{c}_{lW}$',
+    'cpHL': r"$\bar{c}'_{HL}$",
+    'cpHQ': r"$\bar{c}'_{HQ}$",
     'cu': r'$\bar{c}_{u}$',
+    'cuB': r'$\bar{c}_{uB}$',
     'cuG': r'$\bar{c}_{uG}$',
     'cuW': r'$\bar{c}_{uW}$',
     'tc3G': r'$\widetilde{c}_{3G}$',
     'tc3W': r'$\widetilde{c}_{3W}$',
+    'tcA': r'$\widetilde{c}_{A}$',
     'tcG': r'$\widetilde{c}_{G}$',
+    'tcHB': r'$\widetilde{c}_{HB}$',
     'tcHW': r'$\widetilde{c}_{HW}$',
 }
 
-nlo = {
-    'ttW': 601.,
-    'ttZ': 839.,
-    'ttH': 496.
-}
+extent = (0, 1500, 0, 2000)
+x_min, x_max, y_min, y_max = extent
 
 
 class Plotter(object):
@@ -67,6 +122,8 @@ class Plotter(object):
         env.tests["sum"] = lambda s: s == "Total"
         template = env.get_template('template.html')
 
+        tfilename = os.path.join(self.config['outdir'], 'plots', 'plots.tar.gz')
+        tfile = tarfile.open(tfilename, 'w:gz')
         for root, dirs, files in os.walk(os.path.abspath(self.config['outdir'])):
             for path in [os.path.join(root, d) for d in dirs] + [root]:
                 pngs = glob.glob(os.path.join(path, '*.png'))
@@ -74,11 +131,7 @@ class Plotter(object):
                 plots = [os.path.splitext(os.path.basename(name))[0] for name in pngs]
                 if plots:
                     plots.sort()
-
-                    tfilename = os.path.join(path, 'plots.tar.gz')
-                    tfile = tarfile.open(tfilename, 'w:gz')
-                    [tfile.add(f) for f in [os.path.join(path, name) for name in pngs + pdfs]]
-                    tfile.close()
+                    [tfile.add(f, arcname=os.path.basename(name)) for f in [os.path.join(path, name) for name in pdfs]]
 
                 dirs = ['..']
                 files = []
@@ -100,16 +153,18 @@ class Plotter(object):
                         plots=plots,
                     ).encode('utf-8'))
 
+        tfile.close()
+
     @contextlib.contextmanager
     def saved_figure(self, x_label, y_label, name, header=False):
         fig, ax = plt.subplots(figsize=(11, 11))
+        lumi = str(self.config['luminosity']) + ' fb$^{-1}$ (13 TeV)'
         if header:
-            if header is 'preliminary':
+            plt.title(lumi, loc='right', fontweight='bold')
+            if header in ['preliminary only', 'preliminary']:
                 plt.title(r'CMS preliminary', loc='left', fontweight='bold')
-            else:
-                plt.title(r'CMS preliminary', loc='left', fontweight='bold')
-
-            plt.title('{}'.format(self.config['luminosity']) + ' fb$^{-1}$ (13 TeV)', loc='right', fontweight='bold')
+            elif header == 'final':
+                plt.title(r'CMS', loc='left', fontweight='bold')
 
         try:
             yield ax
@@ -118,69 +173,56 @@ class Plotter(object):
             logging.info('saving {}'.format(name))
             plt.xlabel(x_label)
             plt.ylabel(y_label)
-            plt.savefig(os.path.join(self.config['outdir'], '{}.pdf'.format(name)), bbox_inches='tight')
-            plt.savefig(os.path.join(self.config['outdir'], '{}.png'.format(name)), bbox_inches='tight')
+            plt.savefig(os.path.join(self.config['outdir'], 'plots', '{}.pdf'.format(name)), bbox_inches='tight', transparent=True)
+            plt.savefig(os.path.join(self.config['outdir'], 'plots', '{}.png'.format(name)), bbox_inches='tight')
             plt.close()
 
 
-def fit_nll(config):
-    from root_numpy import root2array
-    import scipy.signal
-
-    res = {}
-    for operator in config['operators']:
-        data = root2array(os.path.join(config['outdir'], 'scans', '{}.total.root'.format(operator)))
-        data = data[data['deltaNLL'] < 5]
-        _, unique = np.unique(data[operator], return_index=True)
-
-        x = data[unique][operator]
-        y = 2 * data[unique]['deltaNLL']
-        minima = scipy.signal.argrelmin(y)
-        threshold = y[minima] - min(y) < 0.1
-
-        res[operator] = {
-            'x': x,
-            'y': y,
-            'best fit': [],
-            'one sigma': [],
-            'two sigma': []
-        }
-
-        for xbf, ybf in zip(x[minima][threshold], y[minima][threshold]):
-            res[operator]['best fit'].append((xbf, ybf))
-            if line.interval(x, y, 1.0, xbf) not in res[operator]['one sigma']:
-                res[operator]['one sigma'].append(line.interval(x, y, 1.0, xbf))
-            if line.interval(x, y, 3.84, xbf) not in res[operator]['two sigma']:
-                res[operator]['two sigma'].append(line.interval(x, y, 3.84, xbf))
-
-    return res
-
-
-def load(config):
-    x = {}
-    y = {}
-
-    fn = os.path.join(config['outdir'], 'cross_sections.npy')
-    for process, info in np.load(fn)[()].items():
-        coefficients = info['coefficients']
-        cross_section = info['cross section']
-        sm_coefficients = np.array([tuple([0.0] * len(coefficients.dtype))], dtype=coefficients.dtype)
-        sm_cross_section = np.mean(cross_section[coefficients == sm_coefficients])
-
-        x[process] = {'sm': sm_coefficients}
-        y[process] = {'sm': sm_cross_section}
-
-        for operator in coefficients.dtype.names:
-            x[process][operator] = coefficients[operator][coefficients[operator] != 0]
-            y[process][operator] = cross_section[coefficients[operator] != 0]
-
-    return x, y
-
-def xsecs(config, plotter):
-    nll = fit_nll(config)
+def ratio_fits(config, plotter):
     coefficients, cross_sections = load(config)
+    mus = load_mus(config)
 
     for operator in coefficients.values()[0]:
+        if operator == 'sm':
+            continue
+
+        with plotter.saved_figure(
+                label[operator],
+                '$\sigma_{NP+SM} / \sigma_{SM}$',
+                os.path.join('cross_sections', 'ratio_fits', operator)) as ax:
+            ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+            for process in ['tt', 'H', 'ttZ', 'ttH', 'ttW']:
+            # for process in ['ttZ', 'ttH', 'ttW']:
+                x = coefficients[process][operator]
+                y = cross_sections[process][operator] / cross_sections[process]['sm']
+                fit = mus[operator][process]
+                if process in ['tt', 'H', 'ttZ', 'ttH', 'ttW']:
+                    ax.plot(np.linspace(-1, 1, 100), fit(np.linspace(-1, 1, 100)), color='#C6C6C6')
+                    ax.plot(x, y, 'o', label=process)
+
+            ax.legend(loc='upper center')
+
+        for process in mus[operator]:
+            with plotter.saved_figure(
+                    label[operator],
+                    '$\sigma_{NP+SM} / \sigma_{SM}$',
+                    os.path.join('cross_sections', 'ratio_fits', '{}_{}'.format(operator, process))) as ax:
+                ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+                x = coefficients[process][operator]
+                y = cross_sections[process][operator] / cross_sections[process]['sm']
+                fit = mus[operator][process]
+                ax.plot(np.linspace(-1, 1, 100), fit(np.linspace(-1, 1, 100)), color='#C6C6C6')
+                ax.plot(x, y, 'o', label=process)
+
+                ax.legend(loc='upper center')
+
+def ratio_points(config, plotter):
+    nll = fit_nll(config)
+    coefficients, cross_sections = load(config)
+    mus = load_mus(config)
+
+    # for operator in coefficients.values()[0]:
+    for operator in config['operators']:
         if operator == 'sm':
             continue
 
@@ -188,22 +230,38 @@ def xsecs(config, plotter):
         with plotter.saved_figure(
                 label[operator],
                 '$\sigma_{NP+SM} / \sigma_{SM}$',
-                os.path.join(config['outdir'], 'plots', 'cross_sections', 'ratios', operator)) as ax:
-            for process in config['processes']:
+                # '$\sigma_{NP+SM}$ $\mathrm{[pb]}$',
+                os.path.join('cross_sections', 'ratio_points', operator)) as ax:
+
+            xmin, xmax = np.array(nll[operator]['two sigma'][0]) * 1.2
+            print 'operator, xmin, xmax ', operator, xmin, xmax
+            for process in ['ttW', 'ttZ', 'ttH']:
+                print 'process is ', process
                 x = coefficients[process][operator]
                 y = cross_sections[process][operator] / cross_sections[process]['sm']
-                ax.plot(x, y, 'o', label=process)
+                print 'x is ', x
+                selected = (x > xmin) & (x < xmax)
+                print 'selected ', selected
+                if any(selected):
+                    while len(x[selected]) < 3:
+                        xmin *= 1.2
+                        xmax *= 1.2
+                        selected = (x > xmin) & (x < xmax)
+                    xi = np.linspace(xmin, xmax, 10000)
+                    ax.plot(xi, mus[operator][process](xi), color='#C6C6C6')
+                    ax.plot(x[selected], y[selected], 'o', label=process)
+                    print 'process, ymax, yimax ', process, y.max(), mus[operator][process](xi).max()
 
             if operator in config['operators']:
                 colors = ['black', 'gray']
-                for (x, _), color in zip(nll[operator]['best fit'], colors):
-                    plt.axvline(
-                        x=x,
-                        ymax=0.5,
-                        linestyle='-',
-                        color=color,
-                        label='best fit {}$={:.2f}$'.format(label[operator], x)
-                    )
+                # for (x, _), color in zip(nll[operator]['best fit'], colors):
+                #     plt.axvline(
+                #         x=x,
+                #         ymax=0.5,
+                #         linestyle='-',
+                #         color=color,
+                #         label='best fit {}$={:.2f}$'.format(label[operator], x)
+                #     )
                 for (low, high), color in zip(nll[operator]['one sigma'], colors):
                     plt.axvline(
                         x=low,
@@ -218,19 +276,34 @@ def xsecs(config, plotter):
                         linestyle='--',
                         color=color
                     )
-            ax.legend(loc='upper center')
+                for (low, high), color in zip(nll[operator]['two sigma'], colors):
+                    plt.axvline(
+                        x=low,
+                        ymax=0.5,
+                        linestyle=':',
+                        color=color,
+                        label='$2 \sigma [{:03.2f}, {:03.2f}]$'.format(low, high)
+                    )
+                    plt.axvline(
+                        x=high,
+                        ymax=0.5,
+                        linestyle=':',
+                        color=color
+                    )
 
-        # FIXME: add fits
-        # x = np.linspace(-1, 1, 100)
-        # y = fits[operator]['ttZ'](x)
-        # plt.plot(x, y)
+                plt.xlim(xmin=xmin, xmax=xmax)
+                # plt.xlim(xmin=-0.1, xmax=0.1)
+            ax.legend(loc='upper center')
 
 
 def nll(config, plotter):
     data = fit_nll(config)
 
     for operator, info in data.items():
-        with plotter.saved_figure(label[operator], '-2 $\Delta$ ln L', os.path.join(config['outdir'], 'plots', 'nll', operator), '') as ax:
+        with plotter.saved_figure(
+                label[operator],
+                '-2 $\Delta$ ln L',
+                os.path.join('nll', operator)) as ax:
             ax.plot(info['x'], info['y'], 'o')
 
             for x, y in info['best fit']:
@@ -243,33 +316,32 @@ def nll(config, plotter):
                 ax.plot([low, high], [3.84, 3.84], '-', label='$2\sigma$ CL [{:03.2f}, {:03.2f}]'.format(low, high))
 
             ax.legend(loc='upper center')
+            plt.ylim(ymin=0)
 
 
 def ttZ_ttW_2D(config, ax):
     from root_numpy import root2array
+    # FIXME: use config outdir here
     limits = root2array(os.path.join('scans', 'ttZ_ttW_2D.total.root'))
 
     x = limits['r_ttW'] * nlo['ttW']
     y = limits['r_ttZ'] * nlo['ttZ']
     z = 2 * limits['deltaNLL']
 
-    extent = (0, 1800, 0, 2200)
-    x_min, x_max, y_min, y_max = extent
+    # levels = {
+    #     2.30: '  1 $\sigma$',
+    #     5.99: '  2 $\sigma$',
+    #     # 11.83: ' 3 $\sigma$',
+    #     # 19.33: ' 4 $\sigma$',
+    #     # 28.74: ' 5 $\sigma$'
+    # }
 
-    levels = {
-        2.30: '  1 $\sigma$',
-        5.99: '  2 $\sigma$',
-        # 11.83: ' 3 $\sigma$',
-        # 19.33: ' 4 $\sigma$',
-        # 28.74: ' 5 $\sigma$'
-    }
+    # xi = np.linspace(x_min, x_max, 1000)
+    # yi = np.linspace(y_min, y_max, 1000)
+    # zi = griddata(x, y, z, xi, yi, interp='linear')
 
-    xi = np.linspace(x_min, x_max, 1000)
-    yi = np.linspace(y_min, y_max, 1000)
-    zi = griddata(x, y, z, xi, yi, interp='linear')
-
-    cs = plt.contour(xi, yi, zi, sorted(levels.keys()), colors='black', linewidths=2)
-    plt.clabel(cs, fmt=levels)
+    # cs = plt.contour(xi, yi, zi, sorted(levels.keys()), colors='black', linewidths=2)
+    # plt.clabel(cs, fmt=levels)
 
     handles = []
     labels = []
@@ -285,15 +357,16 @@ def ttZ_ttW_2D(config, ax):
     )
     handles.append(bf)
     labels.append('2D best fit')
-    print 'best fit ', x[z.argmin()], y[z.argmin()]
+    print 'best fit ttW, ttZ', x[z.argmin()], y[z.argmin()]
 
     ttW_theory_xsec = plt.axvline(x=nlo['ttW'], linestyle='--', color='black')
     ttW_theory_error = ax.axvspan(
-        nlo['ttW'] - nlo['ttW'] * 0.12,
-        nlo['ttW'] + nlo['ttW'] * 0.10,
+        nlo['ttW'] - nlo['ttW'] * 0.1173,
+        nlo['ttW'] + nlo['ttW'] * 0.1316,
         edgecolor='#555555',
         fill=False,
         linewidth=0.0,
+        zorder=2,
         hatch='//'
     )
     handles.append((ttW_theory_xsec, ttW_theory_error))
@@ -301,7 +374,7 @@ def ttZ_ttW_2D(config, ax):
 
     ttZ_theory_xsec = plt.axhline(y=nlo['ttZ'], linestyle='--', color='black')
     ttZ_theory_error = ax.axhspan(
-        nlo['ttZ'] - nlo['ttZ'] * 0.12,
+        nlo['ttZ'] - nlo['ttZ'] * 0.1164,
         nlo['ttZ'] + nlo['ttZ'] * 0.10,
         edgecolor='#555555',
         fill=False,
@@ -312,16 +385,19 @@ def ttZ_ttW_2D(config, ax):
     handles.append((ttZ_theory_xsec, ttZ_theory_error))
     labels.append('{} theory'.format(label['ttZ']))
 
+    ax.set_xlim([x_min, x_max])
+    ax.set_autoscalex_on(False)
+
     return handles, labels
 
 
-def ttZ_ttW_2D_1D_ttZ_1D_ttW(config, plotter):
+def ttZ_ttW_2D_1D_ttZ_1D_ttW(args, config, plotter):
     from root_numpy import root2array
     with plotter.saved_figure(
             label['sigma ttW'],
             label['sigma ttZ'],
-            'plots/ttZ_ttW_2D_1D_ttZ_1D_ttW',
-            header=config['plot header']) as ax:
+            'ttZ_ttW_2D_1D_ttZ_1D_ttW',
+            header=args.header) as ax:
         handles, labels = ttZ_ttW_2D(config, ax)
 
         data = root2array('ttW.root')
@@ -354,93 +430,152 @@ def ttZ_ttW_2D_1D_ttZ_1D_ttW(config, plotter):
 
         plt.legend(handles, labels, fontsize=15)
 
+def find_confidence_interval(x, pdf, confidence_level):
+    return pdf[pdf > x].sum() - confidence_level
 
-def load_fits(config):
-    fits = {}
-    coefficients, cross_sections = load(config)
-
-    print '{:10} {:14} {:12} {:14}'.format('process', '       NLO', '   LO', 'scale factor')
-    for process in ['ttZ', 'ttW']:
-
-        for operator in config['operators']:
-            x = coefficients[process][operator]
-            y = cross_sections[process][operator] * nlo[process] / cross_sections[process]['sm']
-
-            if operator == 'cpHQ':
-                print '{:10} {:-10.0f} {:10.0f} {:10.2f}'.format(process, nlo[process], cross_sections[process]['sm'] * 1000., nlo[process] / (cross_sections[process]['sm'] * 1000.))
-            try:
-                fits[operator][process] = Polynomial.fit(x, y, 2)
-            except KeyError:
-                fits[operator] = {process: Polynomial.fit(x, y, 2)}
-
-    return fits
-
-
-def ttZ_ttW_2D_1D_eff_op(config, plotter):
+def ttZ_ttW_2D_1D_eff_op(args, config, plotter):
     from root_numpy import root2array
-    fits = load_fits(config)
+    mus = load_mus(config)
+    nll = fit_nll(config)
+
+    #  TODO factorize this, it's repeated from fluctuate.py
+    def piecewise(kappa, thetas):
+        return np.piecewise(thetas, [thetas >= 0., thetas < 0.], [kappa['+'], kappa['-']])
 
     for operator in config['operators']:
+        data = np.load(os.path.join(config['outdir'], 'fluctuations-{}.npy'.format(operator)))
+
         with plotter.saved_figure(
                 label['sigma ttW'],
                 label['sigma ttZ'],
-                'plots/ttZ_ttW_2D_1D_{}'.format(operator),
-                header=config['plot header']) as ax:
+                'ttZ_ttW_2D_1D_{}'.format(operator),
+                header=args.header) as ax:
             handles, labels = ttZ_ttW_2D(config, ax)
 
-            data = root2array('best-fit-{}.root'.format(operator))
+            info = root2array('best-fit-{}.root'.format(operator))
+            mu = mus[operator]
+            bf, low, high = info[operator]
 
-            # p = np.linspace(data[operator][1], data[operator][2], 1000)
-            # x = fits[operator]['ttW'](p)
-            # y = fits[operator]['ttZ'](p)
-            # band = plt.fill_between(x, y - y * 0.1, y + y * 0.1)
-            # line = plt.plot(x, y, color='#A8D46F')
-            # plt.fill_betweenx(y, x - x * 0.1, x + x * 0.1)
+            x = data['x_sec_ttW']
+            y = data['x_sec_ttZ']
+            # plt.plot(x, y, linestyle='none', marker='o', color='red')
 
-            bf, = plt.plot(
-                fits[operator]['ttW'](data[operator][0]),
-                fits[operator]['ttZ'](data[operator][0]),
-                color='black',
-                mew=3,
-                markersize=17,
-                marker="*",
-                linestyle='None'
-            )
-            handles.append(bf)
-            labels.append(
-                'best fit {}\n{:03.2f} [{:03.2f}, {:03.2f}]'.format(
-                    label[operator],
-                    round(data[operator][0], 2) + 0,
-                    data[operator][1],
-                    data[operator][2]
+            kdehist = kde.kdehist2(x[:10000], y[:10000], [70, 70])
+            clevels = sorted(kde.confmap(kdehist[0], [.6827,.9545]))
+            contour = ax.contour(kdehist[1], kdehist[2], kdehist[0], clevels, colors=['#30a2da', '#fc4f30'])
+            for index, handle in enumerate(contour.collections[::-1]):
+                handles.append(handle)
+                labels.append('{} {}$\sigma$ CL'.format(label[operator], index + 1))
+
+            # xi = np.linspace(x_min, x_max, 100)
+            # yi = np.linspace(y_min, y_max, 100)
+            # hist, _, _ = np.histogram2d(x, y, bins=(xi, yi))
+            # pdf = hist / hist.sum()
+
+            # one_sigma = so.brentq(find_confidence_interval, 0., 1., args=(pdf, 0.68))
+            # two_sigma = so.brentq(find_confidence_interval, 0., 1., args=(pdf, 0.95))
+            # levels = sorted([one_sigma, two_sigma])
+            # # ax.pcolormesh(xi, yi, pdf.T)
+
+            # contour = ax.contour(pdf.T, extent=extent, levels=levels, colors=['#30a2da', '#fc4f30'])
+            # for index, handle in enumerate(contour.collections[::-1]):
+            #     handles.append(handle)
+            #     labels.append('{} {}$\sigma$ CL'.format(label[operator], index + 1))
+
+            # points = sorted([low] + list(np.random.uniform(low, high, 3)) + [high])
+            # ax.set_color_cycle([plt.cm.cool(i) for i in np.linspace(0, 1, len(points))])
+            # for p in points:
+            # # for coefficient in np.hstack([coefficients[:14:2], coefficients[14::2]]):
+            #     point, = plt.plot(
+            #         best_fit_x_secs['ttW'] / fit['ttW'](bf) * fit['ttW'](p),
+            #         best_fit_x_secs['ttZ'] / fit['ttZ'](bf) * fit['ttZ'](p),
+            #         marker='x',
+            #         markersize=17,
+            #         mew=3,
+            #         linestyle="None"
+            #     )
+            #     handles.append(point)
+            #     labels.append('{}={:03.2f}'.format(operator, p))
+
+            colors = ['black', 'gray']
+            for (bf, _), color in zip(nll[operator]['best fit'], colors):
+                for low, high in nll[operator]['one sigma']:
+                    if (bf > low) and (bf < high):
+                        break
+                # data[0] contains the best fit parameters
+                point, = plt.plot(
+                    nlo['ttW'] * \
+                        mu['ttW'](bf) * \
+                        np.power(piecewise(kappa['Q2_ttW'], data[0]['Q2_ttW']), data[0]['Q2_ttW']) * \
+                        np.power(piecewise(kappa['PDF_qq'], data[0]['PDF_qq']), data[0]['PDF_qq']),
+                    nlo['ttZ'] * \
+                        mu['ttZ'](bf) * \
+                        np.power(piecewise(kappa['Q2_ttZ'], data[0]['Q2_ttZ']), data[0]['Q2_ttZ']) * \
+                        np.power(piecewise(kappa['PDF_gg']['ttZ'], data[0]['PDF_gg']), data[0]['PDF_gg']),
+                    color=color,
+                    markeredgecolor=color,
+                    mew=3,
+                    markersize=17,
+                    marker="*",
+                    linestyle='None'
                 )
-            )
-
+                handles.append(point)
+                labels.append(
+                    'best fit {}\n{:03.2f} [{:03.2f}, {:03.2f}]'.format(
+                        label[operator],
+                        round(bf, 2) + 0,
+                        low,
+                        high
+                    )
+                )
             plt.legend(handles, labels, fontsize=15)
+            plt.ylim(ymin=0, ymax=y_max)
 
+        with plotter.saved_figure(label['sigma ttW'], '', 'x_sec_ttW_{}'.format(operator)) as ax:
+            avg = np.average(data['x_sec_ttW'])
+            var = np.std(data['x_sec_ttW'], ddof=1)
+            info = u"$\mu$ = {:.3f}, $\sigma$ = {:.3f}".format(avg, var)
 
-def wilson_coefficients_in_window(config, plotter):
+            n, bins, _ = ax.hist(data['x_sec_ttW'], bins=100)
+            ax.text(0.75, 0.8, info, ha="center", transform=ax.transAxes, fontsize=20)
+            plt.axvline(x=avg - var, linestyle='--', color='black', label='$\mu - \sigma$')
+            plt.axvline(x=avg + var, linestyle='--', color='red', label='$\mu + \sigma$')
+            plt.legend()
 
-    fits = load_fits(config)
+        # for par in ['Q2_ttW', 'PDF_qq', 'Q2_ttZ', 'PDF_gg']:
+        for par in par_names + [operator]:
+            with plotter.saved_figure(par, '', 'pulls/{}_{}'.format(operator, par)) as ax:
+                plt.title(operator)
+                ax.xaxis.set_major_formatter(FormatStrFormatter('%.3f'))
+                avg = np.average(data[par])
+                var = np.std(data[par])
+                info = u"$\mu$ = {:.5f}, $\sigma$ = {:.5f}".format(avg, var)
+
+                n, _, _ = ax.hist(data[par], bins=100)
+                ax.text(0.75, 0.8, info, ha="center", transform=ax.transAxes, fontsize=20)
+
+def wilson_coefficients_in_window(args, config, plotter):
+
+    mus = load_mus(config)
 
     for operator in config['operators']:
         with plotter.saved_figure(
                 label['sigma ttW'],
                 label['sigma ttZ'],
-                'plots/ttZ_ttW_2D_cross_section_with_sampled_{}'.format(operator),
-                header=config['plot header']) as ax:
+                'ttZ_ttW_2D_cross_section_with_sampled_{}'.format(operator),
+                header=args.header) as ax:
             ttZ_ttW_2D(config, ax)
 
             ax.set_color_cycle([plt.cm.cool(i) for i in np.linspace(0, 1, 28)])
 
-            high = min(max((fits[operator]['ttW'] - 1000).roots().real), max((fits[operator]['ttZ'] - 1000).roots().real))
-            low = max(min((fits[operator]['ttW'] - 1000).roots().real), min((fits[operator]['ttZ'] - 1000).roots().real))
+            high = min(max((mus[operator]['ttW'] - 1000).roots().real), max((mus[operator]['ttZ'] - 1000).roots().real))
+            low = max(min((mus[operator]['ttW'] - 1000).roots().real), min((mus[operator]['ttZ'] - 1000).roots().real))
             coefficients = np.linspace(low, high, 28)
             # avoid overlapping due to symmetric points
             for coefficient in np.hstack([coefficients[:14:2], coefficients[14::2]]):
                 plt.plot(
-                    fits[operator]['ttW'](coefficient),
-                    fits[operator]['ttZ'](coefficient),
+                    mus[operator]['ttW'](coefficient) * nlo['ttW'],
+                    mus[operator]['ttZ'](coefficient) * nlo['ttZ'],
                     marker='x',
                     markersize=17,
                     mew=3,
@@ -456,10 +591,17 @@ def plot(args, config):
     from root_numpy import root2array
     plotter = Plotter(config)
 
+    if args.plot != 'all':
+        config['operators'] = [args.plot]
+
+    if args.publication:
+        plt.rcParams['axes.facecolor'] = '#ffffff'
+        plt.rcParams['savefig.facecolor'] = '#ffffff'
+
     nll(config, plotter)
-    xsecs(config, plotter)
+    ratio_points(config, plotter)
+    ttZ_ttW_2D_1D_eff_op(args, config, plotter)
 
-
-    wilson_coefficients_in_window(config, plotter)
-    ttZ_ttW_2D_1D_ttZ_1D_ttW(config, plotter)
-    ttZ_ttW_2D_1D_eff_op(config, plotter)
+    # ratio_fits(config, plotter)
+    # ttZ_ttW_2D_1D_ttZ_1D_ttW(args, config, plotter)
+    # wilson_coefficients_in_window(args, config, plotter)

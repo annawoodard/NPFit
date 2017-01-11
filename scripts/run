@@ -19,15 +19,20 @@ ag.add_argument('-p', '--parse',
                 help="parse gen-level file to extract cross sections")
 ag.add_argument('-c', '--concatenate', action='store_true', default=False,
                 help="concatenate cross sections")
-ag.add_argument('-l', '--plot', action='store_true', default=False,
+ag.add_argument('-f', '--fluctuate', nargs=2, metavar=('OPERATOR', 'NUM_TOYS'), 
+                help="perturb fit values by random amounts sampled from the covariance matrix")
+ag.add_argument('-l', '--plot', nargs='?', metavar=('OPERATOR'),
                 help="plot cross section scans")
+ag.add_argument('-u', '--publication', action='store_true', default=False,
+                help="plot with publication settings")
+ag.add_argument('-e', '--header', default='preliminary', help="plot header")
 args = parser.parse_args()
 
 if 'LOCALRT' not in os.environ:
     parser.error("need to do a `cmsenv` first")
 
-if not any([args.make, args.parse, args.concatenate, args.plot]):
-    parser.error("need to either make, parse, concatenate, or plot")
+if not any([args.make, args.parse, args.concatenate, args.fluctuate, args.plot]):
+    parser.error("need to either make, parse, concatenate, fluctuate, or plot")
 
 logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
@@ -44,13 +49,16 @@ for k in ('indir', 'outdir'):
 
 from EffectiveTTV.EffectiveTTV.actionable import make, parse, concatenate
 from EffectiveTTV.EffectiveTTV.plotting import plot
+from EffectiveTTV.EffectiveTTV.fluctuate import fluctuate
 
 for path in (
         'cross_sections',
         'workspaces',
         'scans',
+        'plots/pulls',
         'plots/cross_sections',
-        'plots/cross_sections/ratios',
+        'plots/cross_sections/ratio_points',
+        'plots/cross_sections/ratio_fits',
         'plots/cross_sections/ttW',
         'plots/cross_sections/ttH',
         'plots/cross_sections/ttZ',
@@ -66,6 +74,8 @@ if args.parse:
     actions.append(parse)
 if args.concatenate:
     actions.append(concatenate)
+if args.fluctuate:
+    actions.append(fluctuate)
 if args.plot:
     actions.append(plot)
 
