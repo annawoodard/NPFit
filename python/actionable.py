@@ -99,7 +99,7 @@ def make(args, config):
         f.write(card[:card.find('\ntheo group')])
         for line in systematics.values():
             f.write(line)
-        f.write(card[card.find('\ntheo group'):])
+        # f.write(card[card.find('\ntheo group'):])
 
     makefile = os.path.join(config['outdir'], 'Makeflow')
     logging.info('writing Makeflow file to {}'.format(config['outdir']))

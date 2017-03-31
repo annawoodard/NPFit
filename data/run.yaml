@@ -1,6 +1,6 @@
 # indir: /hadoop/store/user/awoodard/ttV/34/1/*gen*
 cross sections: /afs/crc.nd.edu/user/a/awoodard/www/ttV/34/1/9/cross_sections.npy
-outdir: /afs/crc.nd.edu/user/a/awoodard/www/ttV/34/1/19
+outdir: /afs/crc.nd.edu/user/a/awoodard/www/ttV/34/1/20
 dimension: 1
 cards:
   ttW: /afs/crc.nd.edu/user/a/awoodard/releases/effective-ttV/CMSSW_7_4_7/src/EffectiveTTV/EffectiveTTV/data/cards/1Mar_2017/2L.txt
@@ -10,7 +10,8 @@ cards:
 chunk size: 150
 
 luminosity: 36
-processes: ['ttH', 'ttZ', 'ttW'] # processes to scale
+# processes: ['ttH', 'ttZ', 'ttW'] # processes to scale
+processes: ['ttZ', 'ttW'] # processes to scale
 # processes: ['ttX', 'ttother', 'rare', 'WZ', 'ZZ', 'ttH', 'ttZ', 'ttW']
 # operators: ['cpHQ', 'cHQ', 'cuB', 'c3W', 'cHu']
 # operators: ['c2B', 'c2G', 'c2W', 'c3G', 'c3W', 'c6', 'cA', 'cB', 'cG', 'cH', 'cHB', 'cHL', 'cHQ', 'cHW', 'cHd', 'cHe', 'cHu', 'cHud', 'cT', 'cWW', 'cd', 'cdB', 'cdG', 'cdW', 'cl', 'clB', 'clW', 'cpHL', 'cpHQ', 'cu', 'cuB', 'cuG', 'cuW', 'tc3G', 'tc3W', 'tcA', 'tcG', 'tcHB', 'tcHW']
