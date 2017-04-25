@@ -9,9 +9,9 @@ cards:
 2d points: 10000
 chunk size: 150
 
-luminosity: 36
-# processes: ['ttH', 'ttZ', 'ttW'] # processes to scale
-processes: ['ttZ', 'ttW'] # processes to scale
+luminosity: 35.9
+processes: ['ttH', 'ttZ', 'ttW'] # processes to scale
+# processes: ['ttZ', 'ttW'] # processes to scale
 # processes: ['ttX', 'ttother', 'rare', 'WZ', 'ZZ', 'ttH', 'ttZ', 'ttW']
 # operators: ['cpHQ', 'cHQ', 'cuB', 'c3W', 'cHu']
 # operators: ['c2B', 'c2G', 'c2W', 'c3G', 'c3W', 'c6', 'cA', 'cB', 'cG', 'cH', 'cHB', 'cHL', 'cHQ', 'cHW', 'cHd', 'cHe', 'cHu', 'cHud', 'cT', 'cWW', 'cd', 'cdB', 'cdG', 'cdW', 'cl', 'clB', 'clW', 'cpHL', 'cpHQ', 'cu', 'cuB', 'cuG', 'cuW', 'tc3G', 'tc3W', 'tcA', 'tcG', 'tcHB', 'tcHW']

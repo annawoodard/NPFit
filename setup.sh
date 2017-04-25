@@ -11,6 +11,14 @@ EOF
 set -e
 set -o xtrace
 
+if ! type "$makeflow" > /dev/null; then
+  if [ -f /etc/redhat-release]; then
+    slc=$(egrep "Red Hat Enterprise|Scientific|CentOS" /etc/redhat-release | sed 's/.*[rR]elease \([0-9]*\).*/\1/')
+  else
+    echo "unsupported OS; cctools will not be installed automatically"
+    echo "try your luck at http://ccl.cse.nd.edu/software/downloadfiles.php"
+  fi
+
 export SCRAM_ARCH=slc6_amd64_gcc491
 scramv1 project CMSSW_7_4_7
 cd CMSSW_7_4_7/src
@@ -33,6 +41,8 @@ ln -s /afs/crc.nd.edu/user/a/awoodard/releases/effective-ttV/CMSSW_7_4_7/python/
 # not sure above not working, copy whole ETTV dir?
 ) > setup.log
 
+pip install --upgrade --user matplotlib
+export PYTHONPATH=/afs/crc.nd.edu/user/a/awoodard/.local/lib/python2.7/site-packages:$PYTHONPATH
 
 cat <<EOF
 =========================================================================

@@ -18,6 +18,13 @@ def crossings(x, y, q):
 def interval(x, y, q, p):
     points = crossings(x, y, q)
 
+    if len(points) == 1:
+        crossing = points[0]
+        if p < crossing:
+            return (0, crossing)
+        else:
+            return (crossing, x.max())
+
     if len(points) % 2 != 0:
         return None
 

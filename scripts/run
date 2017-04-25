@@ -23,8 +23,6 @@ ag.add_argument('-f', '--fluctuate', nargs=2, metavar=('OPERATOR', 'NUM_TOYS'),
                 help="perturb fit values by random amounts sampled from the covariance matrix")
 ag.add_argument('-l', '--plot', nargs='?', metavar=('OPERATOR'),
                 help="plot cross section scans")
-ag.add_argument('-u', '--publication', action='store_true', default=False,
-                help="plot with publication settings")
 ag.add_argument('-e', '--header', default='preliminary', help="plot header")
 args = parser.parse_args()
 
