@@ -105,57 +105,13 @@ lines.markeredgewidth  : 0.0     # the line width around the marker symbol
 # information on patch properties
 patch.linewidth        : 0.5        # edge width in points.
 #patch.facecolor        : C0
-patch.edgecolor        : f0f0f0   # if forced, or patch is not filled
+patch.edgecolor        : white   # if forced, or patch is not filled
 #patch.force_edgecolor  : False   # True to always use edgecolor
 #patch.antialiased      : True    # render patches in antialiased (no jaggies)
 
 ### HATCHES
 #hatch.color     : k
 #hatch.linewidth : 1.0
-
-### Boxplot
-#boxplot.notch       : False
-#boxplot.vertical    : True
-#boxplot.whiskers    : 1.5
-#boxplot.bootstrap   : None
-#boxplot.patchartist : False
-#boxplot.showmeans   : False
-#boxplot.showcaps    : True
-#boxplot.showbox     : True
-#boxplot.showfliers  : True
-#boxplot.meanline    : False
-
-#boxplot.flierprops.color           : 'k'
-#boxplot.flierprops.marker          : 'o'
-#boxplot.flierprops.markerfacecolor : 'none'
-#boxplot.flierprops.markeredgecolor : 'k'
-#boxplot.flierprops.markersize      : 6
-#boxplot.flierprops.linestyle       : 'none'
-#boxplot.flierprops.linewidth       : 1.0
-
-#boxplot.boxprops.color     : 'k'
-#boxplot.boxprops.linewidth : 1.0
-#boxplot.boxprops.linestyle : '-'
-
-#boxplot.whiskerprops.color     : 'k'
-#boxplot.whiskerprops.linewidth : 1.0
-#boxplot.whiskerprops.linestyle : '-'
-
-#boxplot.capprops.color     : 'k'
-#boxplot.capprops.linewidth : 1.0
-#boxplot.capprops.linestyle : '-'
-
-#boxplot.medianprops.color     : 'C1'
-#boxplot.medianprops.linewidth : 1.0
-#boxplot.medianprops.linestyle : '-'
-
-#boxplot.meanprops.color           : 'C2'
-#boxplot.meanprops.marker          : '^'
-#boxplot.meanprops.markerfacecolor : 'C2'
-#boxplot.meanprops.markeredgecolor : 'C2'
-#boxplot.meanprops.markersize      :  6
-#boxplot.meanprops.linestyle       : 'none'
-#boxplot.meanprops.linewidth       : 1.0
 
 ### FONT
 #
@@ -195,7 +151,7 @@ patch.edgecolor        : f0f0f0   # if forced, or patch is not filled
 #
 font.family         : sans-serif
 #font.family         : stixsans
-# font.family         : STIXGeneral
+#font.family         : STIXGeneral
 #font.style          : normal
 #font.variant        : normal
 #font.weight         : medium
@@ -205,9 +161,9 @@ font.family         : sans-serif
 # settings for axes and ticks. Special text sizes can be defined
 # relative to font.size, using the following values: xx-small, x-small,
 # small, medium, large, x-large, xx-large, larger, or smaller
-font.size           : 18.0
+font.size           : 25.0
 #font.serif          : DejaVu Serif, Bitstream Vera Serif, New Century Schoolbook, Century Schoolbook L, Utopia, ITC Bookman, Bookman, Nimbus Roman No9 L, Times New Roman, Times, Palatino, Charter, serif
-font.sans-serif     : cm 
+font.sans-serif     : cm
 #font.sans-serif     : DejaVu Sans, Bitstream Vera Sans, Lucida Grande, Verdana, Geneva, Lucid, Arial, Helvetica, Avant Garde, sans-serif
 #font.cursive        : Apple Chancery, Textile, Zapf Chancery, Sand, Script MT, Felipa, cursive
 #font.fantasy        : Comic Sans MS, Chicago, Charcoal, Impact, Western, Humor Sans, xkcd, fantasy
@@ -218,7 +174,7 @@ font.sans-serif     : cm
 # http://matplotlib.org/api/artist_api.html#module-matplotlib.text for more
 # information on text properties
 
-text.color          : 555555
+text.color          : black
 
 ### LaTeX customizations. See http://wiki.scipy.org/Cookbook/Matplotlib/UsingTex
 # text.usetex         : True  # use latex for all text handling. The following fonts
@@ -281,9 +237,14 @@ text.color          : 555555
 #mathtext.it  : serif:italic
 #mathtext.bf  : serif:bold
 #mathtext.sf  : sans
-mathtext.fontset : stixsans # Should be 'dejavusans' (default),
+# mathtext.fontset : cm # Should be 'dejavusans' (default),
                                # 'dejavuserif', 'cm' (Computer Modern), 'stix',
                                # 'stixsans' or 'custom'
+
+mathtext.fontset : custom
+mathtext.rm : Bitstream Vera Sans
+mathtext.it : Bitstream Vera Sans:italic
+mathtext.bf : Bitstream Vera Sans:bold
 #mathtext.fallback_to_cm : True  # When True, use symbols from the Computer Modern
                                  # fonts when a symbol can not be found in one of
                                  # the custom math fonts.
@@ -297,8 +258,8 @@ mathtext.fontset : stixsans # Should be 'dejavusans' (default),
 # default face and edge color, default tick sizes,
 # default fontsizes for ticklabels, and so on.  See
 # http://matplotlib.org/api/axes_api.html#module-matplotlib.axes
-axes.facecolor      : f0f0f0   # axes background color
-axes.edgecolor      : 555555   # axes edge color
+axes.facecolor      : white   # axes background color
+axes.edgecolor      : black   # axes edge color
 axes.linewidth      : 1.0      # edge linewidth
 #axes.grid           : False   # display grid or not
 axes.titlesize      : x-large       # fontsize of the axes title
@@ -306,7 +267,7 @@ axes.titlesize      : x-large       # fontsize of the axes title
 axes.labelsize      : x-large  # fontsize of the x any y labels
 #axes.labelpad       : 4.0     # space between label and axis
 #axes.labelweight    : normal  # weight of the x and y labels
-axes.labelcolor     : 555555 
+axes.labelcolor     : black
 axes.axisbelow      : True  # draw axis gridlines and ticks below
                                # patches (True); above patches but below
                                # lines ('line'); or above all (False)
@@ -381,7 +342,7 @@ axes.prop_cycle    : cycler('color', ['30a2da', 'fc4f30', 'e5ae38', '6d904f', '8
 # xtick.minor.width    : 0.6    # minor tick width in points
 # xtick.major.pad      : 3.5      # distance to major tick label in points
 # xtick.minor.pad      : 3.4      # distance to the minor tick label in points
-xtick.color          : 555555      # color of the tick labels
+xtick.color          : black      # color of the tick labels
 # xtick.labelsize      : medium # fontsize of the tick labels
 # xtick.direction      : out    # direction: in, out, or inout
 xtick.minor.visible  : True  # visibility of minor ticks on x-axis
@@ -398,7 +359,7 @@ xtick.minor.visible  : True  # visibility of minor ticks on x-axis
 #ytick.minor.width    : 0.6    # minor tick width in points
 #ytick.major.pad      : 3.5      # distance to major tick label in points
 #ytick.minor.pad      : 3.4      # distance to the minor tick label in points
-ytick.color          : 555555      # color of the tick labels
+ytick.color          : black      # color of the tick labels
 #ytick.labelsize      : medium # fontsize of the tick labels
 #ytick.direction      : out    # direction: in, out, or inout
 ytick.minor.visible  : True  # visibility of minor ticks on y-axis
@@ -417,16 +378,16 @@ ytick.minor.visible  : True  # visibility of minor ticks on y-axis
 ### Legend
 #legend.loc           : best
 legend.frameon       : False     # if True, draw the legend on a background patch
-#legend.framealpha    : 0.8      # legend patch transparency
-#legend.facecolor     : inherit  # inherit from axes.facecolor; or color spec
-#legend.edgecolor     : 0.8      # background patch boundary color
+legend.framealpha    : 1.      # legend patch transparency
+legend.facecolor     : inherit  # inherit from axes.facecolor; or color spec
+legend.edgecolor     : 1.      # background patch boundary color
 #legend.fancybox      : True     # if True, use a rounded box for the
                                  # legend background, else a rectangle
 #legend.shadow        : False    # if True, give background a shadow effect
 legend.numpoints     : 1        # the number of marker points in the legend line
 #legend.scatterpoints : 1        # number of scatter points
 #legend.markerscale   : 1.0      # the relative size of legend markers vs. original
-#legend.fontsize      : medium
+legend.fontsize      : large
 # Dimensions as fraction of fontsize:
 #legend.borderpad     : 0.4      # border whitespace
 #legend.labelspacing  : 0.5      # the vertical space between the legend entries
@@ -520,8 +481,8 @@ figure.figsize   : 11, 9   # figure size in inches
 # e.g., you may want a higher resolution, or to make the figure
 # background white
 #savefig.dpi         : figure   # figure dots per inch or 'figure'
-savefig.facecolor   : f0f0f0    # figure facecolor when saving
-savefig.edgecolor   : f0f0f0    # figure edgecolor when saving
+savefig.facecolor   : white    # figure facecolor when saving
+savefig.edgecolor   : black    # figure edgecolor when saving
 #savefig.format      : png      # png, ps, pdf, svg
 #savefig.bbox        : standard # 'tight' or 'standard'.
                                 # 'tight' is incompatible with pipe-based animation
