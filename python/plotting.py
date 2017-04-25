@@ -233,7 +233,8 @@ def nll(args, config, plotter, transform=False, dimensionless=True):
         with plotter.saved_figure(
                 x_label,
                 '$-2\ \Delta\ \mathrm{ln}\ \mathrm{L}$',
-                os.path.join('nll', operator + ('_transformed' if transform else '')),
+                os.path.join('nll', ('transformed' if transform else ''), operator + ('_dimensionless' if
+                    dimensionless else '')),
                 header=args.header) as ax:
             ax.plot(info['x'], info['y'], 'o')
 
@@ -337,7 +338,6 @@ def ttZ_ttW_2D_1D_ttZ_1D_ttW(args, config, plotter):
 
         data = root2array('ttW.root')
 
-        print 'ttW 1D: ', data['limit'][0] * nlo['ttW']
         ttW_1D_xsec = plt.axvline(x=data['limit'][0] * nlo['ttW'], color='black')
         ttW_1D_error = ax.axvspan(
             data['limit'][1] * nlo['ttW'],
@@ -351,7 +351,6 @@ def ttZ_ttW_2D_1D_ttZ_1D_ttW(args, config, plotter):
 
         data = root2array('ttZ.root')
 
-        print 'ttZ 1D: ', data['limit'][0] * nlo['ttZ']
         ttZ_1D_xsec = plt.axhline(y=data['limit'][0] * nlo['ttZ'], color='black')
         ttZ_1D_error = ax.axhspan(
             data['limit'][1] * nlo['ttZ'],
@@ -426,16 +425,16 @@ def ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=T
             plt.legend(handles, labels, loc='lower right', fontsize=17.)
             plt.ylim(ymin=0, ymax=y_max)
 
-        with plotter.saved_figure(label['sigma ttW'], '', 'x_sec_ttW_{}'.format(operator)) as ax:
-            avg = np.average(data['x_sec_ttW'])
-            var = np.std(data['x_sec_ttW'], ddof=1)
-            info = u"$\mu$ = {:.3f}, $\sigma$ = {:.3f}".format(avg, var)
+        # with plotter.saved_figure(label['sigma ttW'], '', 'x_sec_ttW_{}'.format(operator)) as ax:
+        #     avg = np.average(data['x_sec_ttW'])
+        #     var = np.std(data['x_sec_ttW'], ddof=1)
+        #     info = u"$\mu$ = {:.3f}, $\sigma$ = {:.3f}".format(avg, var)
 
-            n, bins, _ = ax.hist(data['x_sec_ttW'], bins=100)
-            ax.text(0.75, 0.8, info, ha="center", transform=ax.transAxes, fontsize=20)
-            plt.axvline(x=avg - var, linestyle='--', color='black', label='$\mu - \sigma$')
-            plt.axvline(x=avg + var, linestyle='--', color='red', label='$\mu + \sigma$')
-            plt.legend()
+        #     n, bins, _ = ax.hist(data['x_sec_ttW'], bins=100)
+        #     ax.text(0.75, 0.8, info, ha="center", transform=ax.transAxes, fontsize=20)
+        #     plt.axvline(x=avg - var, linestyle='--', color='black', label='$\mu - \sigma$')
+        #     plt.axvline(x=avg + var, linestyle='--', color='red', label='$\mu + \sigma$')
+        #     plt.legend()
 
         # for par in par_names + [operator]:
         #     with plotter.saved_figure(par, '', 'pulls/{}_{}'.format(operator, par)) as ax:
@@ -450,41 +449,8 @@ def ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=T
 
     print tabulate.tabulate(table, headers=['coefficient', 'coefficient value', 'ttZ', 'ttW', 'ttH'])
 
-def wilson_coefficients_in_window(args, config, plotter):
-
-    mus = load_mus(config)
-
-    for operator in config['operators']:
-        with plotter.saved_figure(
-                label['sigma ttW'],
-                label['sigma ttZ'],
-                'ttZ_ttW_2D_cross_section_with_sampled_{}'.format(operator),
-                header=args.header) as ax:
-            ttZ_ttW_2D(config, ax)
-
-            ax.set_color_cycle([plt.cm.cool(i) for i in np.linspace(0, 1, 28)])
-
-            high = min(max((mus[operator]['ttW'] - 1000).roots().real), max((mus[operator]['ttZ'] - 1000).roots().real))
-            low = max(min((mus[operator]['ttW'] - 1000).roots().real), min((mus[operator]['ttZ'] - 1000).roots().real))
-            coefficients = np.linspace(low, high, 28)
-            # avoid overlapping due to symmetric points
-            for coefficient in np.hstack([coefficients[:14:2], coefficients[14::2]]):
-                plt.plot(
-                    mus[operator]['ttW'](coefficient) * nlo['ttW'],
-                    mus[operator]['ttZ'](coefficient) * nlo['ttZ'],
-                    marker='x',
-                    markersize=17,
-                    mew=3,
-                    label='{}={:03.2f}'.format(operator, coefficient),
-                    linestyle="None"
-                )
-
-            ax.legend(bbox_to_anchor=(1.02, 1), loc=2, borderaxespad=0., frameon=False)
-
-
 def plot(args, config):
 
-    from root_numpy import root2array
     plotter = Plotter(config)
 
     if args.plot != 'all':
@@ -499,4 +465,3 @@ def plot(args, config):
 
     # ratio_fits(config, plotter)
     # ttZ_ttW_2D_1D_ttZ_1D_ttW(args, config, plotter)
-    # wilson_coefficients_in_window(args, config, plotter)

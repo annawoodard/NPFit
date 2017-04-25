@@ -150,8 +150,8 @@ def make(args, config):
     else:
         raise RuntimeError('must specify either `indir` or `cross sections`')
 
-    makeflowify('ttZ.txt', 'ttZ.root', 'combine -M MaxLikelihoodFit ttZ.txt; mv higgsCombineTest.MaxLikelihoodFit.mH120.root ttZ.root')
-    makeflowify('ttW.txt', 'ttW.root', 'combine -M MaxLikelihoodFit ttW.txt; mv higgsCombineTest.MaxLikelihoodFit.mH120.root ttW.root')
+    # makeflowify('ttZ.txt', 'ttZ.root', 'combine -M MaxLikelihoodFit ttZ.txt; mv higgsCombineTest.MaxLikelihoodFit.mH120.root ttZ.root')
+    # makeflowify('ttW.txt', 'ttW.root', 'combine -M MaxLikelihoodFit ttW.txt; mv higgsCombineTest.MaxLikelihoodFit.mH120.root ttW.root')
 
     lowers = np.arange(1, config['2d points'], config['chunk size'])
     uppers = np.arange(config['chunk size'], config['2d points'] + config['chunk size'], config['chunk size'])
@@ -210,7 +210,7 @@ def make(args, config):
 
         best_fit = os.path.join(config['outdir'], 'best-fit-{}.root'.format(label))
         fit_result = os.path.join(config['outdir'], 'fit-result-{}.root'.format(label))
-        cmd = 'combine -M MultiDimFit {} --algo=singles --cl=0.68'.format(workspace)
+        cmd = 'combine -M MultiDimFit {} --algo=singles '.format(workspace)
         cmd += ' --setPhysicsModelParameters {}'.format(','.join(['{}=0.0'.format(x) for x in operators]))
         cmd += ' --setPhysicsModelParameterRanges {}'.format(':'.join(['{}=-3,3'.format(x) for x in operators]))
         cmd += ';mv higgsCombineTest.MultiDimFit.mH120.root {}'.format(best_fit)
