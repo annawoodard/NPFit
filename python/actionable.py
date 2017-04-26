@@ -233,6 +233,7 @@ def make(args, config):
                 '--points={}'.format(config['1d points']),
                 '--setPhysicsModelParameters', ','.join(['{}=0.0'.format(x) for x in operators]),
                 '--setPhysicsModelParameterRanges', ':'.join(['{}=-3,3'.format(x) for x in operators]),
+                '--autoRange=16',
                 '-n', '_{}_part_{}'.format(label, index),
                 '--firstPoint {}'.format(first),
                 '--lastPoint {}'.format(last),

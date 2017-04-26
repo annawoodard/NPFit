@@ -177,7 +177,7 @@ def mu(config, plotter, overlay_results=False):
                     xmax += np.abs(xmax) * 0.1
                 xi = np.linspace(xmin, xmax, 10000)
                 ax.plot(xi, mus[operator][process](xi), color='#C6C6C6')
-                ax.plot(x[above(xmin) & below(xmax)], y[above(xmin) & below(xmax)], 'o', label=label[process])
+                ax.plot(x[above(xmin) & below(xmax)], y[above(xmin) & below(xmax)], 'o', markersize=15, label=label[process])
 
             if operator in config['operators'] and overlay_results:
                 colors = ['black', 'gray']
@@ -224,12 +224,16 @@ def mu(config, plotter, overlay_results=False):
 
 def nll(args, config, plotter, transform=False, dimensionless=True):
     data, units = fit_nll(config, transform, dimensionless)
+    units = '' if dimensionless else '\ [{}]'.format(units)
 
     for operator, info in data.items():
-        if dimensionless:
-            x_label = '$|{}{}|$'.format(label[operator].replace('$',''), info['offset label'])
+        if transform:
+            template = r'$|{}{}|${}' if dimensionless else r'$|{}/\Lambda^2{}|{}$'
         else:
-            x_label = '$|{}/\Lambda^2{}|\ [{}]$'.format(label[operator].replace('$',''), info['offset label'], units)
+            template = r'${}{}${}' if dimensionless else r'${}/\Lambda^2{}{}$'
+
+        x_label = template.format(label[operator].replace('$',''), info['offset label'], units)
+
         with plotter.saved_figure(
                 x_label,
                 '$-2\ \Delta\ \mathrm{ln}\ \mathrm{L}$',
@@ -254,7 +258,8 @@ def nll(args, config, plotter, transform=False, dimensionless=True):
 
             ax.legend(loc='upper center')
             plt.ylim(ymin=0)
-            plt.xlim(xmin=0)
+            if transform:
+                plt.xlim(xmin=0)
 
 def ttZ_ttW_2D(config, ax):
     from root_numpy import root2array
@@ -364,9 +369,6 @@ def ttZ_ttW_2D_1D_ttZ_1D_ttW(args, config, plotter):
 
         plt.legend(handles, labels)
 
-def find_confidence_interval(x, pdf, confidence_level):
-    return pdf[pdf > x].sum() - confidence_level
-
 def ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=True):
     nll, units = fit_nll(config, transform, dimensionless)
 
@@ -411,7 +413,7 @@ def ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=T
                 handles.append(point)
 
                 if transform:
-                    template = r'$|{}{}{}|={:03.1f} {}$' if dimensionless else r'$|{}/\Lambda^2{}\,{}|={:03.1f}\,{}$'
+                    template = r'${}{}{}={:03.1f} {}$' if dimensionless else r'${}/\Lambda^2{}\,{}={:03.1f}\,{}$'
                 else:
                     template = r'${}{}{}={:03.1f} {}$' if dimensionless else r'${}/\Lambda^2{}{}={:03.1f} {}$'
 
@@ -459,7 +461,7 @@ def plot(args, config):
     nll(args, config, plotter)
     nll(args, config, plotter, transform=True, dimensionless=False)
     mu(config, plotter)
-    mu(config, plotter, overlay_results=True)
+    # mu(config, plotter, overlay_results=True)
 
     ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=True, dimensionless=False)
 

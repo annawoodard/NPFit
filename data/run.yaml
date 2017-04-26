@@ -5,8 +5,8 @@ dimension: 1
 cards:
   ttW: /afs/crc.nd.edu/user/a/awoodard/releases/effective-ttV/CMSSW_7_4_7/src/EffectiveTTV/EffectiveTTV/data/cards/1Mar_2017/2L.txt
   ttZ: /afs/crc.nd.edu/user/a/awoodard/releases/effective-ttV/CMSSW_7_4_7/src/EffectiveTTV/EffectiveTTV/data/cards/Moriond17/v4/ttZ.txt
-1d points: 2000
-2d points: 2000
+1d points: 200
+2d points: 500
 chunk size: 500
 
 luminosity: 35.9

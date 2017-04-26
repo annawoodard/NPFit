@@ -55,13 +55,13 @@ for path in (
         'scans',
         'plots/pulls',
         'plots/mu',
-        'plots/mu/transformed',
         'plots/cross_sections',
         'plots/cross_sections/ratio_fits',
         'plots/cross_sections/ttW',
         'plots/cross_sections/ttH',
         'plots/cross_sections/ttZ',
-        'plots/nll', ):
+        'plots/nll',
+        'plots/nll/transformed'):
     if not os.path.exists(os.path.join(config['outdir'], path)):
         os.makedirs(os.path.join(config['outdir'], path))
 
