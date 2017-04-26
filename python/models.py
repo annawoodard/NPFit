@@ -72,15 +72,6 @@ class EffectiveOperatorModel(PhysicsModel):
 
             self.modelBuilder.factory_('sum::r_{0}({1})'.format(group, ', '.join(functions)))
 
-    def dataset(self, x, values):
-        data = ROOT.RooDataSet("data", "data", x)
-
-        for value in values:
-            x.setVal(value)
-            data.add(x)
-
-        return data
-
     def quadratic(self, x, xi, yi):
         fit = Polynomial.fit(xi, yi, 2)
 
