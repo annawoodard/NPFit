@@ -56,7 +56,6 @@ for path in (
         'plots/pulls',
         'plots/mu',
         'plots/cross_sections',
-        'plots/cross_sections/ratio_fits',
         'plots/cross_sections/ttW',
         'plots/cross_sections/ttH',
         'plots/cross_sections/ttZ',

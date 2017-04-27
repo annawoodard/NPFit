@@ -1,13 +1,14 @@
 # indir: /hadoop/store/user/awoodard/ttV/34/1/*gen*
 cross sections: /afs/crc.nd.edu/user/a/awoodard/www/ttV/34/1/9/cross_sections.npy
-outdir: /afs/crc.nd.edu/user/a/awoodard/www/ttV/34/1/20
+outdir: /afs/crc.nd.edu/user/a/awoodard/www/ttV/34/1/22
 dimension: 1
 cards:
-  ttW: /afs/crc.nd.edu/user/a/awoodard/releases/effective-ttV/CMSSW_7_4_7/src/EffectiveTTV/EffectiveTTV/data/cards/1Mar_2017/2L.txt
-  ttZ: /afs/crc.nd.edu/user/a/awoodard/releases/effective-ttV/CMSSW_7_4_7/src/EffectiveTTV/EffectiveTTV/data/cards/Moriond17/v4/ttZ.txt
-1d points: 200
+  ttW: /afs/crc.nd.edu/user/a/awoodard/releases/effective-ttV/CMSSW_7_4_7/src/EffectiveTTV/EffectiveTTV/data/cards/LHCP-May-2017/2lss/2L.txt
+  ttZ: /afs/crc.nd.edu/user/a/awoodard/releases/effective-ttV/CMSSW_7_4_7/src/EffectiveTTV/EffectiveTTV/data/cards/LHCP-May-2017/ttZ.txt
+1d points: 300
 2d points: 500
 chunk size: 500
+asimov data: False # calculate expected values with MC data only (Asimov dataset), false for real data
 
 luminosity: 35.9
 processes: ['ttH', 'ttZ', 'ttW'] # processes to scale
@@ -15,4 +16,3 @@ processes: ['ttH', 'ttZ', 'ttW'] # processes to scale
 # operators: ['cpHQ', 'cHQ', 'cuB', 'c3W', 'cHu']
 # operators: ['c2B', 'c2G', 'c2W', 'c3G', 'c3W', 'c6', 'cA', 'cB', 'cG', 'cH', 'cHB', 'cHL', 'cHQ', 'cHW', 'cHd', 'cHe', 'cHu', 'cHud', 'cT', 'cWW', 'cd', 'cdB', 'cdG', 'cdW', 'cl', 'clB', 'clW', 'cpHL', 'cpHQ', 'cu', 'cuB', 'cuG', 'cuW', 'tc3G', 'tc3W', 'tcA', 'tcG', 'tcHB', 'tcHW']
 operators: ['cuW', 'cuB', 'cu', 'cHu']
-# operators: ['cuW']

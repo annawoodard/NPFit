@@ -48,3 +48,8 @@ def load_mus(config):
             #     mus[operator][process].coef = (1., 0., 0.)
 
     return mus
+
+def dump_mus(config):
+    mus = load_mus(config)
+
+    np.save(os.path.join(config['outdir'], 'mus.npy'), mus)

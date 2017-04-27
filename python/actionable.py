@@ -12,6 +12,7 @@ import stat
 import yaml
 
 from EffectiveTTV.EffectiveTTV.parameters import kappa
+from EffectiveTTV.EffectiveTTV.signal_strength import dump_mus
 
 def make(args, config):
     # Makeflow is a bit picky about whitespace
@@ -109,6 +110,7 @@ def make(args, config):
             '# to run, issue the following commands:\n'
             '# cd {}\n'
             '# nohup work_queue_factory -T condor -M ttV_FTW -C {} >& makeflow_factory.log &\n'
+            '# then keep running this command until makeflow no longer submits jobs (may take a few tries)\n'
             '# makeflow -T wq -M ttV_FTW --wrapper ./w.sh --wrapper-input w.sh\n'
         ).format(config['outdir'], factory)
 
@@ -212,7 +214,8 @@ def make(args, config):
         fit_result = os.path.join(config['outdir'], 'fit-result-{}.root'.format(label))
         cmd = 'combine -M MultiDimFit {} --algo=singles '.format(workspace)
         cmd += ' --setPhysicsModelParameters {}'.format(','.join(['{}=0.0'.format(x) for x in operators]))
-        cmd += ' --setPhysicsModelParameterRanges {}'.format(':'.join(['{}=-3,3'.format(x) for x in operators]))
+        cmd += ' --setPhysicsModelParameterRanges {}'.format(':'.join(['{}=-10,10'.format(x) for x in operators]))
+        cmd += ' -t -1 ' if config['asimov data'] else ''
         cmd += ';mv higgsCombineTest.MultiDimFit.mH120.root {}'.format(best_fit)
         cmd += ';mv multidimfit.root {}'.format(fit_result)
         makeflowify(workspace, [best_fit, fit_result], cmd)
@@ -232,8 +235,9 @@ def make(args, config):
                 '--algo=grid',
                 '--points={}'.format(config['1d points']),
                 '--setPhysicsModelParameters', ','.join(['{}=0.0'.format(x) for x in operators]),
-                '--setPhysicsModelParameterRanges', ':'.join(['{}=-3,3'.format(x) for x in operators]),
-                '--autoRange=16',
+                '--setPhysicsModelParameterRanges', ':'.join(['{}=-10,10'.format(x) for x in operators]),
+                '--autoRange=20',
+                ' -t -1 ' if config['asimov data'] else '',
                 '-n', '_{}_part_{}'.format(label, index),
                 '--firstPoint {}'.format(first),
                 '--lastPoint {}'.format(last),
@@ -307,3 +311,5 @@ def concatenate(args, config):
 
     outfile = os.path.join(config['outdir'], 'cross_sections.npy')
     np.save(outfile, res)
+
+    dump_mus(config)

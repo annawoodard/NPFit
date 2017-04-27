@@ -102,56 +102,15 @@ class Plotter(object):
             logging.info('saving {}'.format(name))
             plt.xlabel(x_label)
             plt.ylabel(y_label)
-            # plt.savefig(os.path.join(self.config['outdir'], 'plots', '{}.pdf'.format(name)), bbox_inches='tight', transparent=True)
             plt.savefig(os.path.join(self.config['outdir'], 'plots', '{}.pdf'.format(name)), bbox_inches='tight')
             plt.savefig(os.path.join(self.config['outdir'], 'plots', '{}.png'.format(name)), bbox_inches='tight')
             plt.close()
-
-
-def ratio_fits(config, plotter):
-    coefficients, cross_sections = load(config)
-    mus = load_mus(config)
-
-    for operator in coefficients.values()[0]:
-        if operator == 'sm':
-            continue
-
-        with plotter.saved_figure(
-                label[operator],
-                '$\sigma_{NP+SM} / \sigma_{SM}$',
-                os.path.join('cross_sections', 'ratio_fits', operator)) as ax:
-            ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-            for process in ['tt', 'H', 'ttZ', 'ttH', 'ttW']:
-            # for process in ['ttZ', 'ttH', 'ttW']:
-                x = coefficients[process][operator]
-                y = cross_sections[process][operator] / cross_sections[process]['sm']
-                fit = mus[operator][process]
-                if process in ['tt', 'H', 'ttZ', 'ttH', 'ttW']:
-                    ax.plot(np.linspace(-1, 1, 100), fit(np.linspace(-1, 1, 100)), color='#C6C6C6')
-                    ax.plot(x, y, 'o', label=process)
-
-            ax.legend(loc='upper center')
-
-        for process in mus[operator]:
-            with plotter.saved_figure(
-                    label[operator],
-                    '$\sigma_{NP+SM} / \sigma_{SM}$',
-                    os.path.join('cross_sections', 'ratio_fits', '{}_{}'.format(operator, process))) as ax:
-                ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-                x = coefficients[process][operator]
-                y = cross_sections[process][operator] / cross_sections[process]['sm']
-                fit = mus[operator][process]
-                ax.plot(np.linspace(-1, 1, 100), fit(np.linspace(-1, 1, 100)), color='#C6C6C6')
-                ax.plot(x, y, 'o', label=process)
-
-                ax.legend(loc='upper center')
 
 def mu(config, plotter, overlay_results=False):
     nll, units = fit_nll(config, transform=False, dimensionless=True)
     coefficients, cross_sections = load(config)
     mus = load_mus(config)
 
-    # for operator in coefficients.values()[0]:
     for operator in config['operators']:
         if operator == 'sm':
             continue
@@ -236,7 +195,7 @@ def nll(args, config, plotter, transform=False, dimensionless=True):
 
         with plotter.saved_figure(
                 x_label,
-                '$-2\ \Delta\ \mathrm{ln}\ \mathrm{L}$',
+                '$-2\ \Delta\ \mathrm{ln}\ \mathrm{L}$' + ' (asimov data)' if config['asimov data'] else '',
                 os.path.join('nll', ('transformed' if transform else ''), operator + ('_dimensionless' if
                     dimensionless else '')),
                 header=args.header) as ax:
@@ -370,6 +329,8 @@ def ttZ_ttW_2D_1D_ttZ_1D_ttW(args, config, plotter):
         plt.legend(handles, labels)
 
 def ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=True):
+    if config['asimov data']:
+        transform=False
     nll, units = fit_nll(config, transform, dimensionless)
 
     table = []
@@ -413,7 +374,7 @@ def ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=T
                 handles.append(point)
 
                 if transform:
-                    template = r'${}{}{}={:03.1f} {}$' if dimensionless else r'${}/\Lambda^2{}\,{}={:03.1f}\,{}$'
+                    template = r'$|{}{}{}|={:03.1f} {}$' if dimensionless else r'$|{}/\Lambda^2{}\,{}|={:03.1f}\,{}$'
                 else:
                     template = r'${}{}{}={:03.1f} {}$' if dimensionless else r'${}/\Lambda^2{}{}={:03.1f} {}$'
 
@@ -458,12 +419,11 @@ def plot(args, config):
     if args.plot != 'all':
         config['operators'] = [args.plot]
 
-    nll(args, config, plotter)
+    nll(args, config, plotter, dimensionless=False)
     nll(args, config, plotter, transform=True, dimensionless=False)
-    mu(config, plotter)
+    # mu(config, plotter)
     # mu(config, plotter, overlay_results=True)
 
     ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=True, dimensionless=False)
 
-    # ratio_fits(config, plotter)
     # ttZ_ttW_2D_1D_ttZ_1D_ttW(args, config, plotter)
