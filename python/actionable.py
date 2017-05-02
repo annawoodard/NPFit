@@ -100,7 +100,6 @@ def make(args, config):
         f.write(card[:card.find('\ntheo group')])
         for line in systematics.values():
             f.write(line)
-        # f.write(card[card.find('\ntheo group'):])
 
     makefile = os.path.join(config['outdir'], 'Makeflow')
     logging.info('writing Makeflow file to {}'.format(config['outdir']))
@@ -141,7 +140,6 @@ def make(args, config):
         files = glob.glob(os.path.join(config['indir'], '*.root'))
         for f in files:
             outputs = os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npy'))
-            # makeflowify(['run.yaml', f], outputs, ['run', '--parse', f, 'run.yaml'])
             makeflowify(['run.yaml'], outputs, ['run', '--parse', f, 'run.yaml'])
 
         inputs = [os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npy')) for f in files] + ['run.yaml']

@@ -26,7 +26,7 @@ import scipy.optimize as so
 from scipy.stats import kde
 from scipy.stats import gaussian_kde
 
-from EffectiveTTV.EffectiveTTV.parameters import nlo, kappa, label
+from EffectiveTTV.EffectiveTTV.parameters import nlo, kappa, label, cutoff
 from EffectiveTTV.EffectiveTTV import kde
 from EffectiveTTV.EffectiveTTV.signal_strength import load, load_mus
 from EffectiveTTV.EffectiveTTV.nll import fit_nll
@@ -106,18 +106,21 @@ class Plotter(object):
             plt.savefig(os.path.join(self.config['outdir'], 'plots', '{}.png'.format(name)), bbox_inches='tight')
             plt.close()
 
-def mu(config, plotter, overlay_results=False):
+def mu(config, plotter, overlay_results=False, dimensionless=False):
+
     nll, units = fit_nll(config, transform=False, dimensionless=True)
     coefficients, cross_sections = load(config)
     mus = load_mus(config)
 
     for operator in config['operators']:
+        scale = 1 if dimensionless else (1. / (cutoff[operator] * cutoff[operator]))
+    # for operator, xmin, xmax in [('cuW', -5, 5), ('cuB', -5, 5), ('cu', -30, 30), ('cHu', -7, 7)]:
         if operator == 'sm':
             continue
 
         data = []
         with plotter.saved_figure(
-                label[operator],
+                label[operator] + ('' if dimensionless else r' $/\Lambda^2$'),
                 '$\sigma_{NP+SM} / \sigma_{SM}$',
                 os.path.join('mu', operator + ('_overlay' if overlay_results else ''))) as ax:
 
@@ -126,7 +129,7 @@ def mu(config, plotter, overlay_results=False):
 
             xmin = xmin - (np.abs(xmin) * 0.1)
             xmax = xmax + (np.abs(xmax) * 0.1)
-            for process in ['ttW', 'ttZ', 'ttH']:
+            for process, marker in [('ttW', 'x'), ('ttZ', '+'), ('ttH', 'o')]:
                 x = coefficients[process][operator]
                 y = cross_sections[process][operator] / cross_sections[process]['sm']
                 above = lambda low: x >= low
@@ -134,11 +137,15 @@ def mu(config, plotter, overlay_results=False):
                 while len(x[above(xmin) & below(xmax)]) < 3:
                     xmin -= np.abs(xmin) * 0.1
                     xmax += np.abs(xmax) * 0.1
+                if operator == 'cHu':
+                    xmin = -12. / scale
+                    xmax = 3. / scale
                 xi = np.linspace(xmin, xmax, 10000)
-                ax.plot(xi, mus[operator][process](xi), color='#C6C6C6')
-                ax.plot(x[above(xmin) & below(xmax)], y[above(xmin) & below(xmax)], 'o', markersize=15, label=label[process])
+                print operator, xmin, xmax
+                ax.plot(xi * scale, mus[operator][process](xi), color='#C6C6C6')
+                ax.plot(x * scale, y, marker, mfc='none', markeredgewidth=2, markersize=15, label=label[process])
 
-            if operator in config['operators'] and overlay_results:
+            if overlay_results:
                 colors = ['black', 'gray']
                 for (x, _), color in zip(nll[operator]['best fit'], colors):
                     plt.axvline(
@@ -177,7 +184,8 @@ def mu(config, plotter, overlay_results=False):
                         color=color
                     )
 
-            plt.xlim(xmin=xmin, xmax=xmax)
+            plt.xlim(xmin=xmin * scale, xmax=xmax * scale)
+            plt.ylim(ymin=0, ymax=5)
             ax.legend(loc='upper center')
 
 
@@ -195,7 +203,7 @@ def nll(args, config, plotter, transform=False, dimensionless=True):
 
         with plotter.saved_figure(
                 x_label,
-                '$-2\ \Delta\ \mathrm{ln}\ \mathrm{L}$' + ' (asimov data)' if config['asimov data'] else '',
+                '$-2\ \Delta\ \mathrm{ln}\ \mathrm{L}$' + (' (asimov data)' if config['asimov data'] else ''),
                 os.path.join('nll', ('transformed' if transform else ''), operator + ('_dimensionless' if
                     dimensionless else '')),
                 header=args.header) as ax:
@@ -340,7 +348,7 @@ def ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=T
         with plotter.saved_figure(
                 label['sigma ttW'],
                 label['sigma ttZ'],
-                'ttZ_ttW_2D_1D_{}'.format(operator),
+                os.path.join('transformed' if transform else '', 'ttZ_ttW_2D_1D_{}'.format(operator)),
                 header=args.header) as ax:
             handles, labels = ttZ_ttW_2D(config, ax)
 
@@ -374,13 +382,13 @@ def ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=T
                 handles.append(point)
 
                 if transform:
-                    template = r'$|{}{}{}|={:03.1f} {}$' if dimensionless else r'$|{}/\Lambda^2{}\,{}|={:03.1f}\,{}$'
+                    template = r'$|{}{}{}|={:03.1f}\,{}$' if dimensionless else r'$|{}/\Lambda^2{}\,{}|={:03.1f}\,{}$'
                 else:
-                    template = r'${}{}{}={:03.1f} {}$' if dimensionless else r'${}/\Lambda^2{}{}={:03.1f} {}$'
+                    template = r'${}{}{}={:03.1f}\,{}$' if dimensionless else r'${}/\Lambda^2{}{}={:03.1f}\,{}$'
 
                 labels.append("best fit:\n" + template.format(label[operator].replace('$', ''),
                     nll[operator]['offset label'],
-                    units,
+                    (units if (transform or (nll[operator]['offset label'] != '')) else ''),
                     round(bf, 2) + 0,
                     units)
                 )
@@ -419,11 +427,12 @@ def plot(args, config):
     if args.plot != 'all':
         config['operators'] = [args.plot]
 
-    nll(args, config, plotter, dimensionless=False)
-    nll(args, config, plotter, transform=True, dimensionless=False)
-    # mu(config, plotter)
+    # nll(args, config, plotter, dimensionless=False)
+    # nll(args, config, plotter, transform=True, dimensionless=False)
+    mu(config, plotter)
     # mu(config, plotter, overlay_results=True)
 
-    ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=True, dimensionless=False)
+    # ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=True, dimensionless=False)
+    # ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=False)
 
     # ttZ_ttW_2D_1D_ttZ_1D_ttW(args, config, plotter)

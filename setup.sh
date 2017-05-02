@@ -12,12 +12,8 @@ set -e
 set -o xtrace
 
 if ! type "$makeflow" > /dev/null; then
-  if [ -f /etc/redhat-release]; then
-    slc=$(egrep "Red Hat Enterprise|Scientific|CentOS" /etc/redhat-release | sed 's/.*[rR]elease \([0-9]*\).*/\1/')
-  else
-    echo "unsupported OS; cctools will not be installed automatically"
-    echo "try your luck at http://ccl.cse.nd.edu/software/downloadfiles.php"
-  fi
+    echo "cctools is required; for instructions please visit http://ccl.cse.nd.edu/software/downloadfiles.php"
+fi
 
 export SCRAM_ARCH=slc6_amd64_gcc491
 scramv1 project CMSSW_7_4_7
