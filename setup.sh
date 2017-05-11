@@ -12,7 +12,7 @@ set -e
 set -o xtrace
 
 if ! type "$makeflow" > /dev/null; then
-    echo "cctools is required; for instructions please visit http://ccl.cse.nd.edu/software/downloadfiles.php"
+   echo "cctools is required; for instructions please visit http://ccl.cse.nd.edu/software/downloadfiles.php"
 fi
 
 export SCRAM_ARCH=slc6_amd64_gcc491
@@ -38,6 +38,7 @@ ln -s /afs/crc.nd.edu/user/a/awoodard/releases/effective-ttV/CMSSW_7_4_7/python/
 ) > setup.log
 
 pip install --upgrade --user matplotlib
+pip install --user rootpy
 export PYTHONPATH=/afs/crc.nd.edu/user/a/awoodard/.local/lib/python2.7/site-packages:$PYTHONPATH
 
 cat <<EOF

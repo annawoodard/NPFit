@@ -15,6 +15,7 @@ from EffectiveTTV.EffectiveTTV.parameters import process_groups
 class EffectiveOperatorModel(PhysicsModel):
 
     def setPhysicsOptions(self, options):
+        # FIXME use argparse on options
         self.pois = []
         self.processes = []
         for option, value in [x.split('=') for x in options]:
@@ -84,8 +85,10 @@ class EffectiveOperatorModel(PhysicsModel):
         return p
 
     def doParametersOfInterest(self):
+        # FIXME change the range here and try (4pi)^2
+        # it looks like utils::setModelParameterRanges isn't working
         for poi in self.pois:
-            self.modelBuilder.doVar('{0}[0, -1, 1]'.format(poi))
+            self.modelBuilder.doVar('{0}[0, -5, 5]'.format(poi))
 
         self.modelBuilder.doSet('POI', ','.join(self.pois))
 

@@ -3,6 +3,9 @@ import os
 import numpy as np
 from numpy.polynomial import Polynomial
 
+# TODO only run this once
+# TODO do this with roofit instead of numpy, for simpler PhysicsModel
+
 def load(config):
     x = {}
     y = {}
@@ -30,6 +33,7 @@ def load_mus(config):
     coefficients, cross_sections = load(config)
 
     for process in ['DY', 'H', 'WWW', 'WWZ', 'WZ', 'WZZ', 'ZZ', 'WW', 'ZZZ', 'tZq', 'tt', 'ttH', 'ttW', 'ttZ']:
+    # for process in ['DY', 'H', 'WWW', 'WWZ', 'WZ', 'WZZ', 'ZZ', 'WW', 'ZZZ', 'tZq', 'tt', 'ttH', 'ttW', 'ttZ', 'tttt', 'tWZ']:
         for operator in coefficients[process]:
             if operator == 'sm':
                 continue
@@ -42,6 +46,8 @@ def load_mus(config):
                 mus[operator][process] = Polynomial.fit(x, y, 2, w=weights)
             except KeyError:
                 mus[operator] = {process: Polynomial.fit(x, y, 2, w=weights)}
+            except ValueError:
+                mus[operator][process] = None
 
             # if mus[operator][process](1.) / mus[operator][process](0.) <= (1 + np.std(y)):
             #     # We can't tell the difference between this and a straight line, let's keep things simple

@@ -89,7 +89,7 @@ class Plotter(object):
         fig, ax = plt.subplots(figsize=(11, 11))
         lumi = str(self.config['luminosity']) + ' fb$^{-1}$ (13 TeV)'
         if header:
-            plt.title(lumi, loc='right', fontweight='bold')
+            plt.title(lumi, loc='right', fontweight='normal')
             if header == 'preliminary':
                 plt.title(r'CMS preliminary', loc='left', fontweight='bold')
             elif header == 'final':
@@ -106,6 +106,84 @@ class Plotter(object):
             plt.savefig(os.path.join(self.config['outdir'], 'plots', '{}.png'.format(name)), bbox_inches='tight')
             plt.close()
 
+def mu_new(config, plotter, overlay_results=False, dimensionless=False):
+    coefficients, cross_sections = load(config)
+    mus = load_mus(config)
+
+    for operator in config['operators']:
+        scale = 1 if dimensionless else (1. / (cutoff[operator] * cutoff[operator]))
+    # for operator, xmin, xmax in [('cuW', -5, 5), ('cuB', -5, 5), ('cu', -30, 30), ('cHu', -7, 7)]:
+        if operator == 'sm':
+            continue
+
+        data = []
+        with plotter.saved_figure(
+                label[operator] + ('' if dimensionless else r' $/\Lambda^2$'),
+                '$\sigma_{NP+SM} / \sigma_{SM}$',
+                os.path.join('mu', operator + ('_overlay' if overlay_results else ''))) as ax:
+
+            c_max = (4 * np.pi) ** 2
+            xmin = max([(mus[operator][p] - 5).roots().min() for p in ['ttW', 'ttZ', 'ttH'] if (mus[operator][p](c_max) > 5)] + [-1 * c_max])
+            xmax = min([(mus[operator][p] - 5).roots().max() for p in ['ttW', 'ttZ', 'ttH'] if (mus[operator][p](c_max) > 5)] + [c_max])
+            # xmin = -160
+            # xmax = 160
+            xi = np.linspace(xmin, xmax, 10000)
+            for process, marker in [('ttW', 'x'), ('ttZ', '+'), ('ttH', 'o')]:
+                print operator
+                print process, (mus[operator][process] - 5).roots()
+                x = coefficients[process][operator]
+                y = cross_sections[process][operator] / cross_sections[process]['sm']
+
+                print operator, xmin, xmax
+                ax.plot(xi * scale, mus[operator][process](xi), color='#C6C6C6')
+                ax.plot(x * scale, y, marker, mfc='none', markeredgewidth=2, markersize=15, label=label[process])
+
+            if overlay_results:
+                nll, units = fit_nll(config, transform=False, dimensionless=True)
+                colors = ['black', 'gray']
+                for (x, _), color in zip(nll[operator]['best fit'], colors):
+                    plt.axvline(
+                        x=x,
+                        ymax=0.5,
+                        linestyle='-',
+                        color=color,
+                        label='best fit\n {}$={:.2f}$'.format(label[operator], x)
+                    )
+                for (low, high), color in zip(nll[operator]['one sigma'], colors):
+                    plt.axvline(
+                        x=low,
+                        ymax=0.5,
+                        linestyle='--',
+                        color=color,
+                        label='$1 \sigma [{:03.2f}, {:03.2f}]$'.format(low, high)
+                    )
+                    plt.axvline(
+                        x=high,
+                        ymax=0.5,
+                        linestyle='--',
+                        color=color
+                    )
+                for (low, high), color in zip(nll[operator]['two sigma'], colors):
+                    plt.axvline(
+                        x=low,
+                        ymax=0.5,
+                        linestyle=':',
+                        color=color,
+                        label='$2 \sigma [{:03.2f}, {:03.2f}]$'.format(low, high)
+                    )
+                    plt.axvline(
+                        x=high,
+                        ymax=0.5,
+                        linestyle=':',
+                        color=color
+                    )
+
+            plt.xlim(xmin=xmin * scale, xmax=xmax * scale)
+            plt.ylim(ymin=0, ymax=5)
+            plt.title(r'CMS simulation', loc='left', fontweight='bold')
+            plt.title(r'mg5_aMC LO', loc='right', size='small')
+            ax.legend(loc='upper center')
+
 def mu(config, plotter, overlay_results=False, dimensionless=False):
 
     nll, units = fit_nll(config, transform=False, dimensionless=True)
@@ -114,6 +192,7 @@ def mu(config, plotter, overlay_results=False, dimensionless=False):
 
     for operator in config['operators']:
         scale = 1 if dimensionless else (1. / (cutoff[operator] * cutoff[operator]))
+        print 'dimensionless, scale ', dimensionless, scale
     # for operator, xmin, xmax in [('cuW', -5, 5), ('cuB', -5, 5), ('cu', -30, 30), ('cHu', -7, 7)]:
         if operator == 'sm':
             continue
@@ -141,7 +220,7 @@ def mu(config, plotter, overlay_results=False, dimensionless=False):
                     xmin = -12. / scale
                     xmax = 3. / scale
                 xi = np.linspace(xmin, xmax, 10000)
-                print operator, xmin, xmax
+
                 ax.plot(xi * scale, mus[operator][process](xi), color='#C6C6C6')
                 ax.plot(x * scale, y, marker, mfc='none', markeredgewidth=2, markersize=15, label=label[process])
 
@@ -184,8 +263,12 @@ def mu(config, plotter, overlay_results=False, dimensionless=False):
                         color=color
                     )
 
+            print operator, 'scale ', scale, xmin, xmax
             plt.xlim(xmin=xmin * scale, xmax=xmax * scale)
             plt.ylim(ymin=0, ymax=5)
+            plt.title(r'CMS simulation', loc='left', fontweight='bold')
+            # plt.title(r'aMC@NLO_Madgraph5 LO', loc='right', fontweight='bold')
+            plt.title(r'MG5_aMC@NLO LO', loc='right', size='medium')
             ax.legend(loc='upper center')
 
 
@@ -207,7 +290,7 @@ def nll(args, config, plotter, transform=False, dimensionless=True):
                 os.path.join('nll', ('transformed' if transform else ''), operator + ('_dimensionless' if
                     dimensionless else '')),
                 header=args.header) as ax:
-            ax.plot(info['x'], info['y'], 'o')
+            ax.plot(info['x'], info['y'], 'o', color='black')
 
             for x, y in info['best fit']:
                 plt.axvline(
@@ -217,11 +300,10 @@ def nll(args, config, plotter, transform=False, dimensionless=True):
                     color='black',
                     label='best fit',
                 )
-            for (low, high), opt in zip(info['one sigma'], (':', '-.')):
-                ax.plot([low, high], [1.0, 1.0], opt, label=r'$1\sigma$ CL', color='black')
-
-            for (low, high), opt in zip(info['two sigma'], ('--', '-')):
-                ax.plot([low, high], [3.84, 3.84], opt, label=r'$2\sigma$ CL', color='black')
+            for i, (low, high) in enumerate(info['one sigma']):
+                ax.plot([low, high], [1.0, 1.0], ':', label=r'$1\sigma$ CL' if (i==0) else '', color='#30a2da')
+            for i, (low, high) in enumerate(info['two sigma']):
+                ax.plot([low, high], [3.84, 3.84], '--', label=r'$2\sigma$ CL' if (i==0) else '', color='#fc4f30')
 
             ax.legend(loc='upper center')
             plt.ylim(ymin=0)
@@ -230,8 +312,9 @@ def nll(args, config, plotter, transform=False, dimensionless=True):
 
 def ttZ_ttW_2D(config, ax):
     from root_numpy import root2array
-    # FIXME: use config outdir here
-    limits = root2array(os.path.join('scans', 'ttZ_ttW_2D.total.root'))
+    # limits = root2array(os.path.join('scans', 'ttZ_ttW_2D.total.root'))
+    # FIXME make contours optional
+    limits = root2array(os.path.join(config['outdir'], 'best-fit-2d.root'))
 
     x = limits['r_ttW'] * nlo['ttW']
     y = limits['r_ttZ'] * nlo['ttZ']
@@ -429,8 +512,10 @@ def plot(args, config):
 
     # nll(args, config, plotter, dimensionless=False)
     # nll(args, config, plotter, transform=True, dimensionless=False)
+    # nll(args, config, plotter, transform=False, dimensionless=False)
     mu(config, plotter)
-    # mu(config, plotter, overlay_results=True)
+    # mu(config, plotter, overlay_results=False, dimensionless=True)
+    # mu_new(config, plotter, overlay_results=False, dimensionless=True)
 
     # ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=True, dimensionless=False)
     # ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=False)

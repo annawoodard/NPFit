@@ -1,16 +1,18 @@
 # indir: /hadoop/store/user/awoodard/ttV/34/1/*gen*
 cross sections: /afs/crc.nd.edu/user/a/awoodard/www/ttV/34/1/9/cross_sections.npy
-outdir: /afs/crc.nd.edu/user/a/awoodard/www/ttV/34/1/22
+# outdir: /afs/crc.nd.edu/user/a/awoodard/www/ttV/34/1/28
+# asimov data: True # calculate expected values with MC data only (Asimov dataset), false for real data
+outdir: /afs/crc.nd.edu/user/a/awoodard/www/ttV/34/1/29
+asimov data: False # calculate expected values with MC data only (Asimov dataset), false for real data
 dimension: 1
 cards:
-  ttW: /afs/crc.nd.edu/user/a/awoodard/releases/effective-ttV/CMSSW_7_4_7/src/EffectiveTTV/EffectiveTTV/data/cards/LHCP-May-2017/2lss/2L.txt
-  ttZ: /afs/crc.nd.edu/user/a/awoodard/releases/effective-ttV/CMSSW_7_4_7/src/EffectiveTTV/EffectiveTTV/data/cards/LHCP-May-2017/ttZ.txt
+  2l: /afs/cern.ch/user/i/ikhvastu/public/ttV_datacards/10May_2017/
+  3l: /afs/cern.ch/user/i/ikhvastu/public/ttV_datacards/10May_2017_3l/
+  4l: /afs/cern.ch/user/m/mirena/public/datacards/4L/moriond2017/v7/
 1d points: 300
 2d points: 500
 chunk size: 500
-asimov data: False # calculate expected values with MC data only (Asimov dataset), false for real data
-
-luminosity: 35.9
+luminosity: 36
 processes: ['ttH', 'ttZ', 'ttW'] # processes to scale
 # processes: ['ttX', 'ttother', 'rare', 'WZ', 'ZZ', 'ttH', 'ttZ', 'ttW']
 # operators: ['cpHQ', 'cHQ', 'cuB', 'c3W', 'cHu']
