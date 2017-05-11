@@ -33,7 +33,7 @@ from EffectiveTTV.EffectiveTTV.nll import fit_nll
 from EffectiveTTV.EffectiveTTV.fluctuate import par_names
 
 
-extent = (0, 1500, 0, 2000)
+extent = (0, 1500, 0, 1600)
 x_min, x_max, y_min, y_max = extent
 
 
@@ -90,10 +90,9 @@ class Plotter(object):
         lumi = str(self.config['luminosity']) + ' fb$^{-1}$ (13 TeV)'
         if header:
             plt.title(lumi, loc='right', fontweight='normal')
+            plt.title(r'CMS', loc='left', fontweight='bold')
             if header == 'preliminary':
-                plt.title(r'CMS preliminary', loc='left', fontweight='bold')
-            elif header == 'final':
-                plt.title(r'CMS', loc='left', fontweight='bold')
+                plt.text(0.155, 1.009, r'Preliminary', style='italic', transform=ax.transAxes)
 
         try:
             yield ax
@@ -208,7 +207,7 @@ def mu(config, plotter, overlay_results=False, dimensionless=False):
 
             xmin = xmin - (np.abs(xmin) * 0.1)
             xmax = xmax + (np.abs(xmax) * 0.1)
-            for process, marker in [('ttW', 'x'), ('ttZ', '+'), ('ttH', 'o')]:
+            for process, marker, c in [('ttW', 'x', 'blue'), ('ttZ', '+', '#2fd164'), ('ttH', 'o', '#ff321a')]:
                 x = coefficients[process][operator]
                 y = cross_sections[process][operator] / cross_sections[process]['sm']
                 above = lambda low: x >= low
@@ -222,7 +221,8 @@ def mu(config, plotter, overlay_results=False, dimensionless=False):
                 xi = np.linspace(xmin, xmax, 10000)
 
                 ax.plot(xi * scale, mus[operator][process](xi), color='#C6C6C6')
-                ax.plot(x * scale, y, marker, mfc='none', markeredgewidth=2, markersize=15, label=label[process])
+                ax.plot(x * scale, y, marker, mfc='none', markeredgewidth=2, markersize=15, label=label[process],
+                        color=c)
 
             if overlay_results:
                 colors = ['black', 'gray']
@@ -301,12 +301,12 @@ def nll(args, config, plotter, transform=False, dimensionless=True):
                     label='best fit',
                 )
             for i, (low, high) in enumerate(info['one sigma']):
-                ax.plot([low, high], [1.0, 1.0], ':', label=r'$1\sigma$ CL' if (i==0) else '', color='#30a2da')
+                ax.plot([low, high], [1.0, 1.0], '--', label=r'$1\sigma$ CL' if (i==0) else '', color='blue')
             for i, (low, high) in enumerate(info['two sigma']):
-                ax.plot([low, high], [3.84, 3.84], '--', label=r'$2\sigma$ CL' if (i==0) else '', color='#fc4f30')
+                ax.plot([low, high], [3.84, 3.84], ':', label=r'$2\sigma$ CL' if (i==0) else '', color='#ff321a')
 
             ax.legend(loc='upper center')
-            plt.ylim(ymin=0)
+            plt.ylim(ymin=0, ymax=12)
             if transform:
                 plt.xlim(xmin=0)
 
@@ -440,7 +440,8 @@ def ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=T
 
             kdehist = kde.kdehist2(x[:10000], y[:10000], [70, 70])
             clevels = sorted(kde.confmap(kdehist[0], [.6827,.9545]))
-            contour = ax.contour(kdehist[1], kdehist[2], kdehist[0], clevels, colors=['#30a2da', '#fc4f30'])
+            contour = ax.contour(kdehist[1], kdehist[2], kdehist[0], clevels, colors=['#ff321a', 'blue'],
+                    linestyles=['dotted', 'dashed'])
             for index, handle in enumerate(contour.collections[::-1]):
                 handles.append(handle)
                 labels.append('{}$\sigma$ CL'.format(index + 1))
@@ -464,20 +465,34 @@ def ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=T
                 )
                 handles.append(point)
 
-                if transform:
-                    template = r'$|{}{}{}|={:03.1f}\,{}$' if dimensionless else r'$|{}/\Lambda^2{}\,{}|={:03.1f}\,{}$'
-                else:
-                    template = r'${}{}{}={:03.1f}\,{}$' if dimensionless else r'${}/\Lambda^2{}{}={:03.1f}\,{}$'
+                # if transform:
+                #     template = r'$|{}{}{}|={:03.1f}\,{}$' if dimensionless else r'$|{}/\Lambda^2{}\,{}|={:03.1f}\,{}$'
+                # else:
+                #     template = r'${}{}{}={:03.1f}\,{}$' if dimensionless else r'${}/\Lambda^2{}{}={:03.1f}\,{}$'
 
-                labels.append("best fit:\n" + template.format(label[operator].replace('$', ''),
+                # labels.append("best fit:\n" + template.format(label[operator].replace('$', ''),
+                #     nll[operator]['offset label'],
+                #     (units if (transform or (nll[operator]['offset label'] != '')) else ''),
+                #     round(bf, 2) + 0,
+                #     units)
+                # )
+                if transform:
+                    template = r'$|{}{}{}|$' if dimensionless else r'$|{}/\Lambda^2{}\,{}|$'
+                else:
+                    template = r'${}{}{}$' if dimensionless else r'${}/\Lambda^2{}{}$'
+
+                labels.append("best fit\n" + template.format(label[operator].replace('$', ''),
                     nll[operator]['offset label'],
-                    (units if (transform or (nll[operator]['offset label'] != '')) else ''),
-                    round(bf, 2) + 0,
-                    units)
+                    (units if (transform or (nll[operator]['offset label'] != '')) else ''))
                 )
                 print 'dimensionless, labels ', dimensionless, labels
-            plt.legend(handles, labels, loc='lower right', fontsize=17.)
+            plt.legend(handles, labels, loc='lower right', fontsize=22)
+            # left = plt.legend(handles[:3], labels[:3], loc='upper left', fontsize=21.)
+            # plt.legend(handles[3:], labels[3:], loc='upper right', fontsize=21.)
+            # plt.gca().add_artist(left)
             plt.ylim(ymin=0, ymax=y_max)
+            plt.xlim(xmin=0, xmax=1400)
+            # plt.xlim(xmin=0, xmax=2400)
 
         # with plotter.saved_figure(label['sigma ttW'], '', 'x_sec_ttW_{}'.format(operator)) as ax:
         #     avg = np.average(data['x_sec_ttW'])
@@ -511,13 +526,13 @@ def plot(args, config):
         config['operators'] = [args.plot]
 
     # nll(args, config, plotter, dimensionless=False)
-    # nll(args, config, plotter, transform=True, dimensionless=False)
-    # nll(args, config, plotter, transform=False, dimensionless=False)
-    mu(config, plotter)
+    nll(args, config, plotter, transform=True, dimensionless=False)
+    nll(args, config, plotter, transform=False, dimensionless=False)
+    # mu(config, plotter)
     # mu(config, plotter, overlay_results=False, dimensionless=True)
     # mu_new(config, plotter, overlay_results=False, dimensionless=True)
 
-    # ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=True, dimensionless=False)
-    # ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=False)
+    ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=True, dimensionless=False)
+    ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=False)
 
     # ttZ_ttW_2D_1D_ttZ_1D_ttW(args, config, plotter)
