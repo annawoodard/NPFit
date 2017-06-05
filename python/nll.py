@@ -53,8 +53,12 @@ def fit_nll(config, transform=False, dimensionless=True):
         if transform:# and len(x[minima][threshold]) == 2:
             print 'nll difference is: ', y[minima] - min(y), operator
             offset = sum(x[minima]) / 2
+            print 'operator, old offset ', operator, offset
             xi = np.linspace(x.min(), x.max(), 10000)
-            offset = (mus[operator]['ttH'](xi) + mus[operator]['ttZ'](xi) + mus[operator]['ttW'](xi)).min()
+            total = mus[operator]['ttH'](xi) + mus[operator]['ttZ'](xi) + mus[operator]['ttW'](xi)
+            offset = xi[total.argmin()] / (cutoff[operator] * cutoff[operator])
+            print 'operator, new offset ', operator, offset
+            print mus[operator]['ttZ'](xi)
             def transform(i):
                 return np.abs(i - offset)
 
@@ -64,9 +68,12 @@ def fit_nll(config, transform=False, dimensionless=True):
             res[operator]['one sigma'] = [line.interval(positive_x, positive_y, 1.0, best_fit)]
             res[operator]['two sigma'] = [line.interval(positive_x, positive_y, 3.84, best_fit)]
 
-            y = y[transform(x).argsort()]
-            x = sorted(transform(x))
-            res[operator]['best fit'] = [(best_fit, y[minima][threshold][0])]
+            res[operator]['best fit'] = [(best_fit, y[transform(x).argsort()][minima][threshold][0])]
+
+            # y = y[transform(x).argsort()]
+            # x = sorted(transform(x))
+            y = y[transform(x)[x < offset].argsort()]
+            x = sorted(transform(x)[x < offset])
 
             sign = '+' if offset < 0 else '-'
             res[operator]['offset label'] = r' {} {:03.1f}'.format(sign, np.abs(offset)) if round(offset, 1) != 0 else ''
@@ -96,9 +103,10 @@ def fit_nll(config, transform=False, dimensionless=True):
             ' and '.join(['[{:.1f}, {:.1f}]'.format(i, j) for i, j in info['two sigma']])
         ])
     headers = ['Wilson coefficient', 'best fit', '$1\sigma$ CL', '$2\sigma$  CL']
-    with open(os.path.join(config['outdir'], 'best_fit{}.txt'.format(('_transformed' if transform else ''))), 'w') as f:
+    tag = '{}{}'.format(('_transformed' if transform else ''), ('_dimensionless' if dimensionless else ''))
+    with open(os.path.join(config['outdir'], 'best_fit{}.txt'.format(tag)), 'w') as f:
         f.write(tabulate.tabulate(table, headers=headers))
-    with open(os.path.join(config['outdir'], 'best_fit{}.tex'.format(('_transformed' if transform else ''))), 'w') as f:
+    with open(os.path.join(config['outdir'], 'best_fit{}.tex'.format(tag)), 'w') as f:
         f.write(tabulate.tabulate(table, headers=headers, tablefmt='latex_raw'))
 
     np.save('nll.npy', res)

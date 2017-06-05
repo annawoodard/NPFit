@@ -1,8 +1,10 @@
-# indir: /hadoop/store/user/awoodard/ttV/34/1/*gen*
-cross sections: /afs/crc.nd.edu/user/a/awoodard/www/ttV/34/1/9/cross_sections.npy
+# indir: /hadoop/store/user/awoodard/ttV/39/cross_sections*
+# cross sections: /afs/crc.nd.edu/user/a/awoodard/releases/effective-ttV/CMSSW_7_4_7/src/EffectiveTTV/EffectiveTTV/data/cross_sections/8_TeV.npy 
+cross sections: /afs/crc.nd.edu/user/a/awoodard/www/.private/ttV/34/1/9/cross_sections.npy
 # outdir: /afs/crc.nd.edu/user/a/awoodard/www/ttV/34/1/28
 # asimov data: True # calculate expected values with MC data only (Asimov dataset), false for real data
-outdir: /afs/crc.nd.edu/user/a/awoodard/www/ttV/34/1/29
+# outdir: /afs/crc.nd.edu/user/a/awoodard/www/.private/ttV/39/1/2
+outdir: /afs/crc.nd.edu/user/a/awoodard/www/.private/ttV/34/1/32
 asimov data: False # calculate expected values with MC data only (Asimov dataset), false for real data
 dimension: 1
 cards:

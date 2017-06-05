@@ -122,8 +122,12 @@ def mu_new(config, plotter, overlay_results=False, dimensionless=False):
                 os.path.join('mu', operator + ('_overlay' if overlay_results else ''))) as ax:
 
             c_max = (4 * np.pi) ** 2
-            xmin = max([(mus[operator][p] - 5).roots().min() for p in ['ttW', 'ttZ', 'ttH'] if (mus[operator][p](c_max) > 5)] + [-1 * c_max])
-            xmax = min([(mus[operator][p] - 5).roots().max() for p in ['ttW', 'ttZ', 'ttH'] if (mus[operator][p](c_max) > 5)] + [c_max])
+            print 'processes ', mus[operator].keys()
+            try:
+                xmin = max([(mus[operator][p] - 5).roots().min() for p in ['ttW', 'ttZ', 'ttH'] if (mus[operator][p](c_max) > 5)] + [-1 * c_max])
+                xmax = min([(mus[operator][p] - 5).roots().max() for p in ['ttW', 'ttZ', 'ttH'] if (mus[operator][p](c_max) > 5)] + [c_max])
+            except KeyError:
+                continue
             # xmin = -160
             # xmax = 160
             xi = np.linspace(xmin, xmax, 10000)
@@ -189,10 +193,10 @@ def mu(config, plotter, overlay_results=False, dimensionless=False):
     coefficients, cross_sections = load(config)
     mus = load_mus(config)
 
-    for operator in config['operators']:
+    # for operator in config['operators']:
+    for operator, xmin, xmax in [('cuW', -5, 5), ('cuB', -14, 14), ('cu', -30, 30), ('cHu', -10, 10)]:
         scale = 1 if dimensionless else (1. / (cutoff[operator] * cutoff[operator]))
         print 'dimensionless, scale ', dimensionless, scale
-    # for operator, xmin, xmax in [('cuW', -5, 5), ('cuB', -5, 5), ('cu', -30, 30), ('cHu', -7, 7)]:
         if operator == 'sm':
             continue
 
@@ -202,22 +206,24 @@ def mu(config, plotter, overlay_results=False, dimensionless=False):
                 '$\sigma_{NP+SM} / \sigma_{SM}$',
                 os.path.join('mu', operator + ('_overlay' if overlay_results else ''))) as ax:
 
-            xmin = min(np.array(nll[operator]['two sigma'])[:, 0])
-            xmax = max(np.array(nll[operator]['two sigma'])[:, 1])
+            # xmin = min(np.array(nll[operator]['two sigma'])[:, 0])
+            # xmax = max(np.array(nll[operator]['two sigma'])[:, 1])
 
-            xmin = xmin - (np.abs(xmin) * 0.1)
-            xmax = xmax + (np.abs(xmax) * 0.1)
+            # xmin = xmin - (np.abs(xmin) * 0.1)
+            # xmax = xmax + (np.abs(xmax) * 0.1)
+            # xmin = min(coefficients['ttZ'][operator]) #FIXME remove
+            # xmax = max(coefficients['ttZ'][operator])
             for process, marker, c in [('ttW', 'x', 'blue'), ('ttZ', '+', '#2fd164'), ('ttH', 'o', '#ff321a')]:
                 x = coefficients[process][operator]
                 y = cross_sections[process][operator] / cross_sections[process]['sm']
-                above = lambda low: x >= low
-                below = lambda high: x <= high
-                while len(x[above(xmin) & below(xmax)]) < 3:
-                    xmin -= np.abs(xmin) * 0.1
-                    xmax += np.abs(xmax) * 0.1
-                if operator == 'cHu':
-                    xmin = -12. / scale
-                    xmax = 3. / scale
+                # above = lambda low: x >= low
+                # below = lambda high: x <= high
+                # while len(x[above(xmin) & below(xmax)]) < 3:
+                #     xmin -= np.abs(xmin) * 0.1
+                #     xmax += np.abs(xmax) * 0.1
+                # if operator == 'cHu':
+                #     xmin = -12. / scale
+                #     xmax = 3. / scale
                 xi = np.linspace(xmin, xmax, 10000)
 
                 ax.plot(xi * scale, mus[operator][process](xi), color='#C6C6C6')
@@ -264,7 +270,7 @@ def mu(config, plotter, overlay_results=False, dimensionless=False):
                     )
 
             print operator, 'scale ', scale, xmin, xmax
-            plt.xlim(xmin=xmin * scale, xmax=xmax * scale)
+            plt.xlim(xmin=xmin, xmax=xmax)
             plt.ylim(ymin=0, ymax=5)
             plt.title(r'CMS simulation', loc='left', fontweight='bold')
             # plt.title(r'aMC@NLO_Madgraph5 LO', loc='right', fontweight='bold')
@@ -528,11 +534,11 @@ def plot(args, config):
     # nll(args, config, plotter, dimensionless=False)
     nll(args, config, plotter, transform=True, dimensionless=False)
     nll(args, config, plotter, transform=False, dimensionless=False)
-    # mu(config, plotter)
+    mu(config, plotter)
     # mu(config, plotter, overlay_results=False, dimensionless=True)
     # mu_new(config, plotter, overlay_results=False, dimensionless=True)
 
-    ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=True, dimensionless=False)
-    ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=False)
+    # ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=True, dimensionless=False)
+    # ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=False)
 
     # ttZ_ttW_2D_1D_ttZ_1D_ttW(args, config, plotter)

@@ -128,7 +128,7 @@ shapes *      ch2  FAKE''')
             '# cd {}\n'
             '# nohup work_queue_factory -T condor -M ttV_FTW -C {} >& makeflow_factory.log &\n'
             '# then keep running this command until makeflow no longer submits jobs (may take a few tries)\n'
-            '# makeflow -T wq -M ttV_FTW --wrapper ./w.sh --wrapper-input w.sh\n'
+            '# makeflow -T wq -M ttV_FTW --wrapper ./w.sh --wrapper-input w.sh --archive\n'
         ).format(config['outdir'], factory)
 
         f.write(msg)
@@ -161,6 +161,7 @@ shapes *      ch2  FAKE''')
             makeflowify(['run.yaml'], outputs, ['run', '--parse', f, 'run.yaml'])
 
         inputs = [os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npy')) for f in files] + ['run.yaml']
+        inputs += glob.glob(os.path.join(config['indir'], '*.npy'))
         outputs = 'cross_sections.npy'
         makeflowify(inputs, outputs, ['run', '--concatenate', 'run.yaml'])
     elif 'cross sections' in config:
@@ -255,6 +256,7 @@ shapes *      ch2  FAKE''')
         # FIXME change this back for Geoff's question
         # FIXME consider using autoBoundsPOIs and autoMaxPOIs, not sure if they work
         cmd += ' --setPhysicsModelParameterRanges {}'.format(':'.join(['{}=-5,5'.format(x) for x in operators]))
+        # cmd += ' --setPhysicsModelParameterRanges {}'.format(':'.join(['{}=-3,3'.format(x) for x in operators]))
         cmd += ' -t -1 ' if config['asimov data'] else ''
         cmd += ';mv higgsCombineTest.MultiDimFit.mH120.root {}'.format(best_fit)
         cmd += ';mv multidimfit.root {}'.format(fit_result)
@@ -339,6 +341,8 @@ def parse(args, config):
 
 def concatenate(args, config):
     files = glob.glob(os.path.join(config['outdir'], 'cross_sections', '*.npy'))
+    if 'indir' in config:
+        files += glob.glob(os.path.join(config['indir'], '*.npy'))
     res = {}
     for f in files:
         info = np.load(f)[()]
@@ -347,11 +351,6 @@ def concatenate(args, config):
                 res[process] = np.vstack([res[process], cross_sections])
             except KeyError:
                 res[process] = cross_sections
-
-    hres = {} # FIXME hack
-    for key in res:
-        hres[key.replace('cards/', '')] = res[key]
-    res = hres
 
     outfile = os.path.join(config['outdir'], 'cross_sections.npy')
     np.save(outfile, res)
