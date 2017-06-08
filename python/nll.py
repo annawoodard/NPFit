@@ -5,7 +5,7 @@ import scipy.signal
 import tabulate
 
 from EffectiveTTV.EffectiveTTV import line
-from EffectiveTTV.EffectiveTTV.parameters import label, cutoff
+from EffectiveTTV.EffectiveTTV.parameters import label, conversion
 from EffectiveTTV.EffectiveTTV.signal_strength import load, load_mus
 
 def fit_nll(config, transform=False, dimensionless=True):
@@ -30,7 +30,7 @@ def fit_nll(config, transform=False, dimensionless=True):
         data = root2array(os.path.join(config['outdir'], 'scans', '{}.total.root'.format(operator)))
         # make sure min point is at 0 (combine might have chosen wrong best
         # fit for offset)
-        data['deltaNLL'] -= data['deltaNLL'].min()  
+        data['deltaNLL'] -= data['deltaNLL'].min()
         max_nll = (14. / 2)
         # max_nll = (30. / 2)
         # data = data[data['deltaNLL'] < max_nll]
@@ -41,7 +41,7 @@ def fit_nll(config, transform=False, dimensionless=True):
         data = data[data['deltaNLL'] < max_nll]
         _, unique = np.unique(data[operator], return_index=True)
 
-        x = data[unique][operator] if dimensionless else data[unique][operator] / (cutoff[operator] * cutoff[operator])
+        x = data[unique][operator] if dimensionless else data[unique][operator] * conversion[operator]
         y = 2 * data[unique]['deltaNLL']
 
         if len(y) == 0:
@@ -56,7 +56,7 @@ def fit_nll(config, transform=False, dimensionless=True):
             print 'operator, old offset ', operator, offset
             xi = np.linspace(x.min(), x.max(), 10000)
             total = mus[operator]['ttH'](xi) + mus[operator]['ttZ'](xi) + mus[operator]['ttW'](xi)
-            offset = xi[total.argmin()] / (cutoff[operator] * cutoff[operator])
+            offset = xi[total.argmin()] * conversion[operator]
             print 'operator, new offset ', operator, offset
             print mus[operator]['ttZ'](xi)
             def transform(i):

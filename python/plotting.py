@@ -26,7 +26,7 @@ import scipy.optimize as so
 from scipy.stats import kde
 from scipy.stats import gaussian_kde
 
-from EffectiveTTV.EffectiveTTV.parameters import nlo, kappa, label, cutoff
+from EffectiveTTV.EffectiveTTV.parameters import nlo, kappa, label, conversion
 from EffectiveTTV.EffectiveTTV import kde
 from EffectiveTTV.EffectiveTTV.signal_strength import load, load_mus
 from EffectiveTTV.EffectiveTTV.nll import fit_nll
@@ -110,7 +110,7 @@ def mu_new(config, plotter, overlay_results=False, dimensionless=False):
     mus = load_mus(config)
 
     for operator in config['operators']:
-        scale = 1 if dimensionless else (1. / (cutoff[operator] * cutoff[operator]))
+        scale = 1 if dimensionless else conversion[operator]
     # for operator, xmin, xmax in [('cuW', -5, 5), ('cuB', -5, 5), ('cu', -30, 30), ('cHu', -7, 7)]:
         if operator == 'sm':
             continue
@@ -195,7 +195,7 @@ def mu(config, plotter, overlay_results=False, dimensionless=False):
 
     # for operator in config['operators']:
     for operator, xmin, xmax in [('cuW', -5, 5), ('cuB', -14, 14), ('cu', -30, 30), ('cHu', -10, 10)]:
-        scale = 1 if dimensionless else (1. / (cutoff[operator] * cutoff[operator]))
+        scale = 1 if dimensionless else conversion[operator]
         print 'dimensionless, scale ', dimensionless, scale
         if operator == 'sm':
             continue

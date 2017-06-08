@@ -112,7 +112,7 @@ g1 = ee / (1 - sw * sw) # U(1)Y coupling constant at the Z pole
 conversion = {
     'cu': yu / (vev * vev),
     'cHu': 1 / (2 * vev * vev),
-    'cuB': (2 * g1 * yu) / (mass_w * mass_w),
+    'cuB': (g1 * yu) / (2 * mass_w * mass_w),
     'cuW': (gw * yu) / (mass_w * mass_w)
 }
 
@@ -122,51 +122,53 @@ mass_w = 0.080385 # TeV
 mass_higgs = 0.125 # TeV
 higgs_quartic_coupling = np.power(mass_higgs, 2) / (2 * np.power(vev, 2))  # see http://sns.ias.edu/~pgl/SMB/Higgs_update.pdf equation 7.196
 ymt = 0.172 # TeV
-yu = np.sqrt(ymt) / vev # up-type Yukawa couplings (the first two generations have been removed from the model)
+yu = np.sqrt(2) * ymt / vev # up-type Yukawa couplings (the first two generations have been removed from the model)
 ymb = 0.0047 # TeV
-yb = np.sqrt(ymb) / vev # up-type Yukawa couplings (the first two generations have been removed from the model)
+yb = np.sqrt(2) * ymb / vev # up-type Yukawa couplings (the first two generations have been removed from the model)
 aeW = 1. / 127.9 # electroweak coupling contant
 ee = np.sqrt(4 * np.pi * aeW) # electric coupling constant
 sw = ee * vev / (2 * mass_w) # sine of the Weinberg angle
 gw = ee / sw # weak coupling constant at the Z pole
-g1 = ee / (1 - sw * sw) # U(1)Y coupling constant at the Z pole
+g1 = ee / np.sqrt(1 - sw * sw) # U(1)Y coupling constant at the Z pole
 aS = 0.1184
 gs = np.sqrt(4 * np.pi * aS) # strong coupling constant at the Z pole
 
 
 # see https://arxiv.org/pdf/1310.5150v2.pdf equations 2.4 - 2.14
-cutoff = {
-    'cH': np.sqrt(2) * vev,
-    'cT': np.sqrt(2) * vev,
-    'c6': vev / np.sqrt(higgs_quartic_coupling),
-    'cu': vev / np.sqrt(yu),
-    'cWW': mass_w / np.sqrt(gw),
-    'cB': np.sqrt(2) * mass_w / np.sqrt(g1),
-    'cHW': mass_w / np.sqrt(gw),
-    'cHB': mass_w / np.sqrt(g1),
-    'cA': mass_w / g1,
-    'cG': mass_w,
-    'cHQ': vev,
-    'cpHQ': vev / 2,
-    'cHu': np.sqrt(2) * vev,
-    'cHd': np.sqrt(2) * vev,
-    'cHud': vev,
-    'cHe': np.sqrt(2) * vev,
-    'cHL': vev,
-    'cuB': mass_w / np.sqrt(g1 * yu),
-    'cuW': mass_w / np.sqrt(gw * yu),
-    'cuG': mass_w / np.sqrt(gs * yu),
-    'c3W': mass_w / np.sqrt(gw * gw * gw),
-    'c3G': mass_w / np.sqrt(gw * gw * gw),
-    'c2W': mass_w,
-    'c2B': mass_w,
-    'c2G': mass_w,
-    'tcHW': mass_w / np.sqrt(gw),
-    'tcHB': np.sqrt(2) * mass_w / np.sqrt(g1),
-    'tcA': np.sqrt(2) * mass_w / g1,
-    'tc3W': np.sqrt(2) * mass_w / np.sqrt(gw * gw * gw),
-    'tc3G': np.sqrt(2) * mass_w / np.sqrt(gs * gs * gs),
-    'cpHL': vev / 2,
-    'tcG': np.sqrt(2) * mass_w / gs
+# see http://feynrules.irmp.ucl.ac.be/attachment/wiki/HEL/HEL.fr
+conversion = {
+    'cH': 1. / (2 * vev * vev),
+    'cT': 1. / (2 * vev * vev),
+    'c6': higgs_quartic_coupling / (vev * vev),
+    'cu': yu / (vev * vev),
+    'cWW': gw / (mass_w * mass_w),
+    'cB': g1 / (2 * mass_w * mass_w),
+    'cHW': 2 * gw / (mass_w * mass_w),
+    'cHB': g1 / (mass_w * mass_w),
+    'cA': g1 * g1 / (mass_w * mass_w),
+    'cG': gs * gs / (mass_w * mass_w),
+    'cHQ': 1. / (vev * vev),
+    'cpHQ': 4. / (vev * vev),
+    'cHu': 1. / (2 * vev * vev),
+    'cHd': 1. / (2 * vev * vev),
+    'cHud': 1. / (vev * vev),
+    'cHL': 1. / (vev * vev),
+    'cpHL': 4. / (vev * vev),
+    'cHe': 1. / (2 * vev * vev),
+    'cuB': g1 * yu / (2 * mass_w * mass_w),
+    'cuW': gw * yu / (mass_w * mass_w),
+    'cuG': gs * yu / (mass_w * mass_w),
+    'c3W': gw * gw * gw / (mass_w * mass_w),
+    'c3G': gs * gs * gs / (mass_w * mass_w),
+    'c2W': 1. / (mass_w * mass_w),
+    'c2B': 1. / (mass_w * mass_w),
+    'c2G': 1. / (mass_w * mass_w),
+    'tcHW': gw / (mass_w * mass_w),
+    'tcHB': g1 / (2 * mass_w * mass_w),
+    'tcA': g1 * g1 / (2 * mass_w * mass_w),
+    'tc3W': gw * gw * gw / (2 * mass_w * mass_w),
+    'tc3G': gs * gs * gs / (2 * mass_w * mass_w),
+    'cpHL': 4. / (vev * vev),
+    'tcG': gs * gs / (2. * mass_w * mass_w)
 }
 
