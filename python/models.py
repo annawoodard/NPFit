@@ -46,31 +46,6 @@ class EffectiveOperatorModel(PhysicsModel):
                         quadratic = self.modelBuilder.factory_(template.format(name=name, a0=a0, a1=a1, a2=a2, poi=poi))
                         self.modelBuilder.out._import(quadratic)
 
-                        c1 = ROOT.TCanvas()
-                        proj = quadratic.plotOn(x.frame())
-                        x = coefficients[process][poi]
-                        y = cross_sections[process][poi] / cross_sections[process]['sm']
-                        graph = ROOT.TGraph(len(x), x, y)
-                        graph.SetMarkerStyle(20)
-                        graph.SetMarkerSize(1)
-                        graph.SetMarkerColor(6)
-                        graph.GetXaxis().SetRangeUser(-1, 1)
-                        graph.SetTitle("")
-                        graph.GetXaxis().SetTitle(poi)
-                        graph.GetYaxis().SetTitle("#frac{#sigma_{NP+SM}}{#sigma_{SM}}")
-                        graph.Draw("AP")
-                        proj.Draw("same")
-                        # legend = ROOT.TLegend(0.2, 0.2, .8, .8)
-                        # legend.AddEntry(graph, "MC")
-                        # legend.AddEntry(proj, "fit")
-                        # legend.Draw("same")
-                        ROOT.gPad.BuildLegend()
-                        path = os.path.join(self.config['outdir'], 'plots', 'cross_sections', process, poi)
-                        c1.SaveAs(path + '.pdf')
-                        c1.SaveAs(path + '.png')
-
-                        del c1
-
             self.modelBuilder.factory_('sum::r_{0}({1})'.format(group, ', '.join(functions)))
 
     def quadratic(self, x, xi, yi):
