@@ -252,10 +252,10 @@ shapes *      ch2  FAKE''')
         cmd += ' --setPhysicsModelParameters {}'.format(','.join(['{}=0.0'.format(x) for x in operators]))
         # convergence of the loop expansion requires c < (4 * pi)^2
         # see section 7 in https://arxiv.org/pdf/1205.4231.pdf
-        # cmd += ' --setPhysicsModelParameterRanges {}'.format(':'.join(['{}=-158,158'.format(x) for x in operators]))
+        cmd += ' --setPhysicsModelParameterRanges {}'.format(':'.join(['{}=-158,158'.format(x) for x in operators]))
         # FIXME change this back for Geoff's question
         # FIXME consider using autoBoundsPOIs and autoMaxPOIs, not sure if they work
-        cmd += ' --setPhysicsModelParameterRanges {}'.format(':'.join(['{}=-5,5'.format(x) for x in operators]))
+        # cmd += ' --setPhysicsModelParameterRanges {}'.format(':'.join(['{}=-5,5'.format(x) for x in operators]))
         # cmd += ' --setPhysicsModelParameterRanges {}'.format(':'.join(['{}=-3,3'.format(x) for x in operators]))
         cmd += ' -t -1 ' if config['asimov data'] else ''
         cmd += ';mv higgsCombineTest.MultiDimFit.mH120.root {}'.format(best_fit)
@@ -278,9 +278,9 @@ shapes *      ch2  FAKE''')
                 '--algo=grid',
                 '--points={}'.format(config['1d points']),
                 '--setPhysicsModelParameters', ','.join(['{}=0.0'.format(x) for x in operators]),
-                # '--setPhysicsModelParameterRanges', ':'.join(['{}=-158,158'.format(x) for x in operators]),
+                '--setPhysicsModelParameterRanges', ':'.join(['{}=-158,158'.format(x) for x in operators]),
                 # '--setPhysicsModelParameterRanges', ':'.join(['{}=-5,5'.format(x) for x in operators]),
-                '--setPhysicsModelParameterRanges', ':'.join(['{}=-3,3'.format(x) for x in operators]),
+                # '--setPhysicsModelParameterRanges', ':'.join(['{}=-3,3'.format(x) for x in operators]),
                 # FIXME change back
                 '--autoRange={}'.format('15' if config['asimov data'] else '20'),
                 ' -t -1 ' if config['asimov data'] else '',

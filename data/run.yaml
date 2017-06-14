@@ -1,11 +1,8 @@
-# indir: /hadoop/store/user/awoodard/ttV/39/cross_sections*
-# cross sections: /afs/crc.nd.edu/user/a/awoodard/releases/effective-ttV/CMSSW_7_4_7/src/EffectiveTTV/EffectiveTTV/data/cross_sections/8_TeV.npy 
-cross sections: /afs/crc.nd.edu/user/a/awoodard/www/.private/ttV/34/1/9/cross_sections.npy
-# outdir: /afs/crc.nd.edu/user/a/awoodard/www/ttV/34/1/28
-# asimov data: True # calculate expected values with MC data only (Asimov dataset), false for real data
-# outdir: /afs/crc.nd.edu/user/a/awoodard/www/.private/ttV/39/1/2
-outdir: /afs/crc.nd.edu/user/a/awoodard/www/.private/ttV/34/1/32
-asimov data: False # calculate expected values with MC data only (Asimov dataset), false for real data
+indir: /hadoop/store/user/awoodard/ttV/43/cross_sections*
+# cross sections: /afs/crc.nd.edu/user/a/awoodard/releases/effective-ttV/CMSSW_7_4_7/src/EffectiveTTV/EffectiveTTV/data/cross_sections/8_TeV.npy
+# cross sections: /afs/crc.nd.edu/user/a/awoodard/www/.private/ttV/41/1/1/cross_sections.npy
+outdir: /afs/crc.nd.edu/user/a/awoodard/www/.private/ttV/43/1/1
+asimov data: True # calculate expected values with MC data only (Asimov dataset), false for real data
 dimension: 1
 cards:
   2l: /afs/cern.ch/user/i/ikhvastu/public/ttV_datacards/10May_2017/
@@ -17,6 +14,5 @@ chunk size: 500
 luminosity: 36
 processes: ['ttH', 'ttZ', 'ttW'] # processes to scale
 # processes: ['ttX', 'ttother', 'rare', 'WZ', 'ZZ', 'ttH', 'ttZ', 'ttW']
-# operators: ['cpHQ', 'cHQ', 'cuB', 'c3W', 'cHu']
-# operators: ['c2B', 'c2G', 'c2W', 'c3G', 'c3W', 'c6', 'cA', 'cB', 'cG', 'cH', 'cHB', 'cHL', 'cHQ', 'cHW', 'cHd', 'cHe', 'cHu', 'cHud', 'cT', 'cWW', 'cd', 'cdB', 'cdG', 'cdW', 'cl', 'clB', 'clW', 'cpHL', 'cpHQ', 'cu', 'cuB', 'cuG', 'cuW', 'tc3G', 'tc3W', 'tcA', 'tcG', 'tcHB', 'tcHW']
-operators: ['cuW', 'cuB', 'cu', 'cHu']
+operators: ['c2B', 'c2G', 'c2W', 'c3G', 'c3W', 'c6', 'cA', 'cB', 'cG', 'cH', 'cHB', 'cHL', 'cHQ', 'cHW', 'cHd', 'cHe', 'cHu', 'cHud', 'cT', 'cWW', 'cd', 'cdB', 'cdG', 'cdW', 'cl', 'clB', 'clW', 'cpHL', 'cpHQ', 'cu', 'cuB', 'cuG', 'cuW', 'tc3G', 'tc3W', 'tcA', 'tcG', 'tcHB', 'tcHW']
+# operators: ['cuW', 'cuB', 'cu', 'cHu']

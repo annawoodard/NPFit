@@ -31,14 +31,10 @@ def load_mus(config):
     mus = defaultdict(dict)
     coefficients, cross_sections = load(config)
 
-    # for process in coefficients:
-    #     print 'process test is ', process
-    for process in ['ttH', 'ttZ', 'ttW']:
-    # for process in ['DY', 'H', 'WWW', 'WWZ', 'WZ', 'WZZ', 'ZZ', 'WW', 'ZZZ', 'tZq', 'tt', 'ttH', 'ttW', 'ttZ']:
-    # for process in ['DY', 'H', 'WWW', 'WWZ', 'WZ', 'WZZ', 'ZZ', 'WW', 'ZZZ', 'tZq', 'tt', 'ttH', 'ttW', 'ttZ', 'tttt', 'tWZ']:
-        # for operator in coefficients[process]:
-        for operator in ['cHu', 'cu', 'cuW', 'cuB']:
-        # for operator in coefficients[process]:
+    for process in coefficients:
+        print 'process test is ', process
+        for operator in coefficients[process]:
+        # for operator in ['cHu', 'cu', 'cuW', 'cuB']:
             if operator == 'sm':
                 continue
             x = coefficients[process][operator]

@@ -189,12 +189,16 @@ def mu_new(config, plotter, overlay_results=False, dimensionless=False):
 
 def mu(config, plotter, overlay_results=False, dimensionless=False):
 
-    nll, units = fit_nll(config, transform=False, dimensionless=True)
     coefficients, cross_sections = load(config)
     mus = load_mus(config)
+    # FIXME
+    import yaml
+    with open('/afs/crc.nd.edu/user/a/awoodard/www/.private/ttV/42/1/1/run.yaml') as f:
+        config = yaml.load(f)
+    nll, units = fit_nll(config, transform=False, dimensionless=dimensionless)
 
-    # for operator in config['operators']:
-    for operator, xmin, xmax in [('cuW', -5, 5), ('cuB', -14, 14), ('cu', -30, 30), ('cHu', -10, 10)]:
+    for operator in config['operators']:
+    # for operator, xmin, xmax in [('cuW', -5, 5), ('cuB', -14, 14), ('cu', -30, 30), ('cHu', -10, 10)]:
         scale = 1 if dimensionless else conversion[operator]
         print 'dimensionless, scale ', dimensionless, scale
         if operator == 'sm':
@@ -206,8 +210,8 @@ def mu(config, plotter, overlay_results=False, dimensionless=False):
                 '$\sigma_{NP+SM} / \sigma_{SM}$',
                 os.path.join('mu', operator + ('_overlay' if overlay_results else ''))) as ax:
 
-            # xmin = min(np.array(nll[operator]['two sigma'])[:, 0])
-            # xmax = max(np.array(nll[operator]['two sigma'])[:, 1])
+            xmin = min(np.array(nll[operator]['two sigma'])[:, 0])
+            xmax = max(np.array(nll[operator]['two sigma'])[:, 1])
 
             # xmin = xmin - (np.abs(xmin) * 0.1)
             # xmax = xmax + (np.abs(xmax) * 0.1)
@@ -216,14 +220,6 @@ def mu(config, plotter, overlay_results=False, dimensionless=False):
             for process, marker, c in [('ttW', 'x', 'blue'), ('ttZ', '+', '#2fd164'), ('ttH', 'o', '#ff321a')]:
                 x = coefficients[process][operator]
                 y = cross_sections[process][operator] / cross_sections[process]['sm']
-                # above = lambda low: x >= low
-                # below = lambda high: x <= high
-                # while len(x[above(xmin) & below(xmax)]) < 3:
-                #     xmin -= np.abs(xmin) * 0.1
-                #     xmax += np.abs(xmax) * 0.1
-                # if operator == 'cHu':
-                #     xmin = -12. / scale
-                #     xmax = 3. / scale
                 xi = np.linspace(xmin, xmax, 10000)
 
                 ax.plot(xi * scale, mus[operator][process](xi), color='#C6C6C6')
@@ -298,14 +294,22 @@ def nll(args, config, plotter, transform=False, dimensionless=True):
                 header=args.header) as ax:
             ax.plot(info['x'], info['y'], 'o', color='black')
 
-            for x, y in info['best fit']:
-                plt.axvline(
-                    x=x,
-                    ymax=0.5,
-                    linestyle='-',
-                    color='black',
-                    label='best fit',
-                )
+            for i, (x, y) in enumerate(info['best fit']):
+                if i == 0:
+                    plt.axvline(
+                        x=x,
+                        ymax=0.5,
+                        linestyle='-',
+                        color='black',
+                        label='best fit',
+                    )
+                else:
+                    plt.axvline(
+                        x=x,
+                        ymax=0.5,
+                        linestyle='-',
+                        color='black',
+                    )
             for i, (low, high) in enumerate(info['one sigma']):
                 ax.plot([low, high], [1.0, 1.0], '--', label=r'$1\sigma$ CL' if (i==0) else '', color='blue')
             for i, (low, high) in enumerate(info['two sigma']):
@@ -531,10 +535,11 @@ def plot(args, config):
     if args.plot != 'all':
         config['operators'] = [args.plot]
 
-    # nll(args, config, plotter, dimensionless=False)
     nll(args, config, plotter, transform=True, dimensionless=False)
     nll(args, config, plotter, transform=False, dimensionless=False)
-    mu(config, plotter)
+    nll(args, config, plotter, transform=True, dimensionless=True)
+    nll(args, config, plotter, transform=False, dimensionless=True)
+    # mu(config, plotter)
     # mu(config, plotter, overlay_results=False, dimensionless=True)
     # mu_new(config, plotter, overlay_results=False, dimensionless=True)
 

@@ -98,27 +98,6 @@ label = {
 # see http://feynrules.irmp.ucl.ac.be/attachment/wiki/HEL/HEL.fr
 vev = 0.246 # TeV
 mass_w = 0.080385 # TeV
-ymt = 0.172 # TeV
-yu = np.sqrt(ymt) / vev # up-type Yukawa couplings (the first two generations have been removed from the model)
-ymb = 0.0047 # TeV
-yb = np.sqrt(ymb) / vev # up-type Yukawa couplings (the first two generations have been removed from the model)
-aeW = 1. / 127.9 # electroweak coupling contant
-ee = np.sqrt(4 * np.pi * aeW) # electric coupling constant
-sw = ee * vev / (2 * mass_w) # sine of the Weinberg angle
-gw = ee / sw # weak coupling constant at the Z pole
-g1 = ee / (1 - sw * sw) # U(1)Y coupling constant at the Z pole
-
-# see https://arxiv.org/pdf/1310.5150v2.pdf equations 2.4 - 2.14
-conversion = {
-    'cu': yu / (vev * vev),
-    'cHu': 1 / (2 * vev * vev),
-    'cuB': (g1 * yu) / (2 * mass_w * mass_w),
-    'cuW': (gw * yu) / (mass_w * mass_w)
-}
-
-# see http://feynrules.irmp.ucl.ac.be/attachment/wiki/HEL/HEL.fr
-vev = 0.246 # TeV
-mass_w = 0.080385 # TeV
 mass_higgs = 0.125 # TeV
 higgs_quartic_coupling = np.power(mass_higgs, 2) / (2 * np.power(vev, 2))  # see http://sns.ias.edu/~pgl/SMB/Higgs_update.pdf equation 7.196
 ymt = 0.172 # TeV

@@ -33,7 +33,7 @@ def write(table, headers, name):
 with open(args.config) as f:
     config = yaml.load(f)
 
-nll = fit_nll(config)
+nll, _ = fit_nll(config)
 coefficients, cross_sections = load(config)
 mus = load_mus(config)
 
@@ -46,6 +46,8 @@ for operator, info in nll.items():
         print 'found two sigma for ', operator
         extreme_mus[operator][(low, high)] = {}
         for process in processes:
+            print mus.keys()
+            print mus[operator].keys()
             y = mus[operator][process](np.linspace(low, high, 100))
             extreme_mus[operator][(low, high)][process] = y[np.abs(y - 1).argmax()]  # we want farthest from 1., not max
 

@@ -1,3 +1,4 @@
+import glob
 import os
 
 import numpy as np
@@ -19,7 +20,10 @@ def fit_nll(config, transform=False, dimensionless=True):
 
     mus = load_mus(config)
     res = {}
-    for operator in config['operators']:
+    # for operator in config['operators']:
+    base = os.path.join(config['outdir'], 'scans')
+    for operator in [x.replace(base + '/', '').replace('.total.root', '') for x in glob.glob(base +
+        '/c*total.root') + glob.glob(base + '/tc*total.root')]:
         res[operator] = {
             'offset label': '',
             'best fit': [],
