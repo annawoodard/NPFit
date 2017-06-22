@@ -19,20 +19,6 @@ operators = ['c2W', 'c3G', 'c3W', 'cA', 'cB', 'cG', 'cHB', 'cHQ', 'cHW',
              'cHd', 'cHu', 'cHud', 'cT', 'cWW', 'cpHQ', 'cu', 'cuB',
              'cuG', 'cuW', 'tc3G', 'tc3W', 'tcG', 'tcHW']
 
-process_groups = {
-    'ttX': ['tZq'],
-    'ttother': ['tZq'],
-    'rare': ['WZZ', 'ZZZ', 'WWW', 'WWZ'],
-    'charge': ['tt'],
-    'fake': ['tt', 'DY'],
-    'Fake': ['tt', 'DY'],
-    'WZ': ['WZ'],
-    'ZZ': ['ZZ'],
-    'ttH': ['ttH'],
-    'ttZ': ['ttZ'],
-    'ttW': ['ttW'],
-}
-
 names = {
     'Fake': 'fake',
     'WZ': 'WZ',

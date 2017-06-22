@@ -3,6 +3,7 @@ import os
 
 import numpy as np
 from numpy.polynomial import Polynomial
+import tabulate
 
 # TODO only run this once
 # TODO do this with roofit instead of numpy, for simpler PhysicsModel
@@ -40,7 +41,10 @@ def load_mus(config):
             x = coefficients[process][operator]
             y = cross_sections[process][operator] / cross_sections[process]['sm']
             # mu=1 when coefficient=0, make sure the fit goes through that point
+            # if np.all(y - 1 < 1e-5):
+
             weights = [1 if (i != 1) else 100000000 for i in y]
+            weights = [1 for i in y]
 
             try:
                 # mus[operator][process] = Polynomial.fit(x, y, 2, w=weights)
@@ -66,7 +70,18 @@ def load_mus(config):
     # print 'mus are ', mus
     return mus
 
-def dump_mus(config):
+# FIXME improve naming for clarity, maybe 'mus' -> 'scaling'
+# FIXME dump a table of coefficient values
+def dump_mus(args, config):
     mus = load_mus(config)
 
     np.save(os.path.join(config['outdir'], 'mus.npy'), mus)
+
+    table = []
+    for c in mus:
+        for p in mus[c]:
+            table.append([c, p] + list(mus[c][p].coef))
+
+    with open(os.path.join(config['outdir'], 'mus.txt'), 'w') as f:
+        f.write(tabulate.tabulate(table, headers=['Wilson coefficient', 'process', 's0', 's1', 's2']))
+

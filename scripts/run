@@ -5,32 +5,53 @@ import logging
 import os
 import yaml
 
-parser = argparse.ArgumentParser(description='extended interpretation for ttV')
-parser.add_argument('config', metavar='config', type=str,
-                    help='a configuration file to use')
+from EffectiveTTV.EffectiveTTV.actionable import make, parse, concatenate, combine
+from EffectiveTTV.EffectiveTTV.plotting import plot
+from EffectiveTTV.EffectiveTTV.fluctuate import fluctuate
+from EffectiveTTV.EffectiveTTV.signal_strength import dump_mus
+
+parser = argparse.ArgumentParser(description='for additional help try `run {mode} -h`')
+subparsers = parser.add_subparsers(help='mode options')
+
+parser.add_argument('config', metavar='config', type=str, help='a configuration file to use')
 parser.add_argument('-v', '--verbose', action="count", default=0,
                     help="increase verbosity")
 parser.add_argument('-q', '--quiet', action="count", default=0,
                     help="decrease verbosity")
-ag = parser.add_argument_group('analysis options')
-ag.add_argument('-m', '--make', action='store_true', default=False,
-                help="produce makeflow file")
-ag.add_argument('-p', '--parse',
-                help="parse gen-level file to extract cross sections")
-ag.add_argument('-c', '--concatenate', action='store_true', default=False,
-                help="concatenate cross sections")
-ag.add_argument('-f', '--fluctuate', nargs=2, metavar=('OPERATOR', 'NUM_TOYS'), 
-                help="perturb fit values by random amounts sampled from the covariance matrix")
-ag.add_argument('-l', '--plot', nargs='?', metavar=('OPERATOR'),
-                help="plot cross section scans")
-ag.add_argument('-e', '--header', default='preliminary', help="plot header")
+
+make_parser = subparsers.add_parser('make', help='produce makeflow file')
+make_parser.set_defaults(func=make)
+
+parse_parser = subparsers.add_parser('parse', help="parse gen-level file to extract cross sections")
+parse_parser.add_argument('file', help='file to parse')
+parse_parser.set_defaults(func=parse)
+
+concatenate_parser = subparsers.add_parser('concatenate', help='concatenate cross sections')
+concatenate_parser.set_defaults(func=concatenate)
+
+fluctuate_parser = subparsers.add_parser('fluctuate', help="perturb fit values by random amounts sampled from the covariance matrix")
+# TODO fix operator -> coefficient
+fluctuate_parser.add_argument('operator', help='coefficient to perturb')
+fluctuate_parser.add_argument('perturbations', help='number of perturbations to execute')
+fluctuate_parser.set_defaults(func=fluctuate)
+
+plot_parser = subparsers.add_parser('plot', help='plot cross section scans and results')
+plot_parser.add_argument('operator', help='operator to plot (`all` for all operators)')
+plot_parser.add_argument('-e', '--header', default='preliminary', help="plot header")
+plot_parser.set_defaults(func=plot)
+
+scaling_parser = subparsers.add_parser('scale', help='fit cross sections to determine scaling functions')
+scaling_parser.set_defaults(func=dump_mus)
+
+combine_parser = subparsers.add_parser('combine', help='run combine')
+combine_parser.add_argument('operator', nargs='+', help='operators to run on')
+combine_parser.add_argument('-i', '--index', type=int, help='index to run (for grid scans)')
+combine_parser.set_defaults(func=combine)
+
 args = parser.parse_args()
 
 if 'LOCALRT' not in os.environ:
     parser.error("need to do a `cmsenv` first")
-
-if not any([args.make, args.parse, args.concatenate, args.fluctuate, args.plot]):
-    parser.error("need to either make, parse, concatenate, fluctuate, or plot")
 
 logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
@@ -45,16 +66,13 @@ for k in ('indir', 'outdir'):
     if k in config:
         config[k] = os.path.expanduser(os.path.expandvars(config[k]))
 
-from EffectiveTTV.EffectiveTTV.actionable import make, parse, concatenate
-from EffectiveTTV.EffectiveTTV.plotting import plot
-from EffectiveTTV.EffectiveTTV.fluctuate import fluctuate
-
 for path in (
         'cross_sections',
         'workspaces',
         'scans',
         'plots/pulls',
         'plots/mu',
+        'plots/mu/processes',
         'plots/transformed',
         'plots/cross_sections',
         'plots/cross_sections/ttW',
@@ -65,18 +83,4 @@ for path in (
     if not os.path.exists(os.path.join(config['outdir'], path)):
         os.makedirs(os.path.join(config['outdir'], path))
 
-actions = []
-
-if args.make:
-    actions.append(make)
-if args.parse:
-    actions.append(parse)
-if args.concatenate:
-    actions.append(concatenate)
-if args.fluctuate:
-    actions.append(fluctuate)
-if args.plot:
-    actions.append(plot)
-
-for action in actions:
-    action(args, config)
+args.func(args, config)

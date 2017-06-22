@@ -18,7 +18,8 @@ def fit_nll(config, transform=False, dimensionless=True):
     # TODO only run this once after running combine instead of every time I plot
     # TODO change to returning a dict with dimensionless and transformed
 
-    mus = load_mus(config)
+    # mus = load_mus(config)
+    mus = np.load(os.path.join(config['outdir'], 'mus.npy'))[()]
     res = {}
     # for operator in config['operators']:
     base = os.path.join(config['outdir'], 'scans')
@@ -45,6 +46,10 @@ def fit_nll(config, transform=False, dimensionless=True):
         data = data[data['deltaNLL'] < max_nll]
         _, unique = np.unique(data[operator], return_index=True)
 
+        # if operator not in conversion:
+        #     print 'no conversion available for {}; reporting dimensionless value'.format(operator)
+        #     dimensionless = False
+
         x = data[unique][operator] if dimensionless else data[unique][operator] * conversion[operator]
         y = 2 * data[unique]['deltaNLL']
 
@@ -54,13 +59,14 @@ def fit_nll(config, transform=False, dimensionless=True):
 
         minima = scipy.signal.argrelmin(y, order=5)
         threshold = (y[minima] - min(y)) < 0.1
+        # FIXME: adjust threshold so to get rid of 'transform' argument and transform automatically if 2 bfs
         if transform:# and len(x[minima][threshold]) == 2:
             print 'nll difference is: ', y[minima] - min(y), operator
             offset = sum(x[minima]) / 2
             print 'operator, old offset ', operator, offset
             xi = np.linspace(x.min(), x.max(), 10000)
             total = mus[operator]['ttH'](xi) + mus[operator]['ttZ'](xi) + mus[operator]['ttW'](xi)
-            offset = xi[total.argmin()] * conversion[operator]
+            offset = xi[total.argmin()] * (1. if dimensionless else conversion[operator])
             print 'operator, new offset ', operator, offset
             print mus[operator]['ttZ'](xi)
             def transform(i):
@@ -84,6 +90,8 @@ def fit_nll(config, transform=False, dimensionless=True):
         else:
             for xbf, ybf in zip(x[minima][threshold], y[minima][threshold]):
                 res[operator]['best fit'].append((xbf, ybf))
+            res[operator]['one sigma'] = []
+            res[operator]['two sigma'] = []
             for xbf, ybf in zip(x[minima], y[minima]):
                 if line.interval(x, y, 1.0, xbf) and line.interval(x, y, 1.0, xbf) not in res[operator]['one sigma']:
                     res[operator]['one sigma'].append(line.interval(x, y, 1.0, xbf))

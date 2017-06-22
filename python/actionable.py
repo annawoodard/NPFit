@@ -16,8 +16,6 @@ from EffectiveTTV.EffectiveTTV.signal_strength import dump_mus
 
 def make(args, config):
     # Makeflow is a bit picky about whitespace
-    frag = """\n{out}: {ins}\n\t{cmd}\n"""
-
     wrap = """#!/bin/sh
 
     source /cvmfs/cms.cern.ch/cmsset_default.sh
@@ -27,14 +25,17 @@ def make(args, config):
     exec "$@"
     """.format(os.environ["LOCALRT"])
 
-    wrapfile = os.path.join(config['outdir'], 'w.sh')
-    with open(wrapfile, 'w') as f:
-        f.write(wrap)
-    os.chmod(wrapfile, os.stat(wrapfile).st_mode | stat.S_IEXEC)
+    if os.path.isfile(os.path.join(config['outdir'], 'run.yaml')):
+        raise ValueError('refusing to overwrite outdir {}'.format(config['outdir']))
 
     configfile = os.path.join(config['outdir'], 'run.yaml')
     with open(configfile, 'w') as f:
         yaml.dump(config, f)
+
+    wrapfile = os.path.join(config['outdir'], 'w.sh')
+    with open(wrapfile, 'w') as f:
+        f.write(wrap)
+    os.chmod(wrapfile, os.stat(wrapfile).st_mode | stat.S_IEXEC)
 
     data = os.path.join(os.environ['LOCALRT'], 'src', 'EffectiveTTV', 'EffectiveTTV', 'data')
     shutil.copy(os.path.join(data, 'matplotlibrc'), config['outdir'])
@@ -121,20 +122,58 @@ shapes *      ch2  FAKE''')
 
     makefile = os.path.join(config['outdir'], 'Makeflow')
     logging.info('writing Makeflow file to {}'.format(config['outdir']))
-    with open(makefile, 'w') as f:
-        factory = os.path.join(data, 'factory.json')
-        msg = (
-            '# to run, issue the following commands:\n'
-            '# cd {}\n'
-            '# nohup work_queue_factory -T condor -M ttV_FTW -C {} >& makeflow_factory.log &\n'
-            '# then keep running this command until makeflow no longer submits jobs (may take a few tries)\n'
-            '# makeflow -T wq -M ttV_FTW --wrapper ./w.sh --wrapper-input w.sh --archive\n'
-        ).format(config['outdir'], factory)
 
-        f.write(msg)
-        logging.info(msg.replace('# ', ''))
+    start = os.getcwd()
+    os.chdir(os.path.dirname(__file__))
+    head = subprocess.check_output(shlex.split('git rev-parse --short HEAD')).strip()
+    diff = subprocess.check_output(shlex.split('git diff'))
+    os.chdir(start)
 
-    def makeflowify(inputs, outputs, cmd='run', rename=False):
+    shared_filesystem = []
+    if config['indir shared']:
+        if not config['indir'].startswith('/'):
+            raise Exception('absolute path required for shared filesystems: {}'.format(config['indir']))
+        shared_filesystem += ["--shared-fs '/{}'".format(config['indir'].split('/')[1])]
+    if config['outdir shared']:
+        if not config['outdir'].startswith('/'):
+            raise Exception('absolute path required for shared filesystems: {}'.format(config['outdir']))
+        shared_filesystem += ["--shared-fs '/{}'".format(config['outdir'].split('/')[1])]
+
+
+    # FIXME archive? --archive
+    info = """
+    # to run, issue the following commands:
+    cd {outdir}
+    nohup work_queue_factory -T condor -M {label} -C {factory} >& factory.log &
+
+    # then keep running this command until makeflow no longer submits jobs (may take a few tries):
+    makeflow -T wq -M {label} --wrapper ./w.sh --wrapper-input w.sh {shared}
+
+    # to reproduce the code:
+    cd {code_dir}
+    git checkout {head}
+    """.format(
+            outdir=config['outdir'],
+            label=config['label'],
+            factory=os.path.join(data, 'factory.json'),
+            shared=' '.join(shared_filesystem),
+            code_dir=os.path.dirname(__file__),
+            head=head
+        )
+
+
+    if diff:
+        with open(os.path.join(config['outdir'], 'patch.diff'), 'w') as f:
+            f.write(diff)
+        info += 'git apply {}\n'.format(os.path.join(config['outdir'], 'patch.diff'))
+
+    with open(os.path.join(config['outdir'], 'README.txt'), 'w') as f:
+        f.write(info)
+    logging.info(info)
+
+    frag = """\n{out}: {ins}\n\t{cmd}\n"""
+    def makeflowify(inputs, outputs, cmd='run'):
+        # FIXME make sure everything works without shared-fs, automate shared-fs
         if isinstance(inputs, basestring):
             inputs = [inputs]
         if isinstance(outputs, basestring):
@@ -142,10 +181,15 @@ shapes *      ch2  FAKE''')
         if isinstance(cmd, basestring):
             cmd = shlex.split(cmd)
 
-        outs = ' '.join(outputs)
         ins = ' '.join(inputs)
-        if rename:
-            outs = ' '.join(["{0}->{1}".format(p, os.path.basename(p)) for p in outputs])
+        if isinstance(outputs, dict):
+            # FIXME hack, check https://github.com/cooperative-computing-lab/cctools/issues/1680 to see if issue with
+            # remote file naming + shared-fs gets fixed
+            # outs = ' '.join(["{}->{}".format(v, k) for k, v in outputs.items()])
+            outs = ' '.join(outputs.values())
+            cmd += ['; mv {} {}'.format(k, v) for k, v in outputs.items()]
+        else:
+            outs = ' '.join(outputs)
 
         with open(makefile, 'a') as f:
             s = frag.format(
@@ -163,14 +207,14 @@ shapes *      ch2  FAKE''')
         inputs = [os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npy')) for f in files] + ['run.yaml']
         inputs += glob.glob(os.path.join(config['indir'], '*.npy'))
         outputs = 'cross_sections.npy'
-        makeflowify(inputs, outputs, ['run', '--concatenate', 'run.yaml'])
+        makeflowify(inputs, outputs, ['run', 'concatenate', 'run.yaml'])
     elif 'cross sections' in config:
         shutil.copy(config['cross sections'], os.path.join(config['outdir'], 'cross_sections.npy'))
     else:
         raise RuntimeError('must specify either `indir` or `cross sections`')
 
-    # makeflowify('ttZ.txt', 'ttZ.root', 'combine -M MaxLikelihoodFit ttZ.txt; mv higgsCombineTest.MaxLikelihoodFit.mH120.root ttZ.root')
-    # makeflowify('ttW.txt', 'ttW.root', 'combine -M MaxLikelihoodFit ttW.txt; mv higgsCombineTest.MaxLikelihoodFit.mH120.root ttW.root')
+    # makeflowify('ttZ.txt', {'higgsCombineTest.MaxLikelihoodFit.mH120.root': 'ttZ.root'}, 'combine -M MaxLikelihoodFit ttZ.txt')
+    # makeflowify('ttW.txt', {'higgsCombineTest.MaxLikelihoodFit.mH120.root': 'ttW.root'}, 'combine -M MaxLikelihoodFit ttW.txt')
 
     for analysis in ['2l', '3l', '4l', 'ttZ']:
         workspace = os.path.join(config['outdir'], 'workspaces', '{}.root'.format(analysis))
@@ -178,10 +222,12 @@ shapes *      ch2  FAKE''')
         makeflowify(card, workspace, ['text2workspace.py', card, '-o', workspace])
         best_fit = os.path.join(config['outdir'], 'best-fit-{}.root'.format(analysis))
         fit_result = os.path.join(config['outdir'], 'fit-result-{}.root'.format(analysis))
-        cmd = 'combine -M MaxLikelihoodFit {} >& {}.fit.log; mv higgsCombineTest.MaxLikelihoodFit.mH120.root {}'.format(cardify(analysis), cardify(analysis), best_fit)
-        cmd += ';mv mlfit.root {}'.format(fit_result)
-        makeflowify(workspace, [best_fit, fit_result], cmd)
-
+        cmd = 'combine -M MaxLikelihoodFit {a} >& {a}.fit.log'.format(a=cardify(analysis))
+        outputs = {
+            'higgsCombineTest.MaxLikelihoodFit.mH120.root': best_fit,
+            'mlfit.root': fit_result
+        }
+        makeflowify(workspace, outputs, cmd)
 
     workspace = os.path.join(config['outdir'], 'workspaces', '2d.root')
     cmd = [
@@ -196,10 +242,12 @@ shapes *      ch2  FAKE''')
 
     best_fit = os.path.join(config['outdir'], 'best-fit-2d.root')
     fit_result = os.path.join(config['outdir'], 'fit-result-2d.root')
+    outputs = {
+        'higgsCombineTest.MultiDimFit.mH120.root': best_fit,
+        'multidimfit.root': fit_result
+    }
     cmd = 'combine -M MultiDimFit {} --algo=singles >& {}.fit.log'.format(workspace, cardify('2d'))
-    cmd += ';mv higgsCombineTest.MultiDimFit.mH120.root {}'.format(best_fit)
-    cmd += ';mv multidimfit.root {}'.format(fit_result)
-    makeflowify(workspace, [best_fit, fit_result], cmd)
+    makeflowify(workspace, outputs, cmd)
 
     lowers = np.arange(1, config['2d points'], config['chunk size'])
     uppers = np.arange(config['chunk size'], config['2d points'] + config['chunk size'], config['chunk size'])
@@ -220,16 +268,14 @@ shapes *      ch2  FAKE''')
     #         '-n', '_ttW_ttZ_2D_part_{}'.format(index),
     #         '--firstPoint {}'.format(first),
     #         '--lastPoint {}'.format(last),
-    #         '; mv {} {}'.format(filename, scan)
     #     ]
 
-    #     makeflowify(workspace, scan, cmd)
+    #     makeflowify(workspace, {filename: scan}, cmd)
 
     # outfile = os.path.join(config['outdir'], 'scans', '2d.total.root')
     # makeflowify(scans, outfile, ['hadd', '-f', outfile] + scans)
 
-    lowers = np.arange(1, config['1d points'], config['chunk size'])
-    uppers = np.arange(config['chunk size'], config['1d points'] + config['chunk size'], config['chunk size'])
+    makeflowify(['run.yaml', 'cross_sections.npy'], 'mus.npy', ['run', 'scale', 'run.yaml'])
 
     combinations = [sorted(list(x)) for x in itertools.combinations(config['operators'], config['dimension'])]
     for operators in combinations:
@@ -238,74 +284,94 @@ shapes *      ch2  FAKE''')
         cmd = [
             'text2workspace.py', os.path.join(config['outdir'], 'ttV_np.txt'),
             '-P', 'EffectiveTTV.EffectiveTTV.models:eff_op',
-            '--PO', 'config={}'.format(os.path.join(config['outdir'], 'run.yaml')),
+            '--PO', 'scaling={}'.format(os.path.join(config['outdir'], 'mus.npy')),
             ' '.join(['--PO process={}'.format(x) for x in config['processes']]),
             ' '.join(['--PO poi={}'.format(x) for x in operators]),
             '-o', workspace
         ]
 
-        makeflowify('cross_sections.npy', workspace, cmd)
+        makeflowify('mus.npy', workspace, cmd)
 
         best_fit = os.path.join(config['outdir'], 'best-fit-{}.root'.format(label))
         fit_result = os.path.join(config['outdir'], 'fit-result-{}.root'.format(label))
-        cmd = 'combine -M MultiDimFit {} --algo=singles '.format(workspace)
-        cmd += ' --setPhysicsModelParameters {}'.format(','.join(['{}=0.0'.format(x) for x in operators]))
-        # convergence of the loop expansion requires c < (4 * pi)^2
-        # see section 7 in https://arxiv.org/pdf/1205.4231.pdf
-        cmd += ' --setPhysicsModelParameterRanges {}'.format(':'.join(['{}=-158,158'.format(x) for x in operators]))
-        # FIXME change this back for Geoff's question
-        # FIXME consider using autoBoundsPOIs and autoMaxPOIs, not sure if they work
-        # cmd += ' --setPhysicsModelParameterRanges {}'.format(':'.join(['{}=-5,5'.format(x) for x in operators]))
-        # cmd += ' --setPhysicsModelParameterRanges {}'.format(':'.join(['{}=-3,3'.format(x) for x in operators]))
-        cmd += ' -t -1 ' if config['asimov data'] else ''
-        cmd += ';mv higgsCombineTest.MultiDimFit.mH120.root {}'.format(best_fit)
-        cmd += ';mv multidimfit.root {}'.format(fit_result)
-        # FIXME do scans first, then set parameter ranges from NLL fit
-        makeflowify(workspace, [best_fit, fit_result], cmd)
-        cmd = ['run', '--fluctuate', label, '150000', 'run.yaml']
+        cmd = ['run', 'combine'] + list(operators) + ['run.yaml']
+        makeflowify(['run.yaml', workspace, 'mus.npy'], [best_fit, fit_result], cmd)
+
+        cmd = ['run', 'fluctuate', label, '150000', 'run.yaml']
         makeflowify(['run.yaml', fit_result], os.path.join(config['outdir'], 'fluctuations-{}.npy'.format(label)), cmd)
 
         scans = []
-        for index, (first, last) in enumerate(zip(lowers, uppers)):
-            filename = 'higgsCombine_{}_part_{}.MultiDimFit.mH120.root'.format(label, index)
-            scan = os.path.join(config['outdir'], 'scans', filename)
+        chunks = np.ceil(config['coefficient scan points'] / float(config['chunk size']))
+        for index in range(int(chunks)):
+            scan = os.path.join(config['outdir'], 'scans', '{}_{}.root'.format(label, index))
             scans.append(scan)
+            cmd = ['run', 'combine'] + list(operators) + ['-i', str(index), 'run.yaml']
 
-            cmd = [
-                'combine',
-                '-M', 'MultiDimFit',
-                workspace,
-                '--algo=grid',
-                '--points={}'.format(config['1d points']),
-                '--setPhysicsModelParameters', ','.join(['{}=0.0'.format(x) for x in operators]),
-                '--setPhysicsModelParameterRanges', ':'.join(['{}=-158,158'.format(x) for x in operators]),
-                # '--setPhysicsModelParameterRanges', ':'.join(['{}=-5,5'.format(x) for x in operators]),
-                # '--setPhysicsModelParameterRanges', ':'.join(['{}=-3,3'.format(x) for x in operators]),
-                # FIXME change back
-                '--autoRange={}'.format('15' if config['asimov data'] else '20'),
-                ' -t -1 ' if config['asimov data'] else '',
-                '-n', '_{}_part_{}'.format(label, index),
-                '--firstPoint {}'.format(first),
-                '--lastPoint {}'.format(last),
-                '; mv {} {}'.format(filename, scan)
-            ]
-
-            makeflowify(workspace, scan, cmd)
+            makeflowify(['run.yaml', workspace], scan, cmd)
 
         outfile = os.path.join(config['outdir'], 'scans', '{}.total.root'.format(label))
         makeflowify(scans, outfile, ['hadd', '-f', outfile] + scans)
 
-        # makeflowify(outfile, [], ['rm'] + scans)
-
     inputs = [os.path.join(config['outdir'], 'scans', '{}.total.root'.format('_'.join(o))) for o in combinations]
     inputs += ['cross_sections.npy', 'run.yaml']
     plot_rt = os.path.join(os.path.dirname(os.environ['LOCALRT']), 'CMSSW_8_1_0_pre16')
-    # makeflowify(inputs, [], ['LOCAL', 'sh', os.path.join(data, 'env.sh'), 'run', '--plot', 'run.yaml'])
+    # makeflowify(inputs, [], ['LOCAL', 'run', 'plot', 'all', 'run.yaml'])
     for operator in config['operators']:
         fluctuations = os.path.join(config['outdir'], 'fluctuations-{}.npy'.format(operator))
-        cmd = ['cd', plot_rt, '; eval `scramv1 runtime -sh`; cd -', 'run', '--plot', operator, 'run.yaml']
+        cmd = ['cd', plot_rt, '; eval `scramv1 runtime -sh`; cd -', 'run', 'plot', operator, 'run.yaml']
         makeflowify(inputs + [fluctuations], [], cmd)
 
+def combine(args, config):
+    print args
+    mus = np.load(os.path.join(config['outdir'], 'mus.npy'))[()]
+
+    # convergence of the loop expansion requires c < (4 * pi)^2
+    # see section 7 in https://arxiv.org/pdf/1205.4231.pdf
+    c_max = (4 * np.pi) ** 2
+    pmin = -1 * c_max
+    pmax = c_max
+    label = '_'.join(args.operator)
+    for p in config['processes']:
+        if (mus[label][p](c_max) > config['scale window']):
+            pmin = max([(mus[label][p] - config['scale window']).roots().min(), pmin])
+            pmax = min([(mus[label][p] - config['scale window']).roots().max(), pmax])
+
+    cmd = [
+        'combine', '-M', 'MultiDimFit', '{}'.format(os.path.join(config['outdir'], 'workspaces', '{}.root'.format(label))),
+        '--setPhysicsModelParameters', '{}'.format(','.join(['{}=0.0'.format(x) for x in args.operator])),
+        '--setPhysicsModelParameterRanges', '{}'.format(':'.join(['{}={},{}'.format(x, pmin, pmax) for x in args.operator]))
+    ]
+    if config['asimov data']:
+        cmd += ['-t', '-1']
+    if args.index is not None:
+        lowers = np.arange(1, config['coefficient scan points'], config['chunk size'])
+        uppers = np.arange(config['chunk size'], config['coefficient scan points'] + config['chunk size'], config['chunk size'])
+        first, last = zip(lowers, uppers)[args.index]
+        cmd += [
+            '--algo=grid',
+            '--points={}'.format(config['coefficient scan points']),
+            '--firstPoint={}'.format(first),
+            '--lastPoint={}'.format(last)
+        ]
+    else:
+        cmd += ['--algo=singles']
+
+    # FIXME: do I still need this?
+    # '--autoRange={}'.format('15' if config['asimov data'] else '20'),
+    print ' '.join(cmd)
+    subprocess.call(cmd)
+
+    if args.index is not None:
+        shutil.move(
+            'higgsCombineTest.MultiDimFit.mH120.root',
+            os.path.join(config['outdir'], 'scans', '{}_{}.root'.format(label, args.index)))
+    else:
+        shutil.move(
+            'higgsCombineTest.MultiDimFit.mH120.root',
+            os.path.join(config['outdir'], 'best-fit-{}.root'.format(label)))
+        shutil.move(
+            'multidimfit.root',
+            os.path.join(config['outdir'], 'fit-result-{}.root'.format(label)))
 
 def parse(args, config):
     import DataFormats.FWLite
@@ -319,9 +385,9 @@ def parse(args, config):
 
         return handle.product()
 
-    logging.info('parsing {}'.format(args.parse))
+    logging.info('parsing {}'.format(args.file))
 
-    for run in DataFormats.FWLite.Runs(args.parse):
+    for run in DataFormats.FWLite.Runs(args.file):
         cross_section = get_collection(run, 'LHERunInfoProduct', 'externalLHEProducer::LHE').heprup().XSECUP[0]
         operators = np.array(get_collection(run, 'vector<string>', 'annotator:operators:LHE'))
         process = str(get_collection(run, 'std::string', 'annotator:process:LHE'))
@@ -335,7 +401,7 @@ def parse(args, config):
         except UnboundLocalError:
             cross_sections = row
 
-    outfile = os.path.join(config['outdir'], 'cross_sections', os.path.basename(args.parse).replace('.root', '.npy'))
+    outfile = os.path.join(config['outdir'], 'cross_sections', os.path.basename(args.file).replace('.root', '.npy'))
     np.save(outfile, {process: cross_sections})
 
 
@@ -355,4 +421,3 @@ def concatenate(args, config):
     outfile = os.path.join(config['outdir'], 'cross_sections.npy')
     np.save(outfile, res)
 
-    dump_mus(config)
