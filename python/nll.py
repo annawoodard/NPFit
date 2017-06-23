@@ -26,10 +26,11 @@ def fit_nll(config, transform=False, dimensionless=True):
     for operator in [x.replace(base + '/', '').replace('.total.root', '') for x in glob.glob(base +
         '/c*total.root') + glob.glob(base + '/tc*total.root')]:
         res[operator] = {
-            'offset label': '',
+            'label': '',
             'best fit': [],
             'one sigma': [],
-            'two sigma': []
+            'two sigma': [],
+            'transformed': False
         }
 
         data = root2array(os.path.join(config['outdir'], 'scans', '{}.total.root'.format(operator)))
@@ -46,11 +47,14 @@ def fit_nll(config, transform=False, dimensionless=True):
         data = data[data['deltaNLL'] < max_nll]
         _, unique = np.unique(data[operator], return_index=True)
 
-        # if operator not in conversion:
-        #     print 'no conversion available for {}; reporting dimensionless value'.format(operator)
-        #     dimensionless = False
+        conversion_factor = 1.
+        if not dimensionless:
+            if operator not in conversion:
+                print 'no conversion available for {}; reporting dimensionless value'.format(operator)
+            else:
+                conversion_factor = conversion[operator]
 
-        x = data[unique][operator] if dimensionless else data[unique][operator] * conversion[operator]
+        x = data[unique][operator] * conversion_factor
         y = 2 * data[unique]['deltaNLL']
 
         if len(y) == 0:
@@ -59,16 +63,15 @@ def fit_nll(config, transform=False, dimensionless=True):
 
         minima = scipy.signal.argrelmin(y, order=5)
         threshold = (y[minima] - min(y)) < 0.1
+        res[operator]['conversion'] = conversion_factor
+        res[operator]['units'] = '' if conversion_factor == 1. else '$\ [\mathrm{TeV}^{-2}]$'
         # FIXME: adjust threshold so to get rid of 'transform' argument and transform automatically if 2 bfs
-        if transform:# and len(x[minima][threshold]) == 2:
+        if transform and len(x[minima][threshold]) == 2:
             print 'nll difference is: ', y[minima] - min(y), operator
-            offset = sum(x[minima]) / 2
-            print 'operator, old offset ', operator, offset
             xi = np.linspace(x.min(), x.max(), 10000)
             total = mus[operator]['ttH'](xi) + mus[operator]['ttZ'](xi) + mus[operator]['ttW'](xi)
-            offset = xi[total.argmin()] * (1. if dimensionless else conversion[operator])
+            offset = xi[total.argmin()] * conversion_factor
             print 'operator, new offset ', operator, offset
-            print mus[operator]['ttZ'](xi)
             def transform(i):
                 return np.abs(i - offset)
 
@@ -80,13 +83,18 @@ def fit_nll(config, transform=False, dimensionless=True):
 
             res[operator]['best fit'] = [(best_fit, y[transform(x).argsort()][minima][threshold][0])]
 
-            # y = y[transform(x).argsort()]
-            # x = sorted(transform(x))
             y = y[transform(x)[x < offset].argsort()]
             x = sorted(transform(x)[x < offset])
 
             sign = '+' if offset < 0 else '-'
-            res[operator]['offset label'] = r' {} {:03.1f}'.format(sign, np.abs(offset)) if round(offset, 1) != 0 else ''
+            template = r'$|{}{}|$' if conversion_factor == 1. else r'$|{}/\Lambda^2{}|$'
+            if round(offset, 1) != 0:
+                res[operator]['label'] = template.format(
+                        label[operator].replace('$',''),
+                        r' {} {:03.1f}{}'.format(sign, np.abs(offset), '\ \mathrm{TeV}^{-2}' if conversion_factor != 1. else ''))
+            else:
+                res[operator]['label'] = template.format(label[operator].replace('$',''), '')
+            res[operator]['transformed'] = True
         else:
             for xbf, ybf in zip(x[minima][threshold], y[minima][threshold]):
                 res[operator]['best fit'].append((xbf, ybf))
@@ -97,25 +105,22 @@ def fit_nll(config, transform=False, dimensionless=True):
                     res[operator]['one sigma'].append(line.interval(x, y, 1.0, xbf))
                 if line.interval(x, y, 3.84, xbf) and line.interval(x, y, 3.84, xbf) not in res[operator]['two sigma']:
                     res[operator]['two sigma'].append(line.interval(x, y, 3.84, xbf))
+            template = r'${}$' if conversion_factor == 1. else r'${}/\Lambda^2$'
+            res[operator]['label'] = template.format(label[operator].replace('$',''))
 
         res[operator]['x'] = x
         res[operator]['y'] = y
 
     table = []
     for operator, info in res.items():
-        template = '$|{}{}|$' if transform else '${}{}$'
-        if dimensionless:
-            wc = template.format(label[operator].replace('$', ''), info['offset label'])
-        else:
-            wc = template.format(label[operator].replace('$', '') + '/\Lambda^2', info['offset label'])
         table.append([
-            wc,
+            info['label'],
             ', '.join(['{:.1f}'.format(round(x[0], 2) + 0) for x in info['best fit']]),
             ' and '.join(['[{:.1f}, {:.1f}]'.format(i, j) for i, j in info['one sigma']]),
             ' and '.join(['[{:.1f}, {:.1f}]'.format(i, j) for i, j in info['two sigma']])
         ])
     headers = ['Wilson coefficient', 'best fit', '$1\sigma$ CL', '$2\sigma$  CL']
-    tag = '{}{}'.format(('_transformed' if transform else ''), ('_dimensionless' if dimensionless else ''))
+    tag = '{}{}'.format(('_transformed' if transform else ''), ('_dimensionless' if info['conversion'] == 1. else ''))
     with open(os.path.join(config['outdir'], 'best_fit{}.txt'.format(tag)), 'w') as f:
         f.write(tabulate.tabulate(table, headers=headers))
     with open(os.path.join(config['outdir'], 'best_fit{}.tex'.format(tag)), 'w') as f:
@@ -123,5 +128,5 @@ def fit_nll(config, transform=False, dimensionless=True):
 
     np.save('nll.npy', res)
 
-    return res, '' if dimensionless else '\mathrm{TeV}^{-2}'
+    return res
 

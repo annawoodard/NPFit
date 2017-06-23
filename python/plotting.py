@@ -174,10 +174,9 @@ def mu_per_process(config, plotter):
 def mu_new(config, plotter, overlay_results=False, dimensionless=False):
     coefficients, cross_sections = load(config)
     mus = load_mus(config)
-    nll, units = fit_nll(config, transform=False, dimensionless=True)
+    nll = fit_nll(config, transform=False, dimensionless=True)
 
     for operator in config['operators']:
-        scale = 1 if dimensionless else conversion[operator]
     # for operator, xmin, xmax in [('cuW', -5, 5), ('cuB', -5, 5), ('cu', -30, 30), ('cHu', -7, 7)]:
         if operator == 'sm':
             continue
@@ -204,8 +203,8 @@ def mu_new(config, plotter, overlay_results=False, dimensionless=False):
                 y = cross_sections[process][operator] / cross_sections[process]['sm']
 
                 print operator, xmin, xmax
-                ax.plot(xi * scale, mus[operator][process](xi), color='#C6C6C6')
-                ax.plot(x * scale, y, marker, mfc='none', markeredgewidth=2, markersize=15, label=label[process])
+                ax.plot(xi * nll[operator]['conversion'], mus[operator][process](xi), color='#C6C6C6')
+                ax.plot(x * nll[operator]['conversion'], y, marker, mfc='none', markeredgewidth=2, markersize=15, label=label[process])
 
             if overlay_results:
                 colors = ['black', 'gray']
@@ -246,7 +245,7 @@ def mu_new(config, plotter, overlay_results=False, dimensionless=False):
                         color=color
                     )
 
-            plt.xlim(xmin=xmin * scale, xmax=xmax * scale)
+            plt.xlim(xmin=xmin * nll[operator]['conversion'], xmax=xmax * nll[operator]['conversion'])
             plt.ylim(ymin=0, ymax=5)
             plt.title(r'CMS simulation', loc='left', fontweight='bold')
             plt.title(r'mg5_aMC LO', loc='right', size='small')
@@ -260,12 +259,10 @@ def mu(config, plotter, overlay_results=False, dimensionless=False):
     import yaml
     with open('/afs/crc.nd.edu/user/a/awoodard/www/.private/ttV/42/1/1/run.yaml') as f:
         config = yaml.load(f)
-    nll, units = fit_nll(config, transform=False, dimensionless=dimensionless)
+    nll = fit_nll(config, transform=False, dimensionless=dimensionless)
 
     for operator in config['operators']:
     # for operator, xmin, xmax in [('cuW', -5, 5), ('cuB', -14, 14), ('cu', -30, 30), ('cHu', -10, 10)]:
-        scale = 1 if dimensionless else conversion[operator]
-        print 'dimensionless, scale ', dimensionless, scale
         if operator == 'sm':
             continue
 
@@ -287,8 +284,8 @@ def mu(config, plotter, overlay_results=False, dimensionless=False):
                 y = cross_sections[process][operator] / cross_sections[process]['sm']
                 xi = np.linspace(xmin, xmax, 10000)
 
-                ax.plot(xi * scale, mus[operator][process](xi), color='#C6C6C6')
-                ax.plot(x * scale, y, marker, mfc='none', markeredgewidth=2, markersize=15, label=label[process],
+                ax.plot(xi * nll[operator]['conversion'], mus[operator][process](xi), color='#C6C6C6')
+                ax.plot(x * nll[operator]['conversion'], y, marker, mfc='none', markeredgewidth=2, markersize=15, label=label[process],
                         color=c)
 
             if overlay_results:
@@ -330,7 +327,6 @@ def mu(config, plotter, overlay_results=False, dimensionless=False):
                         color=color
                     )
 
-            print operator, 'scale ', scale, xmin, xmax
             plt.xlim(xmin=xmin, xmax=xmax)
             plt.ylim(ymin=0, ymax=3.2)
             plt.title(r'CMS simulation', loc='left', fontweight='bold')
@@ -340,8 +336,7 @@ def mu(config, plotter, overlay_results=False, dimensionless=False):
 
 
 def nll(args, config, plotter, transform=False, dimensionless=True):
-    data, units = fit_nll(config, transform, dimensionless)
-    units = '' if dimensionless else '\ [{}]'.format(units)
+    data = fit_nll(config, transform, dimensionless)
     mus = np.load(os.path.join(config['outdir'], 'mus.npy'))[()]
 
     print data
@@ -350,12 +345,7 @@ def nll(args, config, plotter, transform=False, dimensionless=True):
             s0, s1, s2 = mus[operator][p].coef
             if not ((s1 > 1e-5) or (s2 > 1e-5)):
                 continue # operator has no effect on any of the scaled processes
-        if transform:
-            template = r'$|{}{}|${}' if dimensionless else r'$|{}/\Lambda^2{}|{}$'
-        else:
-            template = r'${}{}${}' if dimensionless else r'${}/\Lambda^2{}{}$'
-
-        x_label = template.format(label[operator].replace('$',''), info['offset label'], units)
+        x_label = '{} {}'.format(info['label'], info['units'])
 
         with plotter.saved_figure(
                 x_label,
@@ -388,7 +378,7 @@ def nll(args, config, plotter, transform=False, dimensionless=True):
 
             ax.legend(loc='upper center')
             plt.ylim(ymin=0, ymax=12)
-            if transform:
+            if info['transformed']:
                 plt.xlim(xmin=0)
 
 def ttZ_ttW_2D(config, ax):
@@ -503,7 +493,7 @@ def ttZ_ttW_2D_1D_ttZ_1D_ttW(args, config, plotter):
 def ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=True):
     if config['asimov data']:
         transform=False
-    nll, units = fit_nll(config, transform, dimensionless)
+    nll = fit_nll(config, transform, dimensionless)
 
     table = []
     for operator in config['operators']:
@@ -533,10 +523,6 @@ def ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=T
             table.append([operator, '{:.2f}'.format(data[0][operator])] + ['{:.2f}'.format(data[0][x]) for x in ['r_ttZ', 'r_ttW', 'r_ttH']])
             colors = ['black', 'gray']
             for (bf, _), color in zip(nll[operator]['best fit'], colors):
-                # data[0] contains the best fit parameters
-                # for low, high in nll[operator]['one sigma']:
-                #     if (bf > low) and (bf < high):
-                #         break
                 point, = plt.plot(
                     data[0]['x_sec_ttW'],
                     data[0]['x_sec_ttZ'],
@@ -549,26 +535,14 @@ def ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=T
                 )
                 handles.append(point)
 
-                # if transform:
-                #     template = r'$|{}{}{}|={:03.1f}\,{}$' if dimensionless else r'$|{}/\Lambda^2{}\,{}|={:03.1f}\,{}$'
-                # else:
-                #     template = r'${}{}{}={:03.1f}\,{}$' if dimensionless else r'${}/\Lambda^2{}{}={:03.1f}\,{}$'
-
-                # labels.append("best fit:\n" + template.format(label[operator].replace('$', ''),
-                #     nll[operator]['offset label'],
-                #     (units if (transform or (nll[operator]['offset label'] != '')) else ''),
-                #     round(bf, 2) + 0,
-                #     units)
-                # )
                 if transform:
                     template = r'$|{}{}{}|$' if dimensionless else r'$|{}/\Lambda^2{}\,{}|$'
                 else:
                     template = r'${}{}{}$' if dimensionless else r'${}/\Lambda^2{}{}$'
 
-                labels.append("best fit\n" + template.format(label[operator].replace('$', ''),
-                    nll[operator]['offset label'],
-                    (units if (transform or (nll[operator]['offset label'] != '')) else ''))
-                )
+                labels.append("best fit\n" + '{} {}'.format(
+                    nll[operator]['label'],
+                    nll[operator]['units'] if 'TeV' not in nll[operator]['label'] else ''))
                 print 'dimensionless, labels ', dimensionless, labels
             plt.legend(handles, labels, loc='lower right', fontsize=22)
             # left = plt.legend(handles[:3], labels[:3], loc='upper left', fontsize=21.)
@@ -609,8 +583,8 @@ def plot(args, config):
     if args.operator != 'all':
         config['operators'] = [args.operator]
 
-    # nll(args, config, plotter, transform=True, dimensionless=False)
-    # nll(args, config, plotter, transform=False, dimensionless=False)
+    nll(args, config, plotter, transform=True, dimensionless=False)
+    nll(args, config, plotter, transform=False, dimensionless=False)
     # nll(args, config, plotter, transform=True, dimensionless=True)
     # nll(args, config, plotter, transform=False, dimensionless=True)
     # mu(config, plotter)
@@ -619,7 +593,7 @@ def plot(args, config):
     # mu_per_process(config, plotter)
 
     # ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=True, dimensionless=True)
-    ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=True)
+    # ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=True)
     # ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=True, dimensionless=False)
     # ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=False)
 

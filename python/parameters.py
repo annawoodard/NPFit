@@ -132,7 +132,7 @@ conversion = {
     'tcHB': g1 / (2 * mass_w * mass_w),
     'tcA': g1 * g1 / (2 * mass_w * mass_w),
     'tc3W': gw * gw * gw / (2 * mass_w * mass_w),
-    'tc3G': gs * gs * gs / (2 * mass_w * mass_w),
+    'tc3G': gs * gs * gs / (mass_w * mass_w),
     'cpHL': 4. / (vev * vev),
     'tcG': gs * gs / (2. * mass_w * mass_w)
 }
