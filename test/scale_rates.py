@@ -1,8 +1,10 @@
-# to run: source ~/setup_plotting
+# to run: source ~/setup_combine
 import argparse
 import logging
 import os
 import pickle
+import shutil
+from collections import defaultdict
 
 import numpy as np
 import tabulate
@@ -85,11 +87,15 @@ for operator, info in extreme_mus.items():
     with open(os.path.join(config['outdir'], '{}.txt'.format(operator)), 'w') as f:
         f.write(tabulate.tabulate(table, headers=['ch', 'bin'] + ['{}'.format(p) for p in processes]))
 
+if os.path.isfile(os.path.join(config['outdir'], 'all.integrated.tex')):
+    os.remove(os.path.join(config['outdir'], 'all.integrated.tex'))
+diff = {}
 for operator, info in extreme_mus.items():
     print 'operator ', operator
     rates = {}
     scale = {}
     sums = {}
+    diff[operator] = defaultdict(int)
     for channel in cb.cp().channel_set():
         rates[channel] = {}
         scale = {}
@@ -98,11 +104,26 @@ for operator, info in extreme_mus.items():
             for process in cb.cp().channel([channel]).process_set():
                 rates[channel][names[process]] = cb.cp().channel([channel]).process([process]).GetRate()
             for process in processes:
+                print '{} {} {} {} {} {}'.format('channel', 'operator', 'process', 'sm xsec', 'xsec * mu', 'additional yield')
+                for p in process_groups[process]:
+                    if process in rates[channel]:
+                        new = rates[channel][process] * mus[p] * cross_sections[p]['sm'] / sum([cross_sections[i]['sm'] for i in process_groups[process]])
+                        old = rates[channel][process] * cross_sections[p]['sm'] / sum([cross_sections[i]['sm'] for i in process_groups[process]])
+                        diff[operator][p] += new - old
+                        y = '{:.2f}'.format(new - old)
+                    else:
+                        y = '-'
+                    print '{} {} {} {:.2f} {:.2f} {}'.format(
+                            channel,
+                            operator,
+                            p,
+                            cross_sections[p]['sm'],
+                            mus[p] * cross_sections[p]['sm'],
+                            y)
+
                 numerator = sum([mus[p] * cross_sections[p]['sm'] for p in process_groups[process]])
                 denominator = sum([cross_sections[p]['sm'] for p in process_groups[process]])
                 scale[process] = numerator / denominator
-                for p in process_groups[process]:
-                    print '{} {}: scaling by {:.1f}'.format(operator, p, mus[p])
                 if process in rates[channel]:
                     if process in ['ttZ', 'ttW', 'ttH']:
                         sums[channel]['\ttZ/W/H'] += rates[channel][process]
@@ -150,5 +171,16 @@ for operator, info in extreme_mus.items():
         f.write(text)
     with open(os.path.join(config['outdir'], 'all.integrated.tex'), 'a') as f:
         f.write(text + '\n')
+
+table = []
+headers = ['coefficient', '$\mathrm{t\overline{t}Z}$', '$\mathrm{t\overline{t}W}$', '$\mathrm{t\overline{t}H}$'] + ['$\mathrm{{{}}}$'.format(p) for p in ['WWW', 'WZZ', 'ZZZ', 'WWZ', 'VH', 'tZq', 'tHq', 'tHW', 'tttt', 'tWZ', 'tG', 'WZ', 'ZZ']] + ['sum(rare + $\mathrm{t\overline{t}X + diboson}$']
+for operator in diff:
+    row = [label[operator]]
+    for process in ['ttZ', 'ttW', 'ttH', 'WWW', 'WZZ', 'ZZZ', 'WWZ', 'VH', 'tZq', 'tHq', 'tHW', 'tttt', 'tWZ', 'tG', 'WZ', 'ZZ']:
+        row += ['{:.1f}'.format(diff[operator][process])]
+    row += ['{:.1f}'.format(sum([diff[operator][p] for p in ['WWW', 'WZZ', 'ZZZ', 'WWZ', 'VH', 'tZq', 'tHq', 'tHW', 'tttt', 'tWZ', 'tG', 'WZ', 'ZZ']]))]
+    table.append(row)
+with open(os.path.join(config['outdir'], 'yield_diffs.tex'), 'w') as f:
+    f.write(tabulate.tabulate(table, headers=headers, tablefmt='latex_raw', floatfmt='.1f'))
 
 print '\, '.join([label[operator] for operator in extreme_mus])

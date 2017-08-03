@@ -66,7 +66,7 @@ def fit_nll(config, transform=False, dimensionless=True):
         res[operator]['conversion'] = conversion_factor
         res[operator]['units'] = '' if conversion_factor == 1. else '$\ [\mathrm{TeV}^{-2}]$'
         # FIXME: adjust threshold so to get rid of 'transform' argument and transform automatically if 2 bfs
-        if transform and len(x[minima][threshold]) == 2:
+        if transform and (len(x[minima][threshold]) == 2 or config['asimov data']):
             print 'nll difference is: ', y[minima] - min(y), operator
             xi = np.linspace(x.min(), x.max(), 10000)
             total = mus[operator]['ttH'](xi) + mus[operator]['ttZ'](xi) + mus[operator]['ttW'](xi)
@@ -76,15 +76,13 @@ def fit_nll(config, transform=False, dimensionless=True):
                 return np.abs(i - offset)
 
             best_fit = transform(x[minima][threshold][0])
-            positive_x = (x - offset)[(x - offset) > 0]
-            positive_y = y[(x - offset) > 0]
-            res[operator]['one sigma'] = [line.interval(positive_x, positive_y, 1.0, best_fit)]
-            res[operator]['two sigma'] = [line.interval(positive_x, positive_y, 3.84, best_fit)]
-
             res[operator]['best fit'] = [(best_fit, y[transform(x).argsort()][minima][threshold][0])]
 
             y = y[transform(x)[x < offset].argsort()]
-            x = sorted(transform(x)[x < offset])
+            x = np.array(sorted(transform(x)[x < offset]))
+
+            res[operator]['one sigma'] = [line.interval(x, y, 1.0, best_fit)] if line.interval(x, y, 1.0, best_fit) else []
+            res[operator]['two sigma'] = [line.interval(x, y, 3.84, best_fit)] if line.interval(x, y, 3.84, best_fit) else []
 
             sign = '+' if offset < 0 else '-'
             template = r'$|{}{}|$' if conversion_factor == 1. else r'$|{}/\Lambda^2{}|$'
@@ -92,6 +90,7 @@ def fit_nll(config, transform=False, dimensionless=True):
                 res[operator]['label'] = template.format(
                         label[operator].replace('$',''),
                         r' {} {:03.1f}{}'.format(sign, np.abs(offset), '\ \mathrm{TeV}^{-2}' if conversion_factor != 1. else ''))
+                # res[operator]['units'] = ''
             else:
                 res[operator]['label'] = template.format(label[operator].replace('$',''), '')
             res[operator]['transformed'] = True
@@ -126,7 +125,7 @@ def fit_nll(config, transform=False, dimensionless=True):
     with open(os.path.join(config['outdir'], 'best_fit{}.tex'.format(tag)), 'w') as f:
         f.write(tabulate.tabulate(table, headers=headers, tablefmt='latex_raw'))
 
-    np.save('nll.npy', res)
+    np.save('nll{}{}.npy'.format('_transformed' if transform else '', '_dimensionless' if dimensionless else ''), res)
 
     return res
 

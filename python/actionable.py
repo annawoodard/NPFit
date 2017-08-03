@@ -43,12 +43,11 @@ def make(args, config):
     def cardify(name):
         return os.path.join(config['outdir'], '{}.txt'.format(name))
 
-
-    print 'combineCards.py {} > {}'.format(os.path.join(config['cards']['2l'], 'A*.txt'), cardify('2l'))
-    subprocess.call('combineCards.py {} > {}'.format(os.path.join(config['cards']['2l'], 'A*.txt'), cardify('2l')), shell=True)
-    subprocess.call('combineCards.py {} > {}'.format(os.path.join(config['cards']['3l'], 'B*.txt'), cardify('3l')), shell=True)
-    subprocess.call('combineCards.py {} > {}'.format(os.path.join(config['cards']['4l'], 'B*.txt'), cardify('4l')), shell=True)
-
+    for analysis, path in config['cards'].items():
+        if os.path.isdir(path):
+            subprocess.call('combineCards.py {} > {}'.format(os.path.join(path, '*.txt'), cardify(analysis)), shell=True)
+        elif os.path.isfile(path):
+            shutil.copy(path, cardify(analysis))
 
     with open(cardify('4l'), 'r') as f:
         card = f.read()

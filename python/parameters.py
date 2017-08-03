@@ -1,5 +1,11 @@
 import numpy as np
 
+# nlo = {
+#     'ttW': 626.687,
+#     'ttZ': 839.385,
+#     'ttH': 496.
+# }
+
 nlo = {
     'ttW': 601.,
     'ttZ': 839.,
@@ -34,8 +40,8 @@ names = {
 }
 
 label = {
-    'sigma ttW': r'$\sigma_{\mathrm{t\bar{t}W}}$ $\mathrm{[fb]}$',
-    'sigma ttZ': r'$\sigma_{\mathrm{t\bar{t}Z}}$ $\mathrm{[fb]}$',
+    'sigma ttW': r'$\sigma_{\mathrm{t\bar{t}W}}$ $\mathrm{[pb]}$',
+    'sigma ttZ': r'$\sigma_{\mathrm{t\bar{t}Z}}$ $\mathrm{[pb]}$',
     'ttW': r'$\mathrm{t\bar{t}W}$',
     'ttZ': r'$\mathrm{t\bar{t}Z}$',
     'ttH': r'$\mathrm{t\bar{t}H}$',

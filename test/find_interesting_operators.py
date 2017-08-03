@@ -36,7 +36,7 @@ def write(table, headers, name, **kwargs):
 with open(args.config) as f:
     config = yaml.load(f)
 
-nll, _ = fit_nll(config)
+nll = fit_nll(config)
 mus = np.load(os.path.join(config['outdir'], 'mus.npy'))[()]
 coefficients, cross_sections = load(config)
 
@@ -55,7 +55,7 @@ for coefficient in mus:
         excluded[r'\text{{no effect on}} {}'.format(', '.join(config['processes']))] += [coefficient]
 
 for process in ['tt', 'H', 'DY', 'ZZ', 'WZ', 'WW']:
-    excluded[r'|\mu_{{{}}} - 1| > 0.3'.format(process)] = []
+    excluded[r'|\mu_{{{}}} - 1| > 0.7'.format(process)] = []
 
 extreme_mus = {}
 processes = set(sum([mus[coefficient].keys() for coefficient in mus], []))
@@ -70,8 +70,8 @@ for coefficient, info in nll.items():
             y = mus[coefficient][process](np.linspace(left, right, 100))
             extreme_mus[coefficient][(left, right)][process] = y[np.abs(y - 1).argmax()]  # we want farthest from 1., not max
             if process in ['tt', 'H', 'DY', 'ZZ', 'WZ', 'WW']:
-                if np.abs(extreme_mus[coefficient][(left, right)][process] - 1) > 0.3:
-                    excluded[r'|\mu_{{{}}} - 1| > 0.3'.format(process)] += [coefficient]
+                if np.abs(extreme_mus[coefficient][(left, right)][process] - 1) > 0.7:
+                    excluded[r'|\mu_{{{}}} - 1| > 0.7'.format(process)] += [coefficient]
 
 table = []
 slim_table = []
@@ -131,8 +131,8 @@ print 'surviving ', surviving
 
 print excluded
 with open(os.path.join(config['outdir'], 'extreme_mus.pkl'), 'w') as f:
-    pickle.dump(extreme_mus, f)
-    # pickle.dump(dict((k, v) for k, v in extreme_mus.items() if k not in sum(excluded.values(), [])), f)
+    # pickle.dump(extreme_mus, f)
+    pickle.dump(dict((k, v) for k, v in extreme_mus.items() if k not in sum(excluded.values(), [])), f)
 
 
 # table = []

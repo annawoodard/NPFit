@@ -34,7 +34,7 @@ from EffectiveTTV.EffectiveTTV.nll import fit_nll
 from EffectiveTTV.EffectiveTTV.fluctuate import par_names
 
 
-extent = (0, 1500, 0, 1600)
+extent = (0, 1500, 0, 2100)
 x_min, x_max, y_min, y_max = extent
 
 
@@ -172,6 +172,7 @@ def mu_per_process(config, plotter):
                 ax.legend(loc='upper center')
 
 def mu_new(config, plotter, overlay_results=False, dimensionless=False):
+    #FIXME figure out if I still need this, fix x axis range to match nll if it is there
     coefficients, cross_sections = load(config)
     mus = load_mus(config)
     nll = fit_nll(config, transform=False, dimensionless=True)
@@ -255,14 +256,9 @@ def mu(config, plotter, overlay_results=False, dimensionless=False):
 
     coefficients, cross_sections = load(config)
     mus = load_mus(config)
-    # FIXME
-    import yaml
-    with open('/afs/crc.nd.edu/user/a/awoodard/www/.private/ttV/42/1/1/run.yaml') as f:
-        config = yaml.load(f)
     nll = fit_nll(config, transform=False, dimensionless=dimensionless)
 
     for operator in config['operators']:
-    # for operator, xmin, xmax in [('cuW', -5, 5), ('cuB', -14, 14), ('cu', -30, 30), ('cHu', -10, 10)]:
         if operator == 'sm':
             continue
 
@@ -271,14 +267,9 @@ def mu(config, plotter, overlay_results=False, dimensionless=False):
                 '$\sigma_{NP+SM} / \sigma_{SM}$',
                 os.path.join('mu', operator + ('_overlay' if overlay_results else '') + ('_dimensionless' if
                     dimensionless else ''))) as ax:
+            xmin = nll[operator]['x'][nll[operator]['y'] < 13].min()
+            xmax = nll[operator]['x'][nll[operator]['y'] < 13].max()
 
-            xmin = min(np.array(nll[operator]['two sigma'])[:, 0])
-            xmax = max(np.array(nll[operator]['two sigma'])[:, 1])
-
-            # xmin = xmin - (np.abs(xmin) * 0.1)
-            # xmax = xmax + (np.abs(xmax) * 0.1)
-            # xmin = min(coefficients['ttZ'][operator]) #FIXME remove
-            # xmax = max(coefficients['ttZ'][operator])
             for process, marker, c in [('ttW', 'x', 'blue'), ('ttZ', '+', '#2fd164'), ('ttH', 'o', '#ff321a')]:
                 x = coefficients[process][operator]
                 y = cross_sections[process][operator] / cross_sections[process]['sm']
@@ -328,24 +319,28 @@ def mu(config, plotter, overlay_results=False, dimensionless=False):
                     )
 
             plt.xlim(xmin=xmin, xmax=xmax)
+            if operator == 'cuB':
+                plt.xlim(xmin=-3.5, xmax=3.5)
             plt.ylim(ymin=0, ymax=3.2)
             plt.title(r'CMS simulation', loc='left', fontweight='bold')
             # plt.title(r'aMC@NLO_Madgraph5 LO', loc='right', fontweight='bold')
             plt.title(r'MG5_aMC@NLO LO', loc='right', size='medium')
             ax.legend(loc='upper center')
+            ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 
 
 def nll(args, config, plotter, transform=False, dimensionless=True):
     data = fit_nll(config, transform, dimensionless)
     mus = np.load(os.path.join(config['outdir'], 'mus.npy'))[()]
 
-    print data
     for operator, info in data.items():
+        if operator not in config['operators']:
+            continue
         for p in config['processes']:
             s0, s1, s2 = mus[operator][p].coef
             if not ((s1 > 1e-5) or (s2 > 1e-5)):
                 continue # operator has no effect on any of the scaled processes
-        x_label = '{} {}'.format(info['label'], info['units'])
+        x_label = '{} {}'.format(info['label'].replace('\ \mathrm{TeV}^{-2}', ''), info['units'])
 
         with plotter.saved_figure(
                 x_label,
@@ -377,7 +372,9 @@ def nll(args, config, plotter, transform=False, dimensionless=True):
                 ax.plot([low, high], [3.84, 3.84], ':', label=r'$2\sigma$ CL' if (i==0) else '', color='#ff321a')
 
             ax.legend(loc='upper center')
+            ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
             plt.ylim(ymin=0, ymax=12)
+            plt.xlim(xmin=info['x'][info['y'] < 13].min(), xmax=info['x'][info['y'] < 13].max())
             if info['transformed']:
                 plt.xlim(xmin=0)
 
@@ -410,8 +407,8 @@ def ttZ_ttW_2D(config, ax):
     labels = []
 
     bf, = plt.plot(
-        x[z.argmin()],
-        y[z.argmin()],
+        x[z.argmin()] / 1000.,
+        y[z.argmin()] / 1000.,
         color='black',
         mew=3,
         markersize=17,
@@ -421,10 +418,10 @@ def ttZ_ttW_2D(config, ax):
     handles.append(bf)
     labels.append('2D best fit')
 
-    ttW_theory_xsec = plt.axvline(x=nlo['ttW'], linestyle='--', color='black')
+    ttW_theory_xsec = plt.axvline(x=nlo['ttW'] / 1000., linestyle='--', color='black')
     ttW_theory_error = ax.axvspan(
-        nlo['ttW'] - nlo['ttW'] * 0.1173,
-        nlo['ttW'] + nlo['ttW'] * 0.1316,
+        (nlo['ttW'] - nlo['ttW'] * 0.1173) / 1000.,
+        (nlo['ttW'] + nlo['ttW'] * 0.1316) / 1000.,
         edgecolor='#555555',
         fill=False,
         linewidth=0.0,
@@ -436,8 +433,8 @@ def ttZ_ttW_2D(config, ax):
 
     ttZ_theory_xsec = plt.axhline(y=nlo['ttZ'], linestyle='--', color='black')
     ttZ_theory_error = ax.axhspan(
-        nlo['ttZ'] - nlo['ttZ'] * 0.1164,
-        nlo['ttZ'] + nlo['ttZ'] * 0.10,
+        (nlo['ttZ'] - nlo['ttZ'] * 0.1164) / 1000.,
+        (nlo['ttZ'] + nlo['ttZ'] * 0.10 ) / 1000.,
         edgecolor='#555555',
         fill=False,
         linewidth=0.0,
@@ -509,8 +506,8 @@ def ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=T
                 header=args.header) as ax:
             handles, labels = ttZ_ttW_2D(config, ax)
 
-            x = data['x_sec_ttW']
-            y = data['x_sec_ttZ']
+            x = data['x_sec_ttW'] / 1000.
+            y = data['x_sec_ttZ'] / 1000.
 
             kdehist = kde.kdehist2(x[:10000], y[:10000], [70, 70])
             clevels = sorted(kde.confmap(kdehist[0], [.6827,.9545]))
@@ -524,8 +521,8 @@ def ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=T
             colors = ['black', 'gray']
             for (bf, _), color in zip(nll[operator]['best fit'], colors):
                 point, = plt.plot(
-                    data[0]['x_sec_ttW'],
-                    data[0]['x_sec_ttZ'],
+                    data[0]['x_sec_ttW'] / 1000.,
+                    data[0]['x_sec_ttZ'] / 1000.,
                     color=color,
                     markeredgecolor=color,
                     mew=3,
@@ -535,22 +532,16 @@ def ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=T
                 )
                 handles.append(point)
 
-                if transform:
-                    template = r'$|{}{}{}|$' if dimensionless else r'$|{}/\Lambda^2{}\,{}|$'
-                else:
-                    template = r'${}{}{}$' if dimensionless else r'${}/\Lambda^2{}{}$'
-
-                labels.append("best fit\n" + '{} {}'.format(
-                    nll[operator]['label'],
-                    nll[operator]['units'] if 'TeV' not in nll[operator]['label'] else ''))
+                labels.append("best fit\n{}".format(nll[operator]['label']))
                 print 'dimensionless, labels ', dimensionless, labels
-            plt.legend(handles, labels, loc='lower right', fontsize=22)
+            plt.legend(handles, labels, loc='upper right', fontsize=22)
             # left = plt.legend(handles[:3], labels[:3], loc='upper left', fontsize=21.)
             # plt.legend(handles[3:], labels[3:], loc='upper right', fontsize=21.)
             # plt.gca().add_artist(left)
-            plt.ylim(ymin=0, ymax=y_max)
-            plt.xlim(xmin=0, xmax=1400)
-            # plt.xlim(xmin=0, xmax=2400)
+            plt.ylim(ymin=0, ymax=y_max / 1000.)
+            plt.xlim(xmin=0, xmax=1400 / 1000.)
+            ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+            ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 
         # with plotter.saved_figure(label['sigma ttW'], '', 'x_sec_ttW_{}'.format(operator)) as ax:
         #     avg = np.average(data['x_sec_ttW'])
@@ -580,16 +571,17 @@ def plot(args, config):
 
     plotter = Plotter(config)
 
+    # FIXME allow for any available, any specified at the CL, and all in the config file
     if args.operator != 'all':
         config['operators'] = [args.operator]
 
-    nll(args, config, plotter, transform=True, dimensionless=False)
-    nll(args, config, plotter, transform=False, dimensionless=False)
+    # nll(args, config, plotter, transform=True, dimensionless=False)
+    # nll(args, config, plotter, transform=False, dimensionless=False)
     # nll(args, config, plotter, transform=True, dimensionless=True)
     # nll(args, config, plotter, transform=False, dimensionless=True)
     # mu(config, plotter)
     # mu(config, plotter, overlay_results=False, dimensionless=True)
-    # mu_new(config, plotter, overlay_results=False, dimensionless=True)
+    mu_new(config, plotter, overlay_results=False, dimensionless=True)
     # mu_per_process(config, plotter)
 
     # ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=True, dimensionless=True)
