@@ -12,7 +12,7 @@ nlo = {
     'ttH': 496.
 }
 
-# https://cds.cern.ch/record/2150771/files/LHCHXSWG-DRAFT-INT-2016-008.pdf
+# https://arxiv.org/pdf/1610.07922.pdf page 160
 kappa = {
     'Q2_ttZ': {'-': 1.113, '+': 1.096},
     'Q2_ttW': {'-': 1.1155, '+': 1.13},
