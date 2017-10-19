@@ -45,6 +45,7 @@ label = {
     'ttW': r'$\mathrm{t\bar{t}W}$',
     'ttZ': r'$\mathrm{t\bar{t}Z}$',
     'ttH': r'$\mathrm{t\bar{t}H}$',
+    'ttV': r'$\mathrm{t\bar{t}V}$',
     'tt': r'$\mathrm{t\bar{t}}$',
     'c2B': r'$\bar{c}_{2B}$',
     'c2G': r'$\bar{c}_{2G}$',

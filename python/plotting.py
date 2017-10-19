@@ -34,8 +34,10 @@ from EffectiveTTV.EffectiveTTV.nll import fit_nll
 from EffectiveTTV.EffectiveTTV.fluctuate import par_names
 
 
-extent = (0, 1500, 0, 2100)
-x_min, x_max, y_min, y_max = extent
+scale = 1 / 1000.
+x_min, x_max, y_min, y_max = np.array([200, 1200, 550, 2250]) * scale
+for process in nlo:
+    nlo[process] *= scale
 
 
 class Plotter(object):
@@ -90,7 +92,7 @@ class Plotter(object):
         fig, ax = plt.subplots(figsize=(11, 11))
         lumi = str(self.config['luminosity']) + ' fb$^{-1}$ (13 TeV)'
         if header:
-            plt.title(lumi, loc='right', fontweight='normal')
+            plt.title(lumi, loc='right', fontweight='normal', fontsize=27)
             plt.title(r'CMS', loc='left', fontweight='bold')
             if header == 'preliminary':
                 plt.text(0.155, 1.009, r'Preliminary', style='italic', transform=ax.transAxes)
@@ -100,8 +102,8 @@ class Plotter(object):
 
         finally:
             logging.info('saving {}'.format(name))
-            plt.xlabel(x_label)
-            plt.ylabel(y_label)
+            plt.xlabel(x_label, horizontalalignment='right', x=1.0)
+            plt.ylabel(y_label, horizontalalignment='right', y=1.0)
             plt.savefig(os.path.join(self.config['outdir'], 'plots', '{}.pdf'.format(name)), bbox_inches='tight')
             plt.savefig(os.path.join(self.config['outdir'], 'plots', '{}.png'.format(name)), bbox_inches='tight')
             plt.close()
@@ -339,7 +341,7 @@ def mu(config, plotter, overlay_results=False, dimensionless=False):
             plt.ylim(ymin=0, ymax=3.2)
             plt.title(r'CMS Simulation', loc='left', fontweight='bold')
             # plt.title(r'aMC@NLO_Madgraph5 LO', loc='right', fontweight='bold')
-            plt.title(r'MG5_aMC@NLO LO', loc='right', size='medium')
+            plt.title(r'MG5_aMC@NLO LO', loc='right', size=27)
             ax.legend(loc='upper center')
             ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 
@@ -426,42 +428,31 @@ def ttZ_ttW_2D(config, ax):
     labels = []
 
     bf, = plt.plot(
-        x[z.argmin()] / 1000.,
-        y[z.argmin()] / 1000.,
+        x[z.argmin()],
+        y[z.argmin()],
         color='black',
         mew=3,
         markersize=17,
-        marker="+",
+        marker="*",
         linestyle='None'
     )
     handles.append(bf)
     labels.append('2D best fit')
 
-    ttW_theory_xsec = plt.axvline(x=nlo['ttW'] / 1000., linestyle='-', color='black')
-    ttW_theory_error = ax.axvspan(
-        (nlo['ttW'] - nlo['ttW'] * 0.1173) / 1000.,
-        (nlo['ttW'] + nlo['ttW'] * 0.1316) / 1000.,
-        edgecolor='#555555',
-        fill=False,
-        linewidth=0.0,
-        zorder=2,
-        hatch='//'
-    )
-    handles.append((ttW_theory_xsec, ttW_theory_error))
-    labels.append('{} theory'.format(label['ttW']))
-
-    ttZ_theory_xsec = plt.axhline(y=nlo['ttZ'] / 1000., linestyle='-', color='black')
-    ttZ_theory_error = ax.axhspan(
-        (nlo['ttZ'] - nlo['ttZ'] * 0.1164) / 1000.,
-        (nlo['ttZ'] + nlo['ttZ'] * 0.10 ) / 1000.,
-        edgecolor='#555555',
-        fill=False,
-        linewidth=0.0,
-        zorder=2,
-        hatch='\\'
-    )
-    handles.append((ttZ_theory_xsec, ttZ_theory_error))
-    labels.append('{} theory'.format(label['ttZ']))
+    theory = plt.errorbar(
+            nlo['ttW'], nlo['ttZ'],
+            yerr=[[nlo['ttZ'] * 0.1164], [nlo['ttZ'] * 0.10]],
+            xerr=[[nlo['ttW'] * 0.1173], [nlo['ttW'] * 0.1316]],
+            capsize=5,
+            mew=2,
+            color='black',
+            ls='',
+            marker='o',
+            markersize=10,
+            linewidth=3
+            )
+    handles.append(theory)
+    labels.append('{} theory\n[1610.07922]'.format(label['ttV']))
 
     ax.set_xlim([x_min, x_max])
     ax.set_autoscalex_on(False)
@@ -525,28 +516,27 @@ def ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=T
                 header=args.header) as ax:
             handles, labels = ttZ_ttW_2D(config, ax)
 
-            x = data['x_sec_ttW'] / 1000.
-            y = data['x_sec_ttZ'] / 1000.
+            x = data['x_sec_ttW'] * scale
+            y = data['x_sec_ttZ'] * scale
 
             kdehist = kde.kdehist2(x[:10000], y[:10000], [70, 70])
             clevels = sorted(kde.confmap(kdehist[0], [.6827,.9545]))
-            contour = ax.contour(kdehist[1], kdehist[2], kdehist[0], clevels, colors=['#ff321a', 'blue'],
-                    linestyles=['dotted', 'dashed'])
+            contour = ax.contour(kdehist[1], kdehist[2], kdehist[0], clevels, colors=['#ff321a', 'blue'], linestyles=['-.', '--'])
             for handle, l in zip(contour.collections[::-1], ['68% CL', '95% CL']):
                 handles.append(handle)
                 labels.append(l)
 
-            # table.append([operator, '{:.2f}'.format(nll[operator]['best fit']), '{:.2f}'.format(data[0][operator])] + ['{:.2f}'.format(data[0][x]) for x in ['r_ttZ', 'r_ttW', 'r_ttH']])
             colors = ['black', 'gray']
             for (bf, _), color in zip(nll[operator]['best fit'], colors):
+                table.append([operator, '{:.2f}'.format(bf), '{:.2f}'.format(data[0][operator])] + ['{:.2f}'.format(data[0][x]) for x in ['r_ttZ', 'r_ttW', 'r_ttH']])
                 point, = plt.plot(
-                    data[0]['x_sec_ttW'] / 1000.,
-                    data[0]['x_sec_ttZ'] / 1000.,
+                    data[0]['x_sec_ttW'] * scale,
+                    data[0]['x_sec_ttZ'] * scale,
                     color=color,
                     markeredgecolor=color,
                     mew=3,
                     markersize=17,
-                    marker="*",
+                    marker="x",
                     linestyle='None'
                 )
                 handles.append(point)
@@ -557,8 +547,8 @@ def ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=T
             # left = plt.legend(handles[:3], labels[:3], loc='upper left', fontsize=21.)
             # plt.legend(handles[3:], labels[3:], loc='upper right', fontsize=21.)
             # plt.gca().add_artist(left)
-            plt.ylim(ymin=0, ymax=y_max / 1000.)
-            plt.xlim(xmin=0, xmax=1800 / 1000.)
+            plt.ylim(ymin=y_min, ymax=y_max)
+            plt.xlim(xmin=x_min, xmax=x_max)
             ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
             ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 
