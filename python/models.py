@@ -9,8 +9,6 @@ import yaml
 from HiggsAnalysis.CombinedLimit.PhysicsModel import PhysicsModel
 from HiggsAnalysis.CombinedLimit.SMHiggsBuilder import SMHiggsBuilder
 
-from EffectiveTTV.EffectiveTTV.signal_strength import load, load_mus
-
 class EffectiveOperatorModel(PhysicsModel):
 
     def setPhysicsOptions(self, options):

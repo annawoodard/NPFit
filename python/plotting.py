@@ -1,7 +1,9 @@
+# FIXME fix back for multidimensional
 import atexit
 import contextlib
 from datetime import datetime
 import glob
+import itertools
 import json
 import logging
 import os
@@ -33,6 +35,7 @@ from EffectiveTTV.EffectiveTTV.signal_strength import load, load_mus
 from EffectiveTTV.EffectiveTTV.nll import fit_nll
 from EffectiveTTV.EffectiveTTV.fluctuate import par_names
 
+from EffectiveTTVProduction.EffectiveTTVProduction.cross_sections import CrossSectionScan
 
 scale = 1 / 1000.
 x_min, x_max, y_min, y_max = np.array([200, 1200, 550, 2250]) * scale
@@ -179,47 +182,47 @@ def mu_new(config, plotter, overlay_results=False, dimensionless=False):
     mus = load_mus(config)
     nll = fit_nll(config, transform=False, dimensionless=True)
 
-    for operator in config['operators']:
-    # for operator, xmin, xmax in [('cuW', -5, 5), ('cuB', -5, 5), ('cu', -30, 30), ('cHu', -7, 7)]:
-        if operator == 'sm':
+    for coefficient in config['coefficients']:
+    # for coefficients, xmin, xmax in [('cuW', -5, 5), ('cuB', -5, 5), ('cu', -30, 30), ('cHu', -7, 7)]:
+        if coefficients == 'sm':
             continue
 
         with plotter.saved_figure(
-                label[operator] + ('' if dimensionless else r' $/\Lambda^2$'),
+                label[coefficient] + ('' if dimensionless else r' $/\Lambda^2$'),
                 '$\sigma_{NP+SM} / \sigma_{SM}$',
-                os.path.join('mu', operator + ('_overlay' if overlay_results else ''))) as ax:
+                os.path.join('mu', coefficient + ('_overlay' if overlay_results else ''))) as ax:
 
             c_max = (4 * np.pi) ** 2
-            print 'processes ', mus[operator].keys()
+            print 'processes ', mus[coefficient].keys()
             try:
-                xmin = max([(mus[operator][p] - 5).roots().min() for p in ['ttW', 'ttZ', 'ttH'] if (mus[operator][p](c_max) > 5)] + [-1 * c_max])
-                xmax = min([(mus[operator][p] - 5).roots().max() for p in ['ttW', 'ttZ', 'ttH'] if (mus[operator][p](c_max) > 5)] + [c_max])
+                xmin = max([(mus[coefficient][p] - 5).roots().min() for p in ['ttW', 'ttZ', 'ttH'] if (mus[coefficient][p](c_max) > 5)] + [-1 * c_max])
+                xmax = min([(mus[coefficient][p] - 5).roots().max() for p in ['ttW', 'ttZ', 'ttH'] if (mus[coefficient][p](c_max) > 5)] + [c_max])
             except KeyError:
                 continue
             # xmin = -160
             # xmax = 160
             xi = np.linspace(xmin, xmax, 10000)
             for process, marker in [('ttW', 'x'), ('ttZ', '+'), ('ttH', 'o')]:
-                print operator
-                print process, (mus[operator][process] - 5).roots()
-                x = coefficients[process][operator]
-                y = cross_sections[process][operator] / cross_sections[process]['sm']
+                print coefficient
+                print process, (mus[coefficient][process] - 5).roots()
+                x = coefficients[process][coefficient]
+                y = cross_sections[process][coefficient] / cross_sections[process]['sm']
 
-                print operator, xmin, xmax
-                ax.plot(xi * nll[operator]['conversion'], mus[operator][process](xi), color='#C6C6C6')
-                ax.plot(x * nll[operator]['conversion'], y, marker, mfc='none', markeredgewidth=2, markersize=15, label=label[process])
+                print coefficient, xmin, xmax
+                ax.plot(xi * nll[coefficient]['conversion'], mus[coefficient][process](xi), color='#C6C6C6')
+                ax.plot(x * nll[coefficient]['conversion'], y, marker, mfc='none', markeredgewidth=2, markersize=15, label=label[process])
 
             if overlay_results:
                 colors = ['black', 'gray']
-                for (x, _), color in zip(nll[operator]['best fit'], colors):
+                for (x, _), color in zip(nll[coefficient]['best fit'], colors):
                     plt.axvline(
                         x=x,
                         ymax=0.5,
                         linestyle='-',
                         color=color,
-                        label='Best fit\n {}$={:.2f}$'.format(label[operator], x)
+                        label='Best fit\n {}$={:.2f}$'.format(label[coefficient], x)
                     )
-                for (low, high), color in zip(nll[operator]['one sigma'], colors):
+                for (low, high), color in zip(nll[coefficient]['one sigma'], colors):
                     plt.axvline(
                         x=low,
                         ymax=0.5,
@@ -233,7 +236,7 @@ def mu_new(config, plotter, overlay_results=False, dimensionless=False):
                         linestyle='--',
                         color=color
                     )
-                for (low, high), color in zip(nll[operator]['two sigma'], colors):
+                for (low, high), color in zip(nll[coefficient]['two sigma'], colors):
                     plt.axvline(
                         x=low,
                         ymax=0.5,
@@ -248,7 +251,7 @@ def mu_new(config, plotter, overlay_results=False, dimensionless=False):
                         color=color
                     )
 
-            plt.xlim(xmin=xmin * nll[operator]['conversion'], xmax=xmax * nll[operator]['conversion'])
+            plt.xlim(xmin=xmin * nll[coefficient]['conversion'], xmax=xmax * nll[coefficient]['conversion'])
             plt.ylim(ymin=0, ymax=5)
             plt.title(r'CMS Simulation', loc='left', fontweight='bold')
             plt.title(r'mg5_aMC LO', loc='right', size='small')
@@ -256,57 +259,43 @@ def mu_new(config, plotter, overlay_results=False, dimensionless=False):
 
 def mu(config, plotter, overlay_results=False, dimensionless=False):
 
-    coefficients, cross_sections = load(config)
+    fn = os.path.join(config['outdir'], 'cross_sections.npz')
+    scan = CrossSectionScan([fn])
     mus = load_mus(config)
     nll = fit_nll(config, transform=False, dimensionless=dimensionless)
 
-    import tabulate
-    table = [[] for x in range(30)]
     headers = []
-    for operator in config['operators']:
-        if operator == 'sm':
-            continue
-
+    combinations = [tuple(sorted(x)) for x in itertools.combinations(config['coefficients'], config['dimension'])]
+    for coefficients in combinations:
+        tag = '-'.join(coefficients)
         with plotter.saved_figure(
-                label[operator] + ('' if dimensionless else r' $/\Lambda^2$'),
+                label[tag] + ('' if dimensionless else r' $/\Lambda^2$'),
                 '$\sigma_{NP+SM} / \sigma_{SM}$',
-                os.path.join('mu', operator + ('_overlay' if overlay_results else '') + ('_dimensionless' if
+                os.path.join('mu', tag + ('_overlay' if overlay_results else '') + ('_dimensionless' if
                     dimensionless else ''))) as ax:
-            xmin = nll[operator]['x'][nll[operator]['y'] < 13].min()
-            xmax = nll[operator]['x'][nll[operator]['y'] < 13].max()
+            xmin = nll[tag]['x'][nll[tag]['y'] < 13].min()
+            xmax = nll[tag]['x'][nll[tag]['y'] < 13].max()
 
             for process, marker, c in [('ttW', 'x', 'blue'), ('ttZ', '+', '#2fd164'), ('ttH', 'o', '#ff321a')]:
-                x = coefficients[process][operator]
-                y = cross_sections[process][operator] / cross_sections[process]['sm']
+                x = scan.points[coefficients][process]
+                y = scan.signal_strengths[coefficients][process]
                 xi = np.linspace(xmin, xmax, 10000)
 
-                # if process == 'ttZ':
-                #     headers += [operator + ' value', operator + ' xsec']
-                #     for i, (x, y) in enumerate(zip(coefficients[process][operator], cross_sections[process][operator])):
-                #         print table
-                #         print i
-                #         print table[i]
-                #         table[i] += [x, y]
-
-                    # table.append([operator] + list(coefficients[process][operator]))
-                    # table.append(['operator' + ' xsec'] + list(cross_sections[process][operator]))
-
-
-                ax.plot(xi * nll[operator]['conversion'], mus[operator][process](xi), color='#C6C6C6')
-                ax.plot(x * nll[operator]['conversion'], y, marker, mfc='none', markeredgewidth=2, markersize=15, label=label[process],
+                ax.plot(xi * nll[tag]['conversion'], mus[tag][process](xi), color='#C6C6C6')
+                ax.plot(x * nll[tag]['conversion'], y, marker, mfc='none', markeredgewidth=2, markersize=15, label=label[process],
                         color=c)
 
             if overlay_results:
                 colors = ['black', 'gray']
-                for (x, _), color in zip(nll[operator]['best fit'], colors):
+                for (x, _), color in zip(nll[tag]['best fit'], colors):
                     plt.axvline(
                         x=x,
                         ymax=0.5,
                         linestyle='-',
                         color=color,
-                        label='Best fit\n {}$={:.2f}$'.format(label[operator], x)
+                        label='Best fit\n {}$={:.2f}$'.format(label[tag], x)
                     )
-                for (low, high), color in zip(nll[operator]['one sigma'], colors):
+                for (low, high), color in zip(nll[tag]['one sigma'], colors):
                     plt.axvline(
                         x=low,
                         ymax=0.5,
@@ -320,7 +309,7 @@ def mu(config, plotter, overlay_results=False, dimensionless=False):
                         linestyle='--',
                         color=color
                     )
-                for (low, high), color in zip(nll[operator]['two sigma'], colors):
+                for (low, high), color in zip(nll[tag]['two sigma'], colors):
                     plt.axvline(
                         x=low,
                         ymax=0.5,
@@ -336,37 +325,32 @@ def mu(config, plotter, overlay_results=False, dimensionless=False):
                     )
 
             plt.xlim(xmin=xmin, xmax=xmax)
-            if operator == 'cuB':
+            if tag == 'cuB':
                 plt.xlim(xmin=-3.5, xmax=3.5)
             plt.ylim(ymin=0, ymax=3.2)
             plt.title(r'CMS Simulation', loc='left', fontweight='bold')
-            # plt.title(r'aMC@NLO_Madgraph5 LO', loc='right', fontweight='bold')
             plt.title(r'MG5_aMC@NLO LO', loc='right', size=27)
             ax.legend(loc='upper center')
             ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-
-    # with open(os.path.join(config['outdir'], 'ttZ.xsecs.txt'), 'w') as f:
-    #     print 'writing to ', os.path.join(config['outdir'], 'ttZ.xsecs.txt')
-    #     f.write(tabulate.tabulate(table, headers=headers, floatfmt='.3f'))
 
 
 def nll(args, config, plotter, transform=False, dimensionless=True):
     data = fit_nll(config, transform, dimensionless)
     mus = np.load(os.path.join(config['outdir'], 'mus.npy'))[()]
 
-    for operator, info in data.items():
-        if operator not in config['operators']:
+    for coefficient, info in data.items():
+        if coefficient not in config['coefficients']:
             continue
         for p in config['processes']:
-            s0, s1, s2 = mus[operator][p].coef
+            s0, s1, s2 = mus[coefficient][p].coef
             if not ((s1 > 1e-5) or (s2 > 1e-5)):
-                continue # operator has no effect on any of the scaled processes
+                continue # coefficient has no effect on any of the scaled processes
         x_label = '{} {}'.format(info['label'].replace('\ \mathrm{TeV}^{-2}', ''), info['units'])
 
         with plotter.saved_figure(
                 x_label,
                 '$-2\ \Delta\ \mathrm{ln}\ \mathrm{L}$' + (' (asimov data)' if config['asimov data'] else ''),
-                os.path.join('nll', ('transformed' if transform else ''), operator + ('_dimensionless' if
+                os.path.join('nll', ('transformed' if transform else ''), coefficient + ('_dimensionless' if
                     dimensionless else '')),
                 header=args.header) as ax:
             ax.plot(info['x'], info['y'], color='black')
@@ -503,16 +487,16 @@ def ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=T
     nll = fit_nll(config, transform, dimensionless)
 
     table = []
-    for operator in config['operators']:
-        data = np.load(os.path.join(config['outdir'], 'fluctuations-{}.npy'.format(operator)))
+    for coefficient in config['coefficients']:
+        data = np.load(os.path.join(config['outdir'], 'fluctuations-{}.npy'.format(coefficient)))
         if np.isnan(data['x_sec_ttZ']).any() or np.isnan(data['x_sec_ttW']).any():
-            print 'skipping coefficient {} with nan fluctuations'.format(operator)
+            print 'skipping coefficient {} with nan fluctuations'.format(coefficient)
             continue
 
         with plotter.saved_figure(
                 label['sigma ttW'],
                 label['sigma ttZ'],
-                os.path.join('transformed' if transform else '', 'ttZ_ttW_2D_1D_{}'.format(operator)),
+                os.path.join('transformed' if transform else '', 'ttZ_ttW_2D_1D_{}'.format(coefficient)),
                 header=args.header) as ax:
             handles, labels = ttZ_ttW_2D(config, ax)
 
@@ -527,8 +511,8 @@ def ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=T
                 labels.append(l)
 
             colors = ['black', 'gray']
-            for (bf, _), color in zip(nll[operator]['best fit'], colors):
-                table.append([operator, '{:.2f}'.format(bf), '{:.2f}'.format(data[0][operator])] + ['{:.2f}'.format(data[0][x]) for x in ['r_ttZ', 'r_ttW', 'r_ttH']])
+            for (bf, _), color in zip(nll[coefficient]['best fit'], colors):
+                table.append([coefficient, '{:.2f}'.format(bf), '{:.2f}'.format(data[0][coefficient])] + ['{:.2f}'.format(data[0][x]) for x in ['r_ttZ', 'r_ttW', 'r_ttH']])
                 point, = plt.plot(
                     data[0]['x_sec_ttW'] * scale,
                     data[0]['x_sec_ttZ'] * scale,
@@ -541,7 +525,7 @@ def ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=T
                 )
                 handles.append(point)
 
-                labels.append("Best fit\n{}".format(nll[operator]['label']))
+                labels.append("Best fit\n{}".format(nll[coefficient]['label']))
                 print 'dimensionless, labels ', dimensionless, labels
             plt.legend(handles, labels, loc='upper right', fontsize=27)
             # left = plt.legend(handles[:3], labels[:3], loc='upper left', fontsize=21.)
@@ -552,7 +536,7 @@ def ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=T
             ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
             ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 
-        # with plotter.saved_figure(label['sigma ttW'], '', 'x_sec_ttW_{}'.format(operator)) as ax:
+        # with plotter.saved_figure(label['sigma ttW'], '', 'x_sec_ttW_{}'.format(coefficient)) as ax:
         #     avg = np.average(data['x_sec_ttW'])
         #     var = np.std(data['x_sec_ttW'], ddof=1)
         #     info = u"$\mu$ = {:.3f}, $\sigma$ = {:.3f}".format(avg, var)
@@ -563,9 +547,9 @@ def ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=T
         #     plt.axvline(x=avg + var, linestyle='--', color='red', label='$\mu + \sigma$')
         #     plt.legend()
 
-        # for par in par_names + [operator]:
-        #     with plotter.saved_figure(par, '', 'pulls/{}_{}'.format(operator, par)) as ax:
-        #         plt.title(operator)
+        # for par in par_names + [coefficient]:
+        #     with plotter.saved_figure(par, '', 'pulls/{}_{}'.format(coefficient, par)) as ax:
+        #         plt.title(coefficient)
         #         ax.xaxis.set_major_formatter(FormatStrFormatter('%.3f'))
         #         avg = np.average(data[par])
         #         var = np.std(data[par])
@@ -581,8 +565,8 @@ def plot(args, config):
     plotter = Plotter(config)
 
     # FIXME allow for any available, any specified at the CL, and all in the config file
-    if args.operator != 'all':
-        config['operators'] = [args.operator]
+    if args.coefficient != 'all':
+        config['coefficient'] = [args.coefficient]
 
     # nll(args, config, plotter, transform=False, dimensionless=False)
     # nll(args, config, plotter, transform=True, dimensionless=True)
@@ -596,8 +580,8 @@ def plot(args, config):
     # ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=True)
     # ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=False)
 
-    # nll(args, config, plotter, transform=True, dimensionless=False)
-    # mu(config, plotter)
+    nll(args, config, plotter, transform=True, dimensionless=False)
+    mu(config, plotter)
     ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=True, dimensionless=False)
 
     # ttZ_ttW_2D_1D_ttZ_1D_ttW(args, config, plotter)

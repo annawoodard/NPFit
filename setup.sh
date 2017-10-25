@@ -25,10 +25,12 @@ set -o xtrace
 git clone -b v6.3.0 https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit.git HiggsAnalysis/CombinedLimit
 git clone https://github.com/cms-analysis/CombineHarvester.git CombineHarvester
 git clone git@github.com:annawoodard/EffectiveTTV.git EffectiveTTV/EffectiveTTV
+git clone git@github.com:annawoodard/EffectiveTTVProduction.git EffectiveTTVProduction/EffectiveTTVProduction
 
 scram b -j 32
 
 pip install --user tabulate
+pip install --user tempdir
 
 cd ../..
 scramv1 project CMSSW_8_1_0_pre16 # needed for a harmonious numpy environment

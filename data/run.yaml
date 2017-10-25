@@ -1,17 +1,10 @@
-# FIXME: add documentation here and change so that if absolute paths are
-# given, shared-fs is used, and if relative paths are given, shared-fs
-# isn't used
-# FIXME: note about shell bash vs csh
-label: ttV_FTW # label to use for batch submission: no need to change this between runs
-indir: /hadoop/store/user/awoodard/ttV/45/cross_sections*
-indir shared: True # Can the batch system machines access this directory? If so, files will not be copied (this is faster)
-# cross sections: /afs/crc.nd.edu/user/a/awoodard/releases/effective-ttV/CMSSW_7_4_7/src/EffectiveTTV/EffectiveTTV/data/cross_sections/8_TeV.npy
-# cross sections: /afs/crc.nd.edu/user/a/awoodard/www/.private/ttV/41/1/1/cross_sections.npy
-outdir: /afs/crc.nd.edu/user/a/awoodard/www/.private/ttV/45/1/4-observed
-outdir shared: True # Can the batch system machines access this directory?
-asimov data: False # calculate expected values with MC data only (Asimov dataset), false for real data
+outdir: ~/www/.private/ttV/46  # Output directory; iterate the version each time you make changes.
+outdir shared: True  # Can the batch system machines access this directory? If so, files will not be copied (this is faster)
+indir: /hadoop/store/user/$USER/ttV/cross_sections/1/final_pass*/
+indir shared: True  # Can the batch system machines access this directory? If so, files will not be copied (this is faster)
+# cross sections: ~/releases/effective-ttV/CMSSW_7_4_7/src/EffectiveTTV/EffectiveTTV/data/cross_sections/8_TeV.npy
+asimov data: False  # Calculate expected values with MC data only (Asimov dataset), false for real data.
 dimension: 1
-cards:
   2l: /afs/cern.ch/user/i/ikhvastu/public/ttV_datacards/23Jun_2017/2L
   3l: /afs/cern.ch/user/i/ikhvastu/public/ttV_datacards/23Jun_2017/3L
   4l: /afs/cern.ch/user/m/mirena/public/datacards/4L/paper/v8/4L.txt
@@ -19,8 +12,9 @@ coefficient scan points: 300
 2d points: 500
 chunk size: 500
 luminosity: 36
-scale window: 5 # maximum scaling of any scaled process at which to set the scan boundaries
+scale window: 5  # maximum scaling of any scaled process at which to set the scan boundaries
 processes: ['ttH', 'ttZ', 'ttW'] # processes to scale
-# processes: ['ttX', 'ttother', 'rare', 'WZ', 'ZZ', 'ttH', 'ttZ', 'ttW']
-# operators: ['c2B', 'c2G', 'c2W', 'c3G', 'c3W', 'c6', 'cA', 'cB', 'cG', 'cH', 'cHB', 'cHL', 'cHQ', 'cHW', 'cHd', 'cHe', 'cHu', 'cHud', 'cT', 'cWW', 'cd', 'cdB', 'cdG', 'cdW', 'cl', 'clB', 'clW', 'cpHL', 'cpHQ', 'cu', 'cuB', 'cuG', 'cuW', 'tc3G', 'tc3W', 'tcA', 'tcG', 'tcHB', 'tcHW']
-operators: ['cuW', 'cuB', 'cH', 'tc3G', 'c3G', 'cHu', 'c2G', 'cuG']
+# coefficients: ['c2B', 'c2G', 'c2W', 'c3G', 'c3W', 'c6', 'cA', 'cB', 'cG', 'cH', 'cHB', 'cHL', 'cHQ', 'cHW', 'cHd', 'cHe', 'cHu', 'cHud', 'cT', 'cWW', 'cd', 'cdB', 'cdG', 'cdW', 'cl', 'clB', 'clW', 'cpHL', 'cpHQ', 'cu', 'cuB', 'cuG', 'cuW', 'tc3G', 'tc3W', 'tcA', 'tcG', 'tcHB', 'tcHW']
+coefficients: ['cuW', 'cuB', 'cH', 'tc3G', 'c3G', 'cHu', 'c2G', 'cuG']
+label: ttV_FTW  # label to use for batch submission: no need to change this between runs
+batch type: condor  # batch type for makeflow, can be local, wq, condor, sge, torque, moab, slurm, chirp, amazon, dryrun

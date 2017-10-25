@@ -14,6 +14,8 @@ import yaml
 from EffectiveTTV.EffectiveTTV.parameters import kappa
 from EffectiveTTV.EffectiveTTV.signal_strength import dump_mus
 
+from EffectiveTTVProduction.EffectiveTTVProduction.cross_sections import CrossSectionScan
+
 def make(args, config):
     # Makeflow is a bit picky about whitespace
     wrap = """#!/bin/sh
@@ -143,7 +145,7 @@ shapes *      ch2  FAKE''')
     info = """
     # to run, issue the following commands:
     cd {outdir}
-    nohup work_queue_factory -T condor -M {label} -C {factory} >& factory.log &
+    nohup work_queue_factory -T {batch_type} -M {label} -C {factory} >& factory.log &
 
     # then keep running this command until makeflow no longer submits jobs (may take a few tries):
     makeflow -T wq -M {label} --wrapper ./w.sh --wrapper-input w.sh {shared}
@@ -152,6 +154,7 @@ shapes *      ch2  FAKE''')
     cd {code_dir}
     git checkout {head}
     """.format(
+            batch_type=config['batch type'],
             outdir=config['outdir'],
             label=config['label'],
             factory=os.path.join(data, 'factory.json'),
@@ -200,15 +203,16 @@ shapes *      ch2  FAKE''')
     if 'indir' in config:
         files = glob.glob(os.path.join(config['indir'], '*.root'))
         for f in files:
-            outputs = os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npy'))
+            outputs = os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npz'))
             makeflowify(['run.yaml'], outputs, ['run', '--parse', f, 'run.yaml'])
 
-        inputs = [os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npy')) for f in files] + ['run.yaml']
-        inputs += glob.glob(os.path.join(config['indir'], '*.npy'))
-        outputs = 'cross_sections.npy'
+        inputs = [os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npz')) for f in files] + ['run.yaml']
+        inputs += glob.glob(os.path.join(config['indir'], '*.npz'))
+        outputs = 'cross_sections.npz'
         makeflowify(inputs, outputs, ['run', 'concatenate', 'run.yaml'])
+    # FIXME obsolete if archive is working
     elif 'cross sections' in config:
-        shutil.copy(config['cross sections'], os.path.join(config['outdir'], 'cross_sections.npy'))
+        shutil.copy(config['cross sections'], os.path.join(config['outdir'], 'cross_sections.npz'))
     else:
         raise RuntimeError('must specify either `indir` or `cross sections`')
 
@@ -274,18 +278,18 @@ shapes *      ch2  FAKE''')
     # outfile = os.path.join(config['outdir'], 'scans', '2d.total.root')
     # makeflowify(scans, outfile, ['hadd', '-f', outfile] + scans)
 
-    makeflowify(['run.yaml', 'cross_sections.npy'], 'mus.npy', ['run', 'scale', 'run.yaml'])
+    makeflowify(['run.yaml', 'cross_sections.npz'], 'mus.npy', ['run', 'scale', 'run.yaml'])
 
-    combinations = [sorted(list(x)) for x in itertools.combinations(config['operators'], config['dimension'])]
-    for operators in combinations:
-        label = '_'.join(operators)
+    combinations = [sorted(list(x)) for x in itertools.combinations(config['coefficients'], config['dimension'])]
+    for coefficients in combinations:
+        label = '_'.join(coefficients)
         workspace = os.path.join(config['outdir'], 'workspaces', '{}.root'.format(label))
         cmd = [
             'text2workspace.py', os.path.join(config['outdir'], 'ttV_np.txt'),
             '-P', 'EffectiveTTV.EffectiveTTV.models:eff_op',
             '--PO', 'scaling={}'.format(os.path.join(config['outdir'], 'mus.npy')),
             ' '.join(['--PO process={}'.format(x) for x in config['processes']]),
-            ' '.join(['--PO poi={}'.format(x) for x in operators]),
+            ' '.join(['--PO poi={}'.format(x) for x in coefficients]),
             '-o', workspace
         ]
 
@@ -293,7 +297,7 @@ shapes *      ch2  FAKE''')
 
         best_fit = os.path.join(config['outdir'], 'best-fit-{}.root'.format(label))
         fit_result = os.path.join(config['outdir'], 'fit-result-{}.root'.format(label))
-        cmd = ['run', 'combine'] + list(operators) + ['run.yaml']
+        cmd = ['run', 'combine'] + list(coefficients) + ['run.yaml']
         makeflowify(['run.yaml', workspace, 'mus.npy'], [best_fit, fit_result], cmd)
 
         cmd = ['run', 'fluctuate', label, '150000', 'run.yaml']
@@ -304,7 +308,7 @@ shapes *      ch2  FAKE''')
         for index in range(int(chunks)):
             scan = os.path.join(config['outdir'], 'scans', '{}_{}.root'.format(label, index))
             scans.append(scan)
-            cmd = ['run', 'combine'] + list(operators) + ['-i', str(index), 'run.yaml']
+            cmd = ['run', 'combine'] + list(coefficients) + ['-i', str(index), 'run.yaml']
 
             makeflowify(['run.yaml', workspace], scan, cmd)
 
@@ -312,10 +316,10 @@ shapes *      ch2  FAKE''')
         makeflowify(scans, outfile, ['hadd', '-f', outfile] + scans)
 
     inputs = [os.path.join(config['outdir'], 'scans', '{}.total.root'.format('_'.join(o))) for o in combinations]
-    inputs += ['cross_sections.npy', 'run.yaml']
+    inputs += ['cross_sections.npz', 'run.yaml']
     plot_rt = os.path.join(os.path.dirname(os.environ['LOCALRT']), 'CMSSW_8_1_0_pre16')
     # makeflowify(inputs, [], ['LOCAL', 'run', 'plot', 'all', 'run.yaml'])
-    for operator in config['operators']:
+    for operator in config['coefficients']:
         fluctuations = os.path.join(config['outdir'], 'fluctuations-{}.npy'.format(operator))
         cmd = ['cd', plot_rt, '; eval `scramv1 runtime -sh`; cd -', 'run', 'plot', operator, 'run.yaml']
         makeflowify(inputs + [fluctuations], [], cmd)
@@ -375,6 +379,8 @@ def combine(args, config):
 def parse(args, config):
     import DataFormats.FWLite
 
+    result = CrossSectionScan()
+
     def get_collection(run, ctype, label):
         handle = DataFormats.FWLite.Handle(ctype)
         try:
@@ -388,35 +394,26 @@ def parse(args, config):
 
     for run in DataFormats.FWLite.Runs(args.file):
         cross_section = get_collection(run, 'LHERunInfoProduct', 'externalLHEProducer::LHE').heprup().XSECUP[0]
-        operators = np.array(get_collection(run, 'vector<string>', 'annotator:operators:LHE'))
+        coefficients = get_collection(run, 'vector<string>', 'annotator:wilsonCoefficients:LHE')
         process = str(get_collection(run, 'std::string', 'annotator:process:LHE'))
-        dtype = [(name, 'f8') for name in operators]
-        coefficients = np.array(tuple(get_collection(run, 'vector<double>', 'annotator:wilsonCoefficients:LHE')), dtype=dtype)
+        point = np.array(get_collection(run, 'vector<double>', 'annotator:point:LHE'))
 
-        row = np.array((coefficients, cross_section), dtype=[('coefficients', coefficients.dtype, coefficients.shape), ('cross section', 'f8')])
+        result.add(point, cross_section, process, coefficients)
 
-        try:
-            cross_sections = np.vstack([cross_sections, row])
-        except UnboundLocalError:
-            cross_sections = row
-
-    outfile = os.path.join(config['outdir'], 'cross_sections', os.path.basename(args.file).replace('.root', '.npy'))
-    np.save(outfile, {process: cross_sections})
+    outfile = os.path.join(config['outdir'], 'cross_sections', os.path.basename(args.file).replace('.root', '.npz'))
+    result.dump(outfile)
 
 
 def concatenate(args, config):
-    files = glob.glob(os.path.join(config['outdir'], 'cross_sections', '*.npy'))
+    files = glob.glob(os.path.join(config['outdir'], 'cross_sections', '*.npz'))
     if 'indir' in config:
-        files += glob.glob(os.path.join(config['indir'], '*.npy'))
-    res = {}
-    for f in files:
-        info = np.load(f)[()]
-        for process, cross_sections in info.items():
-            try:
-                res[process] = np.vstack([res[process], cross_sections])
-            except KeyError:
-                res[process] = cross_sections
+        files += glob.glob(os.path.join(config['indir'], '*.npz'))
 
-    outfile = os.path.join(config['outdir'], 'cross_sections.npy')
-    np.save(outfile, res)
+    result = CrossSectionScan(files)
+    for coefficients in result.points:
+        for process in result.points[coefficients]:
+            result.deduplicate(coefficients, process)
+
+    outfile = os.path.join(config['outdir'], 'cross_sections.npz')
+    result.dump(outfile)
 

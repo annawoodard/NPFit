@@ -31,12 +31,12 @@ concatenate_parser.set_defaults(func=concatenate)
 
 fluctuate_parser = subparsers.add_parser('fluctuate', help="perturb fit values by random amounts sampled from the covariance matrix")
 # TODO fix operator -> coefficient
-fluctuate_parser.add_argument('operator', help='coefficient to perturb')
+fluctuate_parser.add_argument('coefficient', help='coefficient to perturb')
 fluctuate_parser.add_argument('perturbations', help='number of perturbations to execute')
 fluctuate_parser.set_defaults(func=fluctuate)
 
 plot_parser = subparsers.add_parser('plot', help='plot cross section scans and results')
-plot_parser.add_argument('operator', help='operator to plot (`all` for all operators)')
+plot_parser.add_argument('coefficient', help='coefficient to plot (`all` for all coefficients)')
 plot_parser.add_argument('-e', '--header', default='preliminary', help="plot header")
 plot_parser.set_defaults(func=plot)
 
@@ -44,7 +44,7 @@ scaling_parser = subparsers.add_parser('scale', help='fit cross sections to dete
 scaling_parser.set_defaults(func=dump_mus)
 
 combine_parser = subparsers.add_parser('combine', help='run combine')
-combine_parser.add_argument('operator', nargs='+', help='operators to run on')
+combine_parser.add_argument('coefficient', nargs='+', help='coefficients to run on')
 combine_parser.add_argument('-i', '--index', type=int, help='index to run (for grid scans)')
 combine_parser.set_defaults(func=combine)
 
@@ -64,7 +64,7 @@ with open(args.config) as f:
 
 for k in ('indir', 'outdir'):
     if k in config:
-        config[k] = os.path.expanduser(os.path.expandvars(config[k]))
+        config[k] = os.path.abspath(os.path.expanduser(os.path.expandvars(config[k])))
 
 for path in (
         'cross_sections',
