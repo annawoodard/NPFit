@@ -15,6 +15,59 @@ from EffectiveTTV.EffectiveTTV.signal_strength import dump_mus
 
 from EffectiveTTVProduction.EffectiveTTVProduction.cross_sections import CrossSectionScan
 
+def annotate(args, config):
+    """Annotate the output directory with a README
+
+    The README includes instructions to reproduce the current version of
+    the code. Any unstaged code changes will be saved as a git patch.
+    """
+    start = os.getcwd()
+    os.chdir(os.path.dirname(__file__))
+    head = subprocess.check_output(shlex.split('git rev-parse --short HEAD')).strip()
+    diff = subprocess.check_output(shlex.split('git diff'))
+    os.chdir(start)
+
+    shared_filesystem = []
+    if config['indir shared']:
+        if not config['indir'].startswith('/'):
+            raise Exception('absolute path required for shared filesystems: {}'.format(config['indir']))
+        shared_filesystem += ["--shared-fs '/{}'".format(config['indir'].split('/')[1])]
+    if config['outdir shared']:
+        if not config['outdir'].startswith('/'):
+            raise Exception('absolute path required for shared filesystems: {}'.format(config['outdir']))
+        shared_filesystem += ["--shared-fs '/{}'".format(config['outdir'].split('/')[1])]
+
+    info = """
+    # to run, issue the following commands:
+    cd {outdir}
+    nohup work_queue_factory -T {batch_type} -M {label} -C {factory} >& factory.log &
+
+    # then keep running this command until makeflow no longer submits jobs (may take a few tries):
+    makeflow -T wq -M {label} --wrapper ./w.sh --wrapper-input w.sh {shared}
+
+    # to reproduce the code:
+    cd {code_dir}
+    git checkout {head}
+    """.format(
+            batch_type=config['batch type'],
+            outdir=config['outdir'],
+            label=config['label'],
+            factory=os.path.join(os.environ['LOCALRT'], 'src', 'EffectiveTTV', 'EffectiveTTV', 'data', 'factory.json'),
+            shared=' '.join(shared_filesystem),
+            code_dir=os.path.dirname(__file__),
+            head=head
+        )
+
+
+    if diff:
+        with open(os.path.join(config['outdir'], 'patch.diff'), 'w') as f:
+            f.write(diff)
+        info += 'git apply {}\n'.format(os.path.join(config['outdir'], 'patch.diff'))
+
+    with open(os.path.join(config['outdir'], 'README.txt'), 'w') as f:
+        f.write(info)
+    logging.info(info)
+
 def make(args, config):
     def cardify(name):
         return os.path.join(config['outdir'], '{}.txt'.format(name))
@@ -114,53 +167,7 @@ def make(args, config):
     makefile = os.path.join(config['outdir'], 'Makeflow')
     logging.info('writing Makeflow file to {}'.format(config['outdir']))
 
-    start = os.getcwd()
-    os.chdir(os.path.dirname(__file__))
-    head = subprocess.check_output(shlex.split('git rev-parse --short HEAD')).strip()
-    diff = subprocess.check_output(shlex.split('git diff'))
-    os.chdir(start)
-
-    shared_filesystem = []
-    if config['indir shared']:
-        if not config['indir'].startswith('/'):
-            raise Exception('absolute path required for shared filesystems: {}'.format(config['indir']))
-        shared_filesystem += ["--shared-fs '/{}'".format(config['indir'].split('/')[1])]
-    if config['outdir shared']:
-        if not config['outdir'].startswith('/'):
-            raise Exception('absolute path required for shared filesystems: {}'.format(config['outdir']))
-        shared_filesystem += ["--shared-fs '/{}'".format(config['outdir'].split('/')[1])]
-
-    # FIXME archive? --archive
-    info = """
-    # to run, issue the following commands:
-    cd {outdir}
-    nohup work_queue_factory -T {batch_type} -M {label} -C {factory} >& factory.log &
-
-    # then keep running this command until makeflow no longer submits jobs (may take a few tries):
-    makeflow -T wq -M {label} --wrapper ./w.sh --wrapper-input w.sh {shared}
-
-    # to reproduce the code:
-    cd {code_dir}
-    git checkout {head}
-    """.format(
-            batch_type=config['batch type'],
-            outdir=config['outdir'],
-            label=config['label'],
-            factory=os.path.join(data, 'factory.json'),
-            shared=' '.join(shared_filesystem),
-            code_dir=os.path.dirname(__file__),
-            head=head
-        )
-
-
-    if diff:
-        with open(os.path.join(config['outdir'], 'patch.diff'), 'w') as f:
-            f.write(diff)
-        info += 'git apply {}\n'.format(os.path.join(config['outdir'], 'patch.diff'))
-
-    with open(os.path.join(config['outdir'], 'README.txt'), 'w') as f:
-        f.write(info)
-    logging.info(info)
+    annotate(args, config)
 
     frag = """\n{out}: {ins}\n\t{cmd}\n"""
     def makeflowify(inputs, outputs, cmd='run'):
@@ -188,6 +195,11 @@ def make(args, config):
                 ins=ins,
                 cmd=' '.join(cmd))
             f.write(s)
+
+    # adding annotate to the makeflow file without inputs or outputs
+    # forces makeflow to run it everytime makeflow is run: this way new
+    # code changes are always picked up
+    makeflowify([], [], ['run', 'annotate', 'config.py'])
 
     files = glob.glob(os.path.join(config['indir'], '*.root'))
     for f in files:

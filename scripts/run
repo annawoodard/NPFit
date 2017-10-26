@@ -5,7 +5,7 @@ import imp
 import logging
 import os
 
-from EffectiveTTV.EffectiveTTV.actionable import make, parse, concatenate, combine
+from EffectiveTTV.EffectiveTTV.actionable import annotate, make, parse, concatenate, combine
 from EffectiveTTV.EffectiveTTV.plotting import plot
 from EffectiveTTV.EffectiveTTV.fluctuate import fluctuate
 from EffectiveTTV.EffectiveTTV.signal_strength import dump_mus
@@ -21,6 +21,9 @@ parser.add_argument('-q', '--quiet', action="count", default=0,
 
 make_parser = subparsers.add_parser('make', help='produce makeflow file')
 make_parser.set_defaults(func=make)
+
+make_parser = subparsers.add_parser('annotate', help='write README to the output directory')
+make_parser.set_defaults(func=annotate)
 
 parse_parser = subparsers.add_parser('parse', help="parse gen-level file to extract cross sections")
 parse_parser.add_argument('file', help='file to parse')
