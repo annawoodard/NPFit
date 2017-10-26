@@ -228,7 +228,7 @@ shapes *      ch2  FAKE''')
         cmd = 'combine -M MaxLikelihoodFit {a} >& {a}.fit.log'.format(a=cardify(analysis))
         outputs = {
             'higgsCombineTest.MaxLikelihoodFit.mH120.root': best_fit,
-            'mlfit.root': fit_result
+            'fitDiagnostics.root': fit_result
         }
         makeflowify(workspace, outputs, cmd)
 
@@ -249,7 +249,7 @@ shapes *      ch2  FAKE''')
         'higgsCombineTest.MultiDimFit.mH120.root': best_fit,
         'multidimfit.root': fit_result
     }
-    cmd = 'combine -M MultiDimFit {} --algo=singles >& {}.fit.log'.format(workspace, cardify('2d'))
+    cmd = 'combine -M MultiDimFit {} --saveFitResult --algo=singles >& {}.fit.log'.format(workspace, cardify('2d'))
     makeflowify(workspace, outputs, cmd)
 
     lowers = np.arange(1, config['2d points'], config['chunk size'])
@@ -265,6 +265,7 @@ shapes *      ch2  FAKE''')
     #     cmd = [
     #         'combine',
     #         '-M', 'MultiDimFit',
+    #         '--saveFitResult',
     #         workspace,
     #         '--algo=grid',
     #         '--points={}'.format(config['2d points']),
@@ -317,11 +318,9 @@ shapes *      ch2  FAKE''')
 
     inputs = [os.path.join(config['outdir'], 'scans', '{}.total.root'.format('_'.join(o))) for o in combinations]
     inputs += ['cross_sections.npz', 'run.yaml']
-    plot_rt = os.path.join(os.path.dirname(os.environ['LOCALRT']), 'CMSSW_8_1_0_pre16')
-    # makeflowify(inputs, [], ['LOCAL', 'run', 'plot', 'all', 'run.yaml'])
     for operator in config['coefficients']:
         fluctuations = os.path.join(config['outdir'], 'fluctuations-{}.npy'.format(operator))
-        cmd = ['cd', plot_rt, '; eval `scramv1 runtime -sh`; cd -', 'run', 'plot', operator, 'run.yaml']
+        cmd = ['run', 'plot', operator, 'run.yaml']
         makeflowify(inputs + [fluctuations], [], cmd)
 
 def combine(args, config):
@@ -333,16 +332,16 @@ def combine(args, config):
     c_max = (4 * np.pi) ** 2
     pmin = -1 * c_max
     pmax = c_max
-    label = '_'.join(args.operator)
+    label = '_'.join(args.coefficient)
     for p in config['processes']:
         if (mus[label][p](c_max) > config['scale window']):
             pmin = max([(mus[label][p] - config['scale window']).roots().min(), pmin])
             pmax = min([(mus[label][p] - config['scale window']).roots().max(), pmax])
 
     cmd = [
-        'combine', '-M', 'MultiDimFit', '{}'.format(os.path.join(config['outdir'], 'workspaces', '{}.root'.format(label))),
-        '--setPhysicsModelParameters', '{}'.format(','.join(['{}=0.0'.format(x) for x in args.operator])),
-        '--setPhysicsModelParameterRanges', '{}'.format(':'.join(['{}={},{}'.format(x, pmin, pmax) for x in args.operator]))
+        'combine', '-M', 'MultiDimFit', ' --saveFitResult', '{}'.format(os.path.join(config['outdir'], 'workspaces', '{}.root'.format(label))),
+        '--setParameters', '{}'.format(','.join(['{}=0.0'.format(x) for x in args.coefficient])),
+        '--setParameterRanges', '{}'.format(':'.join(['{}={},{}'.format(x, pmin, pmax) for x in args.coefficient]))
     ]
     if config['asimov data']:
         cmd += ['-t', '-1']
@@ -362,7 +361,7 @@ def combine(args, config):
     # FIXME: do I still need this?
     # '--autoRange={}'.format('15' if config['asimov data'] else '20'),
     print ' '.join(cmd)
-    subprocess.call(cmd)
+    subprocess.call(' '.join(cmd), shell=True)
 
     if args.index is not None:
         shutil.move(
