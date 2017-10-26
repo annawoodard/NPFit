@@ -27,6 +27,13 @@ cd $CMSSW_BASE/src
 git clone https://github.com/cms-analysis/CombineHarvester.git CombineHarvester
 git clone git@github.com:annawoodard/EffectiveTTV.git EffectiveTTV/EffectiveTTV
 
+git clone git@github.com:annawoodard/EffectiveTTVProduction.git EffectiveTTVProduction/EffectiveTTVProduction
+cd EffectiveTTVProduction/EffectiveTTVProduction
+git config core.sparsecheckout true
+echo "python/" >> .git/info/sparse-checkout
+git checkout master
+cd $CMSSW_BASE/src
+
 scramv1 b clean
 scramv1 b -j 16
 
