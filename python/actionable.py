@@ -27,10 +27,10 @@ def make(args, config):
     exec "$@"
     """.format(os.environ["LOCALRT"])
 
-    if os.path.isfile(os.path.join(config['outdir'], 'run.yaml')):
+    if os.path.isfile(os.path.join(config['outdir'], 'config.yaml')):
         raise ValueError('refusing to overwrite outdir {}'.format(config['outdir']))
 
-    configfile = os.path.join(config['outdir'], 'run.yaml')
+    configfile = os.path.join(config['outdir'], 'config.yaml')
     with open(configfile, 'w') as f:
         yaml.dump(config, f)
 
@@ -204,12 +204,12 @@ shapes *      ch2  FAKE''')
         files = glob.glob(os.path.join(config['indir'], '*.root'))
         for f in files:
             outputs = os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npz'))
-            makeflowify(['run.yaml'], outputs, ['run', '--parse', f, 'run.yaml'])
+            makeflowify(['config.yaml'], outputs, ['run', '--parse', f, 'config.yaml'])
 
-        inputs = [os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npz')) for f in files] + ['run.yaml']
+        inputs = [os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npz')) for f in files] + ['config.yaml']
         inputs += glob.glob(os.path.join(config['indir'], '*.npz'))
         outputs = 'cross_sections.npz'
-        makeflowify(inputs, outputs, ['run', 'concatenate', 'run.yaml'])
+        makeflowify(inputs, outputs, ['run', 'concatenate', 'config.yaml'])
     # FIXME obsolete if archive is working
     elif 'cross sections' in config:
         shutil.copy(config['cross sections'], os.path.join(config['outdir'], 'cross_sections.npz'))
@@ -279,7 +279,7 @@ shapes *      ch2  FAKE''')
     # outfile = os.path.join(config['outdir'], 'scans', '2d.total.root')
     # makeflowify(scans, outfile, ['hadd', '-f', outfile] + scans)
 
-    makeflowify(['run.yaml', 'cross_sections.npz'], 'mus.npy', ['run', 'scale', 'run.yaml'])
+    makeflowify(['config.yaml', 'cross_sections.npz'], 'mus.npy', ['run', 'scale', 'config.yaml'])
 
     combinations = [sorted(list(x)) for x in itertools.combinations(config['coefficients'], config['dimension'])]
     for coefficients in combinations:
@@ -298,29 +298,29 @@ shapes *      ch2  FAKE''')
 
         best_fit = os.path.join(config['outdir'], 'best-fit-{}.root'.format(label))
         fit_result = os.path.join(config['outdir'], 'fit-result-{}.root'.format(label))
-        cmd = ['run', 'combine'] + list(coefficients) + ['run.yaml']
-        makeflowify(['run.yaml', workspace, 'mus.npy'], [best_fit, fit_result], cmd)
+        cmd = ['run', 'combine'] + list(coefficients) + ['config.yaml']
+        makeflowify(['config.yaml', workspace, 'mus.npy'], [best_fit, fit_result], cmd)
 
-        cmd = ['run', 'fluctuate', label, '150000', 'run.yaml']
-        makeflowify(['run.yaml', fit_result], os.path.join(config['outdir'], 'fluctuations-{}.npy'.format(label)), cmd)
+        cmd = ['run', 'fluctuate', label, '150000', 'config.yaml']
+        makeflowify(['config.yaml', fit_result], os.path.join(config['outdir'], 'fluctuations-{}.npy'.format(label)), cmd)
 
         scans = []
         chunks = np.ceil(config['coefficient scan points'] / float(config['chunk size']))
         for index in range(int(chunks)):
             scan = os.path.join(config['outdir'], 'scans', '{}_{}.root'.format(label, index))
             scans.append(scan)
-            cmd = ['run', 'combine'] + list(coefficients) + ['-i', str(index), 'run.yaml']
+            cmd = ['run', 'combine'] + list(coefficients) + ['-i', str(index), 'config.yaml']
 
-            makeflowify(['run.yaml', workspace], scan, cmd)
+            makeflowify(['config.yaml', workspace], scan, cmd)
 
         outfile = os.path.join(config['outdir'], 'scans', '{}.total.root'.format(label))
         makeflowify(scans, outfile, ['hadd', '-f', outfile] + scans)
 
     inputs = [os.path.join(config['outdir'], 'scans', '{}.total.root'.format('_'.join(o))) for o in combinations]
-    inputs += ['cross_sections.npz', 'run.yaml']
+    inputs += ['cross_sections.npz', 'config.yaml']
     for operator in config['coefficients']:
         fluctuations = os.path.join(config['outdir'], 'fluctuations-{}.npy'.format(operator))
-        cmd = ['run', 'plot', operator, 'run.yaml']
+        cmd = ['run', 'plot', operator, 'config.yaml']
         makeflowify(inputs + [fluctuations], [], cmd)
 
 def combine(args, config):
