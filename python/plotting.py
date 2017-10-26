@@ -29,11 +29,10 @@ import scipy.optimize as so
 from scipy.stats import kde
 from scipy.stats import gaussian_kde
 
-from EffectiveTTV.EffectiveTTV.parameters import nlo, kappa, label, conversion
+from EffectiveTTV.EffectiveTTV.parameters import nlo, label, conversion
 from EffectiveTTV.EffectiveTTV import kde
 from EffectiveTTV.EffectiveTTV.signal_strength import load, load_mus
 from EffectiveTTV.EffectiveTTV.nll import fit_nll
-from EffectiveTTV.EffectiveTTV.fluctuate import par_names
 
 from EffectiveTTVProduction.EffectiveTTVProduction.cross_sections import CrossSectionScan
 
@@ -547,7 +546,7 @@ def ttZ_ttW_2D_1D_eff_op(args, config, plotter, transform=False, dimensionless=T
         #     plt.axvline(x=avg + var, linestyle='--', color='red', label='$\mu + \sigma$')
         #     plt.legend()
 
-        # for par in par_names + [coefficient]:
+        # for par in config['systematics'] + [coefficient]:
         #     with plotter.saved_figure(par, '', 'pulls/{}_{}'.format(coefficient, par)) as ax:
         #         plt.title(coefficient)
         #         ax.xaxis.set_major_formatter(FormatStrFormatter('%.3f'))

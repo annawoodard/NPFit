@@ -1,29 +1,10 @@
 import numpy as np
 
-# nlo = {
-#     'ttW': 626.687,
-#     'ttZ': 839.385,
-#     'ttH': 496.
-# }
-
 nlo = {
     'ttW': 601.,
     'ttZ': 839.,
     'ttH': 496.
 }
-
-# https://arxiv.org/pdf/1610.07922.pdf page 160
-kappa = {
-    'Q2_ttZ': {'-': 1.113, '+': 1.096},
-    'Q2_ttW': {'-': 1.1155, '+': 1.13},
-    'Q2_ttH': {'-': 1.092, '+': 1.058},
-    'PDF_gg': {'ttZ': {'-': 1.028, '+': 1.028}, 'ttH': {'-': 1.03, '+': 1.03}},
-    'PDF_qq': {'-': 1.0205, '+': 1.0205}
-}
-
-operators = ['c2W', 'c3G', 'c3W', 'cA', 'cB', 'cG', 'cHB', 'cHQ', 'cHW',
-             'cHd', 'cHu', 'cHud', 'cT', 'cWW', 'cpHQ', 'cu', 'cuB',
-             'cuG', 'cuW', 'tc3G', 'tc3W', 'tcG', 'tcHW']
 
 names = {
     'Fake': 'fake',
