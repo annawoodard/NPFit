@@ -95,12 +95,11 @@ def make(args, config):
     exec "$@"
     """.format(os.environ["LOCALRT"])
 
-    if os.path.isfile(os.path.join(config['outdir'], 'config.yaml')):
+    if os.path.isfile(os.path.join(config['outdir'], 'config.py')):
         raise ValueError('refusing to overwrite outdir {}'.format(config['outdir']))
 
-    configfile = os.path.join(config['outdir'], 'config.yaml')
-    with open(configfile, 'w') as f:
-        yaml.dump(config, f)
+    configfile = os.path.join(config['outdir'], 'config.py')
+    shutil.copy(args.config, configfile)
 
     wrapfile = os.path.join(config['outdir'], 'w.sh')
     with open(wrapfile, 'w') as f:
@@ -130,7 +129,6 @@ def make(args, config):
         if not config['outdir'].startswith('/'):
             raise Exception('absolute path required for shared filesystems: {}'.format(config['outdir']))
         shared_filesystem += ["--shared-fs '/{}'".format(config['outdir'].split('/')[1])]
-
 
     # FIXME archive? --archive
     info = """
@@ -191,21 +189,15 @@ def make(args, config):
                 cmd=' '.join(cmd))
             f.write(s)
 
-    if 'indir' in config:
-        files = glob.glob(os.path.join(config['indir'], '*.root'))
-        for f in files:
-            outputs = os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npz'))
-            makeflowify(['config.yaml'], outputs, ['run', '--parse', f, 'config.yaml'])
+    files = glob.glob(os.path.join(config['indir'], '*.root'))
+    for f in files:
+        outputs = os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npz'))
+        makeflowify(['config.py'], outputs, ['run', '--parse', f, 'config.py'])
 
-        inputs = [os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npz')) for f in files] + ['config.yaml']
-        inputs += glob.glob(os.path.join(config['indir'], '*.npz'))
-        outputs = 'cross_sections.npz'
-        makeflowify(inputs, outputs, ['run', 'concatenate', 'config.yaml'])
-    # FIXME obsolete if archive is working
-    elif 'cross sections' in config:
-        shutil.copy(config['cross sections'], os.path.join(config['outdir'], 'cross_sections.npz'))
-    else:
-        raise RuntimeError('must specify either `indir` or `cross sections`')
+    inputs = [os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npz')) for f in files] + ['config.py']
+    inputs += glob.glob(os.path.join(config['indir'], '*.npz'))
+    outputs = 'cross_sections.npz'
+    makeflowify(inputs, outputs, ['run', 'concatenate', 'config.py'])
 
     # makeflowify('ttZ.txt', {'higgsCombineTest.MaxLikelihoodFit.mH120.root': 'ttZ.root'}, 'combine -M MaxLikelihoodFit ttZ.txt')
     # makeflowify('ttW.txt', {'higgsCombineTest.MaxLikelihoodFit.mH120.root': 'ttW.root'}, 'combine -M MaxLikelihoodFit ttW.txt')
@@ -246,31 +238,31 @@ def make(args, config):
     lowers = np.arange(1, config['2d points'], config['chunk size'])
     uppers = np.arange(config['chunk size'], config['2d points'] + config['chunk size'], config['chunk size'])
 
-    # FIXME uncomment for 2d sm contours
-    # scans = []
-    # for index, (first, last) in enumerate(zip(lowers, uppers)):
-    #     filename = 'higgsCombine_ttW_ttZ_2D_part_{}.MultiDimFit.mH120.root'.format(index)
-    #     scan = os.path.join(config['outdir'], 'scans', filename)
-    #     scans.append(scan)
+    if config['make 2d sm contours']:
+        scans = []
+        for index, (first, last) in enumerate(zip(lowers, uppers)):
+            filename = 'higgsCombine_ttW_ttZ_2D_part_{}.MultiDimFit.mH120.root'.format(index)
+            scan = os.path.join(config['outdir'], 'scans', filename)
+            scans.append(scan)
 
-    #     cmd = [
-    #         'combine',
-    #         '-M', 'MultiDimFit',
-    #         '--saveFitResult',
-    #         workspace,
-    #         '--algo=grid',
-    #         '--points={}'.format(config['2d points']),
-    #         '-n', '_ttW_ttZ_2D_part_{}'.format(index),
-    #         '--firstPoint {}'.format(first),
-    #         '--lastPoint {}'.format(last),
-    #     ]
+            cmd = [
+                'combine',
+                '-M', 'MultiDimFit',
+                '--saveFitResult',
+                workspace,
+                '--algo=grid',
+                '--points={}'.format(config['2d points']),
+                '-n', '_ttW_ttZ_2D_part_{}'.format(index),
+                '--firstPoint {}'.format(first),
+                '--lastPoint {}'.format(last),
+            ]
 
-    #     makeflowify(workspace, {filename: scan}, cmd)
+            makeflowify(workspace, {filename: scan}, cmd)
 
-    # outfile = os.path.join(config['outdir'], 'scans', '2d.total.root')
-    # makeflowify(scans, outfile, ['hadd', '-f', outfile] + scans)
+        outfile = os.path.join(config['outdir'], 'scans', '2d.total.root')
+        makeflowify(scans, outfile, ['hadd', '-f', outfile] + scans)
 
-    makeflowify(['config.yaml', 'cross_sections.npz'], 'mus.npy', ['run', 'scale', 'config.yaml'])
+    makeflowify(['config.py', 'cross_sections.npz'], 'mus.npy', ['run', 'scale', 'config.py'])
 
     combinations = [sorted(list(x)) for x in itertools.combinations(config['coefficients'], config['dimension'])]
     for coefficients in combinations:
@@ -289,29 +281,29 @@ def make(args, config):
 
         best_fit = os.path.join(config['outdir'], 'best-fit-{}.root'.format(label))
         fit_result = os.path.join(config['outdir'], 'fit-result-{}.root'.format(label))
-        cmd = ['run', 'combine'] + list(coefficients) + ['config.yaml']
-        makeflowify(['config.yaml', workspace, 'mus.npy'], [best_fit, fit_result], cmd)
+        cmd = ['run', 'combine'] + list(coefficients) + ['config.py']
+        makeflowify(['config.py', workspace, 'mus.npy'], [best_fit, fit_result], cmd)
 
-        cmd = ['run', 'fluctuate', label, '150000', 'config.yaml']
-        makeflowify(['config.yaml', fit_result], os.path.join(config['outdir'], 'fluctuations-{}.npy'.format(label)), cmd)
+        cmd = ['run', 'fluctuate', label, '150000', 'config.py']
+        makeflowify(['config.py', fit_result], os.path.join(config['outdir'], 'fluctuations-{}.npy'.format(label)), cmd)
 
         scans = []
         chunks = np.ceil(config['coefficient scan points'] / float(config['chunk size']))
         for index in range(int(chunks)):
             scan = os.path.join(config['outdir'], 'scans', '{}_{}.root'.format(label, index))
             scans.append(scan)
-            cmd = ['run', 'combine'] + list(coefficients) + ['-i', str(index), 'config.yaml']
+            cmd = ['run', 'combine'] + list(coefficients) + ['-i', str(index), 'config.py']
 
-            makeflowify(['config.yaml', workspace], scan, cmd)
+            makeflowify(['config.py', workspace], scan, cmd)
 
         outfile = os.path.join(config['outdir'], 'scans', '{}.total.root'.format(label))
         makeflowify(scans, outfile, ['hadd', '-f', outfile] + scans)
 
     inputs = [os.path.join(config['outdir'], 'scans', '{}.total.root'.format('_'.join(o))) for o in combinations]
-    inputs += ['cross_sections.npz', 'config.yaml']
+    inputs += ['cross_sections.npz', 'config.py']
     for operator in config['coefficients']:
         fluctuations = os.path.join(config['outdir'], 'fluctuations-{}.npy'.format(operator))
-        cmd = ['run', 'plot', operator, 'config.yaml']
+        cmd = ['run', 'plot', operator, 'config.py']
         makeflowify(inputs + [fluctuations], [], cmd)
 
 def combine(args, config):

@@ -384,7 +384,6 @@ def nll(args, config, plotter, transform=False, dimensionless=True):
 
 def ttZ_ttW_2D(config, ax):
     from root_numpy import root2array
-    # limits = root2array(os.path.join('scans', 'ttZ_ttW_2D.total.root'))
     # FIXME make contours optional
     limits = root2array(os.path.join(config['outdir'], 'best-fit-2d.root'))
 

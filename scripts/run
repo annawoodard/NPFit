@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 import argparse
+import imp
 import logging
 import os
-import yaml
 
 from EffectiveTTV.EffectiveTTV.actionable import make, parse, concatenate, combine
 from EffectiveTTV.EffectiveTTV.plotting import plot
@@ -59,8 +59,7 @@ logging.basicConfig(
 
 logging.__dict__['root'].level = (2 + args.quiet - args.verbose) * 10
 
-with open(args.config) as f:
-    config = yaml.load(f)
+config = imp.load_source('', args.config).config
 
 for k in ('indir', 'outdir'):
     if k in config:
