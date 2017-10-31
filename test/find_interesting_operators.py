@@ -1,16 +1,11 @@
-# first run source ~/setup_plotting
 import argparse
+import imp
 import pickle
-import json
-import logging
 import os
 
 import numpy as np
 import tabulate
-import yaml
-# import scipy.optimize as so
 
-from EffectiveTTV.EffectiveTTV import line
 from EffectiveTTV.EffectiveTTV.nll import fit_nll
 from EffectiveTTV.EffectiveTTV.plotting import label
 from EffectiveTTV.EffectiveTTV.signal_strength import load
@@ -24,6 +19,7 @@ parser.add_argument('--censored', action="store_true",
 
 args = parser.parse_args()
 
+
 def write(table, headers, name, **kwargs):
     with open(os.path.join(config['outdir'], '{}.txt'.format(name)), 'w') as f:
         f.write(tabulate.tabulate(table, headers=headers, **kwargs))
@@ -33,8 +29,8 @@ def write(table, headers, name, **kwargs):
             text = text.replace(' {} '.format(key), ' {} '.format(value)) + '\n'
         f.write(text)
 
-with open(args.config) as f:
-    config = yaml.load(f)
+
+config = imp.load_source('', args.config).config
 
 nll = fit_nll(config)
 mus = np.load(os.path.join(config['outdir'], 'mus.npy'))[()]
@@ -131,14 +127,4 @@ print 'surviving ', surviving
 
 print excluded
 with open(os.path.join(config['outdir'], 'extreme_mus.pkl'), 'w') as f:
-    # pickle.dump(extreme_mus, f)
     pickle.dump(dict((k, v) for k, v in extreme_mus.items() if k not in sum(excluded.values(), [])), f)
-
-
-# table = []
-# for coefficient in nll:
-#     for process in processes:
-        # points = line.crossings(np.linspace(-100, 100, 10000), mus[coefficient][process](np.linspace(-100, 100,
-        # 10000)), sensitive_mus[coefficient])
-        # print 'coefficient, points ', coefficient, points
-        # one_sigma = so.brentq(find_confidence_interval, 0., 1., args=(pdf, 0.68))

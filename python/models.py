@@ -1,13 +1,9 @@
-import os
-import re
-
 import numpy as np
 from numpy.polynomial import Polynomial
 import ROOT
-import yaml
 
 from HiggsAnalysis.CombinedLimit.PhysicsModel import PhysicsModel
-from HiggsAnalysis.CombinedLimit.SMHiggsBuilder import SMHiggsBuilder
+
 
 class EffectiveOperatorModel(PhysicsModel):
 
@@ -29,7 +25,6 @@ class EffectiveOperatorModel(PhysicsModel):
             functions = []
             self.modelBuilder.out.var(process)
             for poi in self.pois:
-                x = self.modelBuilder.out.var(poi)
                 name = 'r_{0}_{1}'.format(process, poi)
                 if not self.modelBuilder.out.function(name):
                     functions += [name]

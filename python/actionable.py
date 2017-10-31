@@ -1,19 +1,13 @@
-
 import glob
 import logging
-import itertools
 import numpy as np
 import os
-import re
 import shlex
 import shutil
 import subprocess
-import stat
-import yaml
-
-from EffectiveTTV.EffectiveTTV.signal_strength import dump_mus
 
 from EffectiveTTVProduction.EffectiveTTVProduction.cross_sections import CrossSectionScan
+
 
 def annotate(args, config):
     """Annotate the output directory with a README
@@ -57,7 +51,6 @@ def annotate(args, config):
             code_dir=os.path.dirname(__file__),
             head=head
         )
-
 
     if diff:
         with open(os.path.join(config['outdir'], 'patch.diff'), 'w') as f:
@@ -161,5 +154,3 @@ def combine(args, config):
         shutil.move(
             'multidimfit.root',
             os.path.join(config['outdir'], 'fit-result-{}.root'.format(label)))
-
-

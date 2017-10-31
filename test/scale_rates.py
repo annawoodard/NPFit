@@ -1,21 +1,16 @@
-# to run: source ~/setup_combine
 import argparse
-import logging
+import imp
 import os
 import pickle
-import shutil
 from collections import defaultdict
 
 import numpy as np
 import tabulate
-import yaml
 
 import CombineHarvester.CombineTools.ch as ch
-from EffectiveTTV.EffectiveTTV import line
-from EffectiveTTV.EffectiveTTV.nll import fit_nll
 from EffectiveTTV.EffectiveTTV.plotting import label
 from EffectiveTTV.EffectiveTTV.parameters import names
-from EffectiveTTV.EffectiveTTV.signal_strength import load, load_mus
+from EffectiveTTV.EffectiveTTV.signal_strength import load
 
 
 parser = argparse.ArgumentParser(description='extended interpretation for ttV')
@@ -30,8 +25,6 @@ prefixes = {
     '4l': 'ch1_ch2_'
 }
 
- # 'VH',
- # 'tG',
 process_groups = {
     'ttX': ['tZq', 'tttt', 'tHq', 'tHW', 'tWZ'],
     'ttother': ['tZq', 'tttt', 'tHq', 'tHW', 'tWZ'],
@@ -45,8 +38,7 @@ process_groups = {
     'ttZ': ['ttZ'],
     'ttW': ['ttW'],
 }
-with open(args.config) as f:
-    config = yaml.load(f)
+config = imp.load_source('', args.config).config
 
 with open(os.path.join(config['outdir'], 'extreme_mus.pkl'), 'rb') as f:
     extreme_mus = pickle.load(f)
@@ -114,12 +106,12 @@ for operator, info in extreme_mus.items():
                     else:
                         y = '-'
                     print '{} {} {} {:.2f} {:.2f} {}'.format(
-                            channel,
-                            operator,
-                            p,
-                            cross_sections[p]['sm'],
-                            mus[p] * cross_sections[p]['sm'],
-                            y)
+                        channel,
+                        operator,
+                        p,
+                        cross_sections[p]['sm'],
+                        mus[p] * cross_sections[p]['sm'],
+                        y)
 
                 numerator = sum([mus[p] * cross_sections[p]['sm'] for p in process_groups[process]])
                 denominator = sum([cross_sections[p]['sm'] for p in process_groups[process]])
@@ -157,9 +149,9 @@ for operator, info in extreme_mus.items():
         \resizebox{{\linewidth}}{{!}}{{
         """.format(label[operator])
         text += tabulate.tabulate(
-                table,
-                headers=['process', '2lss', '2lss scaled', '3l', '3l scaled', '4l', '4l scaled'],
-                tablefmt='latex_raw'
+            table,
+            headers=['process', '2lss', '2lss scaled', '3l', '3l scaled', '4l', '4l scaled'],
+            tablefmt='latex_raw'
         ) + """
         }
         \end{frame}

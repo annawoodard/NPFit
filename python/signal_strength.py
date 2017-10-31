@@ -9,11 +9,13 @@ from EffectiveTTVProduction.EffectiveTTVProduction.cross_sections import CrossSe
 # TODO only run this once
 # TODO do this with roofit instead of numpy, for simpler PhysicsModel
 
+
 def load(config):
     fn = os.path.join(config['outdir'], 'cross_sections.npz')
     scan = CrossSectionScan([fn])
 
     return scan.points, scan.cross_sections
+
 
 def load_mus(config):
     mus = defaultdict(dict)
@@ -57,4 +59,3 @@ def dump_mus(args, config):
 
     with open(os.path.join(config['outdir'], 'mus.txt'), 'w') as f:
         f.write(tabulate.tabulate(table, headers=['Wilson coefficients', 'process', 's0', 's1', 's2']))
-
