@@ -26,7 +26,7 @@ def fluctuate(args, config):
     )
 
     pars = fit.floatParsFinal()
-    for theta in config['systematics'].keys() + [coefficient]:
+    for theta in config['systematics'].keys() + [args.coefficient]:
         data[0][theta] = float(pars.selectByName(theta)[0].getVal())
 
     def get_cross_sections(pars):
@@ -53,6 +53,7 @@ def fluctuate(args, config):
     for process in config['processes']:
         data[0]['x_sec_{}'.format(process)] = cross_sections[process].getVal() * mus[coefficient][process](data[coefficient][0])
 
+    pars = fit.randomizePars()
     cross_sections = get_cross_sections(pars)
     for i in range(1, int(args.perturbations)):
         pars = fit.randomizePars()

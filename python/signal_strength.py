@@ -31,8 +31,7 @@ def load_mus(config):
 
             # FIXME
             # # mu=1 when coefficient=0, make sure the fit goes through that point
-            # weights = [1 if (i != 1) else 100000000 for i in y]
-            weights = [1 for i in y]
+            weights = [1 if (i != 1) else 100000000 for i in y]
             try:
                 mus[coefficients[0]][process] = Polynomial.fit(x, y, 2, w=weights, window=[min(x), max(x)])
             except Exception as e:

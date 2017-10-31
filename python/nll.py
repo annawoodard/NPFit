@@ -14,7 +14,6 @@ def fit_nll(config, transform=False, dimensionless=True):
     https://hypernews.cern.ch/HyperNews/CMS/get/statistics/551/1.html
     """
     from root_numpy import root2array
-    # TODO implement this myself to get rid of root_numpy dependency (and possibly run everything in combine cmssw)
     # TODO only run this once after running combine instead of every time I plot
     # TODO change to returning a dict with dimensionless and transformed
 
@@ -67,11 +66,9 @@ def fit_nll(config, transform=False, dimensionless=True):
         res[operator]['units'] = '' if conversion_factor == 1. else '$\ [\mathrm{TeV}^{-2}]$'
         # FIXME: adjust threshold so to get rid of 'transform' argument and transform automatically if 2 bfs
         if transform and (len(x[minima][threshold]) == 2 or config['asimov data']):
-            print 'nll difference is: ', y[minima] - min(y), operator
             xi = np.linspace(x.min(), x.max(), 10000)
             total = mus[operator]['ttH'](xi) + mus[operator]['ttZ'](xi) + mus[operator]['ttW'](xi)
             offset = xi[total.argmin()] * conversion_factor
-            print 'operator, new offset ', operator, offset
             def transform(i):
                 return np.abs(i - offset)
 
@@ -119,7 +116,7 @@ def fit_nll(config, transform=False, dimensionless=True):
             ' and '.join(['[{:.1f}, {:.1f}]'.format(i, j) for i, j in info['two sigma']])
         ])
     headers = ['Wilson coefficient', 'best fit', '$1\sigma$ CL', '$2\sigma$  CL']
-    tag = '{}{}'.format(('_transformed' if transform else ''), ('_dimensionless' if info['conversion'] == 1. else ''))
+    tag = '{}{}'.format(('_transformed' if transform else ''), ('_dimensionless' if dimensionless else ''))
     with open(os.path.join(config['outdir'], 'best_fit{}.txt'.format(tag)), 'w') as f:
         f.write(tabulate.tabulate(table, headers=headers))
     with open(os.path.join(config['outdir'], 'best_fit{}.tex'.format(tag)), 'w') as f:

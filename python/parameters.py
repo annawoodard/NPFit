@@ -1,9 +1,9 @@
 import numpy as np
 
 nlo = {
-    'ttW': 601.,
-    'ttZ': 839.,
-    'ttH': 496.
+    'ttW': 0.601,
+    'ttZ': 0.839,
+    'ttH': 0.496
 }
 
 names = {
