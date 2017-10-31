@@ -16,8 +16,7 @@ def fit_nll(config, transform=False, dimensionless=True):
     # TODO only run this once after running combine instead of every time I plot
     # TODO change to returning a dict with dimensionless and transformed
 
-    # mus = load_mus(config)
-    mus = np.load(os.path.join(config['outdir'], 'mus.npy'))[()]
+    scales = np.load(os.path.join(config['outdir'], 'scales.npy'))[()]
     res = {}
     for coefficient in config['coefficients']:
         res[coefficient] = {
@@ -60,10 +59,9 @@ def fit_nll(config, transform=False, dimensionless=True):
         threshold = (y[minima] - min(y)) < 0.1
         res[coefficient]['conversion'] = conversion_factor
         res[coefficient]['units'] = '' if conversion_factor == 1. else '$\ [\mathrm{TeV}^{-2}]$'
-        # FIXME: adjust threshold so to get rid of 'transform' argument and transform automatically if 2 bfs
         if transform and (len(x[minima][threshold]) == 2 or config['asimov data']):
             xi = np.linspace(x.min(), x.max(), 10000)
-            total = mus[coefficient]['ttH'](xi) + mus[coefficient]['ttZ'](xi) + mus[coefficient]['ttW'](xi)
+            total = scales[coefficient]['ttH'](xi) + scales[coefficient]['ttZ'](xi) + scales[coefficient]['ttW'](xi)
             offset = xi[total.argmin()] * conversion_factor
 
             def transform(i):

@@ -8,7 +8,6 @@ from HiggsAnalysis.CombinedLimit.PhysicsModel import PhysicsModel
 class EffectiveOperatorModel(PhysicsModel):
 
     def setPhysicsOptions(self, options):
-        # FIXME use argparse on options
         self.pois = []
         self.processes = []
         for option, value in [x.split('=') for x in options]:
@@ -47,8 +46,6 @@ class EffectiveOperatorModel(PhysicsModel):
         return p
 
     def doParametersOfInterest(self):
-        # FIXME change the range here and try (4pi)^2
-        # it looks like utils::setModelParameterRanges isn't working
         for poi in self.pois:
             # user should call combine with `--setPhysicsModelParameterRanges` set to sensible ranges
             self.modelBuilder.doVar('{0}[0, -inf, inf]'.format(poi))

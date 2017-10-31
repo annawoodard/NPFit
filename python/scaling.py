@@ -17,8 +17,8 @@ def load(config):
     return scan.points, scan.cross_sections
 
 
-def load_mus(config):
-    mus = defaultdict(dict)
+def load_scales(config):
+    scales = defaultdict(dict)
     fn = os.path.join(config['outdir'], 'cross_sections.npz')
     scan = CrossSectionScan([fn])
 
@@ -31,31 +31,30 @@ def load_mus(config):
             x = scan.points[coefficients][process].flatten()
             y = scan.signal_strengths[coefficients][process]
 
-            # FIXME
+            # FIXME put this in CrossSectionScan and do fit instead of zooms
             # # mu=1 when coefficient=0, make sure the fit goes through that point
             weights = [1 if (i != 1) else 100000000 for i in y]
             try:
-                mus[coefficients[0]][process] = Polynomial.fit(x, y, 2, w=weights, window=[min(x), max(x)])
+                scales[coefficients[0]][process] = Polynomial.fit(x, y, 2, w=weights, window=[min(x), max(x)])
             except Exception as e:
                 print 'failed to fit {} for process {}: {}'.format(coefficients, process, e)
 
-            # if mus[coefficients][process](1.) / mus[coefficients][process](0.) <= (1 + np.std(y)):
+            # if scales[coefficients][process](1.) / scales[coefficients][process](0.) <= (1 + np.std(y)):
             #     # We can't tell the difference between this and a straight line, let's keep things simple
-            #     mus[coefficients][process].coef = (1., 0., 0.)
+            #     scales[coefficients][process].coef = (1., 0., 0.)
 
-    return mus
+    return scales
 
-# FIXME improve naming for clarity, maybe 'mus' -> 'scaling'
-# FIXME dump a table of coefficient values
-def dump_mus(args, config):
-    mus = load_mus(config)
 
-    np.save(os.path.join(config['outdir'], 'mus.npy'), mus)
+def dump_scales(args, config):
+    scales = load_scales(config)
+
+    np.save(os.path.join(config['outdir'], 'scales.npy'), scales)
 
     table = []
-    for c in mus:
-        for p in mus[c]:
-            table.append([c, p] + list(mus[c][p].coef))
+    for c in scales:
+        for p in scales[c]:
+            table.append([c, p] + list(scales[c][p].coef))
 
-    with open(os.path.join(config['outdir'], 'mus.txt'), 'w') as f:
+    with open(os.path.join(config['outdir'], 'scales.txt'), 'w') as f:
         f.write(tabulate.tabulate(table, headers=['Wilson coefficients', 'process', 's0', 's1', 's2']))

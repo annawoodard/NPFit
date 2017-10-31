@@ -10,7 +10,7 @@ import tabulate
 import CombineHarvester.CombineTools.ch as ch
 from EffectiveTTV.EffectiveTTV.plotting import label
 from EffectiveTTV.EffectiveTTV.parameters import names
-from EffectiveTTV.EffectiveTTV.signal_strength import load
+from EffectiveTTV.EffectiveTTV.scaling import load
 
 
 parser = argparse.ArgumentParser(description='extended interpretation for ttV')
@@ -40,10 +40,10 @@ process_groups = {
 }
 config = imp.load_source('', args.config).config
 
-with open(os.path.join(config['outdir'], 'extreme_mus.pkl'), 'rb') as f:
-    extreme_mus = pickle.load(f)
+with open(os.path.join(config['outdir'], 'extreme_scales.pkl'), 'rb') as f:
+    extreme_scales = pickle.load(f)
 
-mus = np.load(os.path.join(config['outdir'], 'mus.npy'))[()]
+scales = np.load(os.path.join(config['outdir'], 'scales.npy'))[()]
 coefficients, cross_sections = load(config)
 
 cb = ch.CombineHarvester()
@@ -53,18 +53,18 @@ cb.ParseDatacard(os.path.join(config['outdir'], '4l.txt'), '', '', '4l')
 
 processes = ['ttZ', 'ttW', 'ttH', 'ZZ', 'WZ', 'ttX', 'rare', 'charge', 'fake']
 
-for operator, info in extreme_mus.items():
+for operator, info in extreme_scales.items():
     print 'operator ', operator
     table = []
     for bin in cb.cp().bin_set():
-        for (low, high), mus in info.items():
+        for (low, high), scales in info.items():
             row = [cb.cp().bin([bin]).channel_set()[0], bin]
             rates = {}
             for process in cb.cp().bin([bin]).process_set():
                 rates[names[process]] = cb.cp().bin([bin]).process([process]).GetRate()
             scale = {}
             for process in processes:
-                numerator = sum([mus[p] * cross_sections[p]['sm'] for p in process_groups[process]])
+                numerator = sum([scales[p] * cross_sections[p]['sm'] for p in process_groups[process]])
                 denominator = sum([cross_sections[p]['sm'] for p in process_groups[process]])
                 scale[process] = numerator / denominator
             for process in processes:
@@ -82,7 +82,7 @@ for operator, info in extreme_mus.items():
 if os.path.isfile(os.path.join(config['outdir'], 'all.integrated.tex')):
     os.remove(os.path.join(config['outdir'], 'all.integrated.tex'))
 diff = {}
-for operator, info in extreme_mus.items():
+for operator, info in extreme_scales.items():
     print 'operator ', operator
     rates = {}
     scale = {}
@@ -92,14 +92,14 @@ for operator, info in extreme_mus.items():
         rates[channel] = {}
         scale = {}
         sums[channel] = {'\ttZ/W/H': 0, 'backgrounds': 0, 'scaled \ttZ/W/H': 0, 'scaled backgrounds': 0}
-        for (low, high), mus in info.items():
+        for (low, high), scales in info.items():
             for process in cb.cp().channel([channel]).process_set():
                 rates[channel][names[process]] = cb.cp().channel([channel]).process([process]).GetRate()
             for process in processes:
                 print '{} {} {} {} {} {}'.format('channel', 'operator', 'process', 'sm xsec', 'xsec * mu', 'additional yield')
                 for p in process_groups[process]:
                     if process in rates[channel]:
-                        new = rates[channel][process] * mus[p] * cross_sections[p]['sm'] / sum([cross_sections[i]['sm'] for i in process_groups[process]])
+                        new = rates[channel][process] * scales[p] * cross_sections[p]['sm'] / sum([cross_sections[i]['sm'] for i in process_groups[process]])
                         old = rates[channel][process] * cross_sections[p]['sm'] / sum([cross_sections[i]['sm'] for i in process_groups[process]])
                         diff[operator][p] += new - old
                         y = '{:.2f}'.format(new - old)
@@ -110,10 +110,10 @@ for operator, info in extreme_mus.items():
                         operator,
                         p,
                         cross_sections[p]['sm'],
-                        mus[p] * cross_sections[p]['sm'],
+                        scales[p] * cross_sections[p]['sm'],
                         y)
 
-                numerator = sum([mus[p] * cross_sections[p]['sm'] for p in process_groups[process]])
+                numerator = sum([scales[p] * cross_sections[p]['sm'] for p in process_groups[process]])
                 denominator = sum([cross_sections[p]['sm'] for p in process_groups[process]])
                 scale[process] = numerator / denominator
                 if process in rates[channel]:
@@ -175,4 +175,4 @@ for operator in diff:
 with open(os.path.join(config['outdir'], 'yield_diffs.tex'), 'w') as f:
     f.write(tabulate.tabulate(table, headers=headers, tablefmt='latex_raw', floatfmt='.1f'))
 
-print '\, '.join([label[operator] for operator in extreme_mus])
+print '\, '.join([label[operator] for operator in extreme_scales])

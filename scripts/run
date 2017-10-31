@@ -9,7 +9,7 @@ from EffectiveTTV.EffectiveTTV.actionable import annotate, parse, concatenate, c
 from EffectiveTTV.EffectiveTTV.makeflow import make
 from EffectiveTTV.EffectiveTTV.plotting import plot
 from EffectiveTTV.EffectiveTTV.fluctuate import fluctuate
-from EffectiveTTV.EffectiveTTV.signal_strength import dump_mus
+from EffectiveTTV.EffectiveTTV.scaling import dump_scales
 
 parser = argparse.ArgumentParser(description='for additional help try `run {mode} -h`')
 subparsers = parser.add_subparsers(help='mode options')
@@ -45,7 +45,7 @@ plot_parser.add_argument('-i', '--index', type=int, help='which plot to produce 
 plot_parser.set_defaults(func=plot)
 
 scaling_parser = subparsers.add_parser('scale', help='fit cross sections to determine scaling functions')
-scaling_parser.set_defaults(func=dump_mus)
+scaling_parser.set_defaults(func=dump_scales)
 
 combine_parser = subparsers.add_parser('combine', help='run combine')
 combine_parser.add_argument('coefficient', nargs='+', help='coefficients to run on')

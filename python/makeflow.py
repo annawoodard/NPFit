@@ -18,7 +18,6 @@ class MakeflowSpecification(object):
         self.rules = []
 
     def add(self, inputs, outputs, cmd='run'):
-        # FIXME make sure everything works without shared-fs, automate shared-fs
         if isinstance(inputs, basestring):
             inputs = [inputs]
         if isinstance(outputs, basestring):
@@ -194,18 +193,18 @@ def multidim_np(config, spec, tasks):
         cmd = [
             'text2workspace.py', os.path.join(config['outdir'], 'ttV_np.txt'),
             '-P', 'EffectiveTTV.EffectiveTTV.models:eff_op',
-            '--PO', 'scaling={}'.format(os.path.join(config['outdir'], 'mus.npy')),
+            '--PO', 'scaling={}'.format(os.path.join(config['outdir'], 'scales.npy')),
             ' '.join(['--PO process={}'.format(x) for x in config['processes']]),
             ' '.join(['--PO poi={}'.format(x) for x in coefficients]),
             '-o', workspace
         ]
 
-        spec.add('mus.npy', workspace, cmd)
+        spec.add('scales.npy', workspace, cmd)
 
         best_fit = os.path.join(config['outdir'], 'best-fit-{}.root'.format(label))
         fit_result = os.path.join(config['outdir'], 'fit-result-{}.root'.format(label))
         cmd = ['run', 'combine'] + list(coefficients) + ['config.py']
-        spec.add(['config.py', workspace, 'mus.npy'], [best_fit, fit_result], cmd)
+        spec.add(['config.py', workspace, 'scales.npy'], [best_fit, fit_result], cmd)
 
         scans = []
         for index in range(int(tasks)):
@@ -213,7 +212,7 @@ def multidim_np(config, spec, tasks):
             scans.append(scan)
             cmd = ['run', 'combine'] + list(coefficients) + ['-i', str(index), 'config.py']
 
-            spec.add(['config.py', workspace, 'mus.npy'], scan, cmd)
+            spec.add(['config.py', workspace, 'scales.npy'], scan, cmd)
 
         outfile = os.path.join(config['outdir'], 'scans', '{}.total.root'.format(label))
         spec.add(scans, outfile, ['hadd', '-f', outfile] + scans)
@@ -286,7 +285,7 @@ def make(args, config):
     inputs = [os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npz')) for f in files] + ['config.py']
     inputs += glob.glob(os.path.join(config['indir'], '*.npz'))
     spec.add(inputs, 'cross_sections.npz', ['run', 'concatenate', 'config.py'])
-    spec.add(['config.py', 'cross_sections.npz'], 'mus.npy', ['run', 'scale', 'config.py'])
+    spec.add(['config.py', 'cross_sections.npz'], 'scales.npy', ['run', 'scale', 'config.py'])
 
     for index, plot in enumerate(config['plots']):
         plot.make(config, spec, index)

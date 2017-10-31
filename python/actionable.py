@@ -105,7 +105,7 @@ def concatenate(args, config):
 
 
 def combine(args, config):
-    mus = np.load(os.path.join(config['outdir'], 'mus.npy'))[()]
+    scales = np.load(os.path.join(config['outdir'], 'scales.npy'))[()]
 
     # convergence of the loop expansion requires c < (4 * pi)^2
     # see section 7 in https://arxiv.org/pdf/1205.4231.pdf
@@ -114,9 +114,9 @@ def combine(args, config):
     pmax = c_max
     label = '_'.join(args.coefficient)
     for p in config['processes']:
-        if (mus[label][p](c_max) > config['scale window']):
-            pmin = max([(mus[label][p] - config['scale window']).roots().min(), pmin])
-            pmax = min([(mus[label][p] - config['scale window']).roots().max(), pmax])
+        if (scales[label][p](c_max) > config['scale window']):
+            pmin = max([(scales[label][p] - config['scale window']).roots().min(), pmin])
+            pmax = min([(scales[label][p] - config['scale window']).roots().max(), pmax])
 
     cmd = [
         'combine', '-M', 'MultiDimFit', ' --saveFitResult', '{}'.format(os.path.join(config['outdir'], 'workspaces', '{}.root'.format(label))),
@@ -140,7 +140,6 @@ def combine(args, config):
 
     # FIXME: do I still need this?
     # '--autoRange={}'.format('15' if config['asimov data'] else '20'),
-    print ' '.join(cmd)
     subprocess.call(' '.join(cmd), shell=True)
 
     if args.index is not None:

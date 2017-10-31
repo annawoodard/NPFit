@@ -1,4 +1,3 @@
-# FIXME fix back for multidimensional
 import atexit
 import contextlib
 from datetime import datetime
@@ -131,8 +130,8 @@ class NewPhysicsScaling(Plot):
         self.dimensionless = dimensionless
 
     def make(self, config, spec, index):
-        spec.add(['config.py', 'cross_sections.npz'], 'mus.npy', ['run', 'scale', 'config.py'])
-        inputs = ['matplotlibrc', 'config.py', 'mus.npy']
+        spec.add(['config.py', 'cross_sections.npz'], 'scales.npy', ['run', 'scale', 'config.py'])
+        inputs = ['matplotlibrc', 'config.py', 'scales.npy']
         inputs += multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']))
 
         for coefficient in config['coefficients']:
@@ -142,7 +141,7 @@ class NewPhysicsScaling(Plot):
         super(NewPhysicsScaling, self).write(config)
         fn = os.path.join(config['outdir'], 'cross_sections.npz')
         scan = CrossSectionScan([fn])
-        mus = np.load(os.path.join(config['outdir'], 'mus.npy'))[()]
+        mus = np.load(os.path.join(config['outdir'], 'scales.npy'))[()]
         nll = fit_nll(config, transform=False, dimensionless=self.dimensionless)
 
         for coefficient in config['coefficients']:
@@ -216,9 +215,9 @@ class NLL(Plot):
         self.dimensionless = dimensionless
 
     def make(self, config, spec, index):
-        inputs = ['matplotlibrc', 'config.py', 'mus.npy']
+        inputs = ['matplotlibrc', 'config.py', 'scales.npy']
         inputs += multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']))
-        spec.add(['config.py', 'cross_sections.npz'], 'mus.npy', ['run', 'scale', 'config.py'])
+        spec.add(['config.py', 'cross_sections.npz'], 'scales.npy', ['run', 'scale', 'config.py'])
 
         for coefficient in config['coefficients']:
             spec.add(inputs, [], ['run', 'plot', '--coefficient', coefficient, '--index', index, 'config.py'])
@@ -226,7 +225,7 @@ class NLL(Plot):
     def write(self, config, plotter, args):
         super(NLL, self).write(config)
         data = fit_nll(config, self.transform, self.dimensionless)
-        mus = np.load(os.path.join(config['outdir'], 'mus.npy'))[()]
+        mus = np.load(os.path.join(config['outdir'], 'scales.npy'))[()]
 
         for coefficient in config['coefficients']:
             info = data[coefficient]
@@ -411,7 +410,7 @@ class TwoProcessCrossSectionSMAndNP(Plot):
         self.dimensionless = dimensionless
 
     def make(self, config, spec, index):
-        inputs = ['matplotlibrc', 'config.py', 'mus.npy']
+        inputs = ['matplotlibrc', 'config.py', 'scales.npy']
         inputs += multi_signal(self.signals, self.tag, spec, config)
         inputs += multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']))
         inputs += fluctuate(config, spec)
@@ -424,7 +423,7 @@ class TwoProcessCrossSectionSMAndNP(Plot):
         nll = fit_nll(config, self.transform, self.dimensionless)
 
         table = []
-        signal_strengths = ['r_{}'.format(x) for x in config['processes']]
+        scales = ['r_{}'.format(x) for x in config['processes']]
         for coefficient in config['coefficients']:
             data = np.load(os.path.join(config['outdir'], 'fluctuations-{}.npy'.format(coefficient)))[()]
             if np.isnan(data['x_sec_{}'.format(x_proc)]).any() or np.isnan(data['x_sec_{}'.format(y_proc)]).any():
@@ -453,7 +452,7 @@ class TwoProcessCrossSectionSMAndNP(Plot):
 
                 colors = ['black', 'gray']
                 for (bf, _), color in zip(nll[coefficient]['best fit'], colors):
-                    table.append([coefficient, '{:.2f}'.format(bf), '{:.2f}'.format(data[0][coefficient])] + ['{:.2f}'.format(data[0][i]) for i in signal_strengths])
+                    table.append([coefficient, '{:.2f}'.format(bf), '{:.2f}'.format(data[0][coefficient])] + ['{:.2f}'.format(data[0][i]) for i in scales])
                     point, = plt.plot(
                         data[0]['x_sec_{}'.format(x_proc)],
                         data[0]['x_sec_{}'.format(y_proc)],

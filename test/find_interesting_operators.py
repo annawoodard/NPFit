@@ -8,7 +8,7 @@ import tabulate
 
 from EffectiveTTV.EffectiveTTV.nll import fit_nll
 from EffectiveTTV.EffectiveTTV.plotting import label
-from EffectiveTTV.EffectiveTTV.signal_strength import load
+from EffectiveTTV.EffectiveTTV.scaling import load
 
 
 parser = argparse.ArgumentParser(description='extended interpretation for ttV')
@@ -33,7 +33,7 @@ def write(table, headers, name, **kwargs):
 config = imp.load_source('', args.config).config
 
 nll = fit_nll(config)
-mus = np.load(os.path.join(config['outdir'], 'mus.npy'))[()]
+scales = np.load(os.path.join(config['outdir'], 'scales.npy'))[()]
 coefficients, cross_sections = load(config)
 
 excluded = {
@@ -41,10 +41,10 @@ excluded = {
     r'simulation problem': ['c2W', 'cT', 'cA']
 }
 
-for coefficient in mus:
+for coefficient in scales:
     has_effect = False
     for p in config['processes']:
-        s0, s1, s2 = mus[coefficient][p].coef
+        s0, s1, s2 = scales[coefficient][p].coef
         if (s1 > 1e-5) or (s2 > 1e-5):
             has_effect = True
     if not has_effect and coefficient not in excluded['simulation problem']:
@@ -53,57 +53,57 @@ for coefficient in mus:
 for process in ['tt', 'H', 'DY', 'ZZ', 'WZ', 'WW']:
     excluded[r'|\mu_{{{}}} - 1| > 0.7'.format(process)] = []
 
-extreme_mus = {}
-processes = set(sum([mus[coefficient].keys() for coefficient in mus], []))
+extreme_scales = {}
+processes = set(sum([scales[coefficient].keys() for coefficient in scales], []))
 for coefficient, info in nll.items():
     print 'op is ', coefficient
-    extreme_mus[coefficient] = {}
+    extreme_scales[coefficient] = {}
     if len(nll[coefficient]['two sigma']) > 0:
         left = min(np.array(nll[coefficient]['two sigma'])[:, 0])
         right = max(np.array(nll[coefficient]['two sigma'])[:, 1])
-        extreme_mus[coefficient][(left, right)] = {}
+        extreme_scales[coefficient][(left, right)] = {}
         for process in processes:
-            y = mus[coefficient][process](np.linspace(left, right, 100))
-            extreme_mus[coefficient][(left, right)][process] = y[np.abs(y - 1).argmax()]  # we want farthest from 1., not max
+            y = scales[coefficient][process](np.linspace(left, right, 100))
+            extreme_scales[coefficient][(left, right)][process] = y[np.abs(y - 1).argmax()]  # we want farthest from 1., not max
             if process in ['tt', 'H', 'DY', 'ZZ', 'WZ', 'WW']:
-                if np.abs(extreme_mus[coefficient][(left, right)][process] - 1) > 0.7:
+                if np.abs(extreme_scales[coefficient][(left, right)][process] - 1) > 0.7:
                     excluded[r'|\mu_{{{}}} - 1| > 0.7'.format(process)] += [coefficient]
 
 table = []
 slim_table = []
 excluded_table = []
-for coefficient in extreme_mus:
-    for left, right in extreme_mus[coefficient]:
+for coefficient in extreme_scales:
+    for left, right in extreme_scales[coefficient]:
         row = [' {} '.format(coefficient)]
         if not args.censored:
             row += ['({:.1e}, {:.1e})'.format(left, right)]
         for process in ['ttZ', 'ttW', 'ttH', 'tt', 'H', 'DY', 'ZZ', 'WZ', 'WW']:
-            row.append(extreme_mus[coefficient][(left, right)][process])
+            row.append(extreme_scales[coefficient][(left, right)][process])
         table.append(row)
         if coefficient not in sum(excluded.values(), []):
             slim_table.append(row)
         else:
             excluded_table.append(row)
-for coefficient in extreme_mus:
-    if len(extreme_mus[coefficient]) == 0:
+for coefficient in extreme_scales:
+    if len(extreme_scales[coefficient]) == 0:
         table.append([coefficient, 'out of bounds'] + ['-' for i in processes])
 
 headers = ['coefficient']
 if not args.censored:
     headers += ['$2\sigma$ range']
 headers += ['$\mu_\mathrm{ext,t\overline{t}Z}$', '$\mu_\mathrm{ext,t\overline{t}W}$', '$\mu_\mathrm{ext,t\overline{t}H}$', '$\mu_\mathrm{ext,t\overline{t}}$', '$\mu_\mathrm{ext,H}$', '$\mu_\mathrm{ext,DY}$', '$\mu_\mathrm{ext,ZZ}$', '$\mu_\mathrm{ext,WZ}$', '$\mu_\mathrm{ext,WW}$']
-write(slim_table, headers, 'slim_mus_at_95_CL', floatfmt='.1f')
-write(table, headers, 'mus_at_95_CL', floatfmt='.1f')
-write(excluded_table, headers, 'excluded_mus_at_95_CL', floatfmt='.1f')
+write(slim_table, headers, 'slim_scales', floatfmt='.1f')
+write(table, headers, 'scales', floatfmt='.1f')
+write(excluded_table, headers, 'excluded_scales', floatfmt='.1f')
 
 table = []
-for coefficient in extreme_mus:
-    for left, right in extreme_mus[coefficient]:
+for coefficient in extreme_scales:
+    for left, right in extreme_scales[coefficient]:
         row = [' {} '.format(coefficient)]
         if not args.censored:
             row += ['({:.1e}, {:.1e})'.format(left, right)]
         for process in ['ttZ', 'ttW', 'ttH', 'WWW', 'WZZ', 'ZZZ', 'WWZ', 'VH', 'tZq', 'tHq', 'tHW', 'tttt', 'tWZ', 'tG']:
-            row.append(extreme_mus[coefficient][(left, right)][process])
+            row.append(extreme_scales[coefficient][(left, right)][process])
         if coefficient not in sum(excluded.values(), []):
             table.append(row)
 
@@ -111,7 +111,7 @@ headers = ['coefficient']
 if not args.censored:
     headers += ['$2\sigma$ range']
 headers += ['$\mu_\mathrm{ext,t\overline{t}Z}$', '$\mu_\mathrm{ext,t\overline{t}W}$', '$\mu_\mathrm{ext,t\overline{t}H}$'] + ['$\mu_\mathrm{{ext,{}}}$'.format(p) for p in ['WWW', 'WZZ', 'ZZZ', 'WWZ', 'VH', 'tZq', 'tHq', 'tHW', 'tttt', 'tWZ', 'tG']]
-write(table, headers, 'background_mus', floatfmt='.1f')
+write(table, headers, 'background_scales', floatfmt='.1f')
 
 table = []
 print excluded
@@ -122,9 +122,9 @@ for key, values in excluded.items():
 print r'\end{align*}'
 write(table, ['requirement', 'eliminated coefficients'], 'eliminated')
 
-surviving = set(mus.keys()) - set(sum(excluded.values(), []))
+surviving = set(scales.keys()) - set(sum(excluded.values(), []))
 print 'surviving ', surviving
 
 print excluded
-with open(os.path.join(config['outdir'], 'extreme_mus.pkl'), 'w') as f:
-    pickle.dump(dict((k, v) for k, v in extreme_mus.items() if k not in sum(excluded.values(), [])), f)
+with open(os.path.join(config['outdir'], 'extreme_scales.pkl'), 'w') as f:
+    pickle.dump(dict((k, v) for k, v in extreme_scales.items() if k not in sum(excluded.values(), [])), f)
