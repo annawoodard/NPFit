@@ -5,7 +5,6 @@ import os
 import re
 import shlex
 import shutil
-import stat
 import subprocess
 
 import numpy as np
@@ -239,26 +238,11 @@ def make(args, config):
     def cardify(name):
         return os.path.join(config['outdir'], '{}.txt'.format(name))
 
-    # Makeflow is a bit picky about whitespace
-    wrap = """#!/bin/sh
-
-    source /cvmfs/cms.cern.ch/cmsset_default.sh
-    cd {0}
-    cmsenv
-    cd -
-    exec "$@"
-    """.format(os.environ["LOCALRT"])
-
     if os.path.isfile(os.path.join(config['outdir'], 'config.py')):
         raise ValueError('refusing to overwrite outdir {}'.format(config['outdir']))
 
     configfile = os.path.join(config['outdir'], 'config.py')
     shutil.copy(args.config, configfile)
-
-    wrapfile = os.path.join(config['outdir'], 'w.sh')
-    with open(wrapfile, 'w') as f:
-        f.write(wrap)
-    os.chmod(wrapfile, os.stat(wrapfile).st_mode | stat.S_IEXEC)
 
     data = os.path.join(os.environ['LOCALRT'], 'src', 'EffectiveTTV', 'EffectiveTTV', 'data')
     shutil.copy(os.path.join(data, 'matplotlibrc'), config['outdir'])

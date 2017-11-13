@@ -37,7 +37,7 @@ def annotate(args, config):
     nohup work_queue_factory -T {batch_type} -M {label} -C {factory} >& factory.log &
 
     # then keep running this command until makeflow no longer submits jobs (may take a few tries):
-    makeflow -T wq -M {label} --wrapper ./w.sh --wrapper-input w.sh {shared}
+    makeflow -T wq -M {label} {shared}
 
     # to reproduce the code:
     cd {code_dir}
