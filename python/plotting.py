@@ -2,6 +2,7 @@ import atexit
 import contextlib
 from datetime import datetime
 import glob
+import itertools
 import logging
 import os
 import tarfile
@@ -10,13 +11,16 @@ import tabulate
 import jinja2
 import matplotlib
 from matplotlib.mlab import griddata
+from matplotlib.offsetbox import AnchoredText
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
+from mpl_toolkits.axes_grid1 import ImageGrid
 
 import numpy as np
 from root_numpy import root2array
 
-from EffectiveTTV.EffectiveTTV.parameters import nlo, label
+from EffectiveTTV.EffectiveTTV.parameters import nlo, label, conversion
+from EffectiveTTV.EffectiveTTV.scaling import load_fitted_scan
 from EffectiveTTV.EffectiveTTV import kde
 from EffectiveTTV.EffectiveTTV.nll import fit_nll
 from EffectiveTTV.EffectiveTTV.makeflow import multidim_np, multi_signal, max_likelihood_fit, multidim_grid, fluctuate
@@ -74,8 +78,8 @@ class Plotter(object):
         tfile.close()
 
     @contextlib.contextmanager
-    def saved_figure(self, x_label, y_label, name, header=False):
-        fig, ax = plt.subplots(figsize=(11, 11))
+    def saved_figure(self, x_label, y_label, name, header=False, figsize=(11, 11)):
+        fig, ax = plt.subplots(figsize=figsize)
         lumi = str(self.config['luminosity']) + ' fb$^{-1}$ (13 TeV)'
         if header:
             plt.title(lumi, loc='right', fontweight='normal', fontsize=27)
@@ -121,18 +125,101 @@ class Plot(object):
         except OSError:
             pass  # the directory has already been made
 
-
-class NewPhysicsScaling(Plot):
-    def __init__(self, processes=[('ttZ', '+', '#2fd164')], subdir='scaling', overlay_result=False, dimensionless=False):
+class NewPhysicsScaling2D(Plot):
+    def __init__(self, processes=['ttZ', 'ttH', 'ttW'], subdir='scaling2d', overlay_result=False, dimensionless=False,
+            match_nll_window=False, vmax=10):
         self.subdir = subdir
         self.processes = processes
         self.overlay_result = overlay_result
         self.dimensionless = dimensionless
+        self.match_nll_window = match_nll_window
+        self.vmax = 10
 
     def make(self, config, spec, index):
+        if config['dimension'] != 2:
+            raise NotImplementedError
         spec.add(['config.py', 'cross_sections.npz'], 'scales.npy', ['run', 'scale', 'config.py'])
         inputs = ['matplotlibrc', 'config.py', 'scales.npy']
-        inputs += multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']))
+        if self.match_nll_window:
+            inputs += multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']))
+
+        for coefficients in itertools.combinations(config['coefficients'], config['dimension']):
+            spec.add(inputs, [], ['run', 'plot', '--coefficient', ','.join(coefficients), '--index', index, 'config.py'])
+
+    def write(self, config, plotter, args):
+        super(NewPhysicsScaling2D, self).write(config)
+        fn = os.path.join(config['outdir'], 'cross_sections.npz')
+        scan = load_fitted_scan(config)
+        if self.match_nll_window:
+            nll = fit_nll(config, transform=False, dimensionless=self.dimensionless)
+        for coefficients in itertools.combinations(config['coefficients'], config['dimension']):
+            tag = '_'.join(coefficients)
+            name = os.path.join(self.subdir, tag)
+            x_label = label[coefficients[0]] + ('' if self.dimensionless else r' $/\Lambda^2$')
+            y_label = label[coefficients[1]] + ('' if self.dimensionless else r' $/\Lambda^2$')
+
+            fig = plt.figure(figsize=(30, 9))
+            grid = ImageGrid(fig, 111,
+                             nrows_ncols=(1, len(self.processes)),
+                             axes_pad=0.15,
+                             share_all=True,
+                             cbar_location="right",
+                             cbar_mode="single",
+                             cbar_size="7%",
+                             cbar_pad=0.15,
+            )
+
+            for ax, process in zip(grid, self.processes):
+                if process not in scan.points[coefficients]:
+                    continue
+
+                x = scan.points[coefficients][process][:, 0]
+                y = scan.points[coefficients][process][:, 1]
+                z_calculated = scan.scales[coefficients][process]
+                z_predicted = scan.evaluate(coefficients, scan.points[coefficients][process], process)
+
+                calculated = ax.scatter(x[::2], y[::2], c=z_calculated[::2], s=300, marker='o',
+                        cmap=plt.get_cmap('hot'), vmin=0, vmax=self.vmax, label='{} MG5_aMC@NLO LO'.format(label[process]))
+                predicted = ax.scatter(x[1::2], y[1::2], c=z_predicted[1::2], s=300, marker='s',
+                        cmap=plt.get_cmap('hot'), vmin=0, vmax=self.vmax, label='{} fit'.format(label[process]))
+
+                ax.set_ylabel(y_label, horizontalalignment='right', y=1.0)
+                ax.set_xlim([x.min(), x.max()])
+                ax.set_ylim([y.min(), y.max()])
+
+                legend = ax.legend(fontsize='medium', fancybox=True)
+                legend.legendHandles[0].set_color('black')
+                legend.legendHandles[1].set_color('black')
+                frame = legend.get_frame()
+                frame.set_color('white')
+
+
+            bar = ax.cax.colorbar(calculated)
+            bar.set_label_text('$\sigma_{NP+SM} / \sigma_{SM}$')
+
+            logging.info('saving {}'.format(name))
+            ax.set_xlabel(x_label, horizontalalignment='right', x=1.0)
+            plt.savefig(os.path.join(config['outdir'], 'plots', '{}.pdf'.format(name)), bbox_inches='tight')
+            plt.savefig(os.path.join(config['outdir'], 'plots', '{}.png'.format(name)), bbox_inches='tight')
+            plt.close()
+
+
+class NewPhysicsScaling(Plot):
+    def __init__(self, processes=[('ttZ', '+', '#2fd164')], subdir='scaling', overlay_result=False, dimensionless=False,
+            match_nll_window=True):
+        self.subdir = subdir
+        self.processes = processes
+        self.overlay_result = overlay_result
+        self.dimensionless = dimensionless
+        self.match_nll_window = match_nll_window
+
+    def make(self, config, spec, index):
+        if config['dimension'] != 1:
+            raise NotImplementedError('only 1 dimension supported for `NewPhysicsScaling`')
+        spec.add(['config.py', 'cross_sections.npz'], 'scales.npy', ['run', 'scale', 'config.py'])
+        inputs = ['matplotlibrc', 'config.py', 'scales.npy']
+        if self.match_nll_window:
+            inputs += multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']))
 
         for coefficient in config['coefficients']:
             spec.add(inputs, [], ['run', 'plot', '--coefficient', coefficient, '--index', index, 'config.py'])
@@ -140,25 +227,35 @@ class NewPhysicsScaling(Plot):
     def write(self, config, plotter, args):
         super(NewPhysicsScaling, self).write(config)
         fn = os.path.join(config['outdir'], 'cross_sections.npz')
-        scan = CrossSectionScan([fn])
-        mus = np.load(os.path.join(config['outdir'], 'scales.npy'))[()]
-        nll = fit_nll(config, transform=False, dimensionless=self.dimensionless)
+        scan = load_fitted_scan(config)
+        if self.match_nll_window:
+            nll = fit_nll(config, transform=False, dimensionless=self.dimensionless)
 
         for coefficient in config['coefficients']:
+            conv = 1. if self.dimensionless else conversion[coefficient]
+            if not np.any([p in scan.points[tuple([coefficient])] for p, _, _ in self.processes]):
+                continue
             with plotter.saved_figure(
                     label[coefficient] + ('' if self.dimensionless else r' $/\Lambda^2$'),
                     '$\sigma_{NP+SM} / \sigma_{SM}$',
                     os.path.join(self.subdir, coefficient)) as ax:
-                xmin = nll[coefficient]['x'][nll[coefficient]['y'] < 13].min()
-                xmax = nll[coefficient]['x'][nll[coefficient]['y'] < 13].max()
 
                 for process, marker, c in self.processes:
                     x = scan.points[tuple([coefficient])][process]
-                    y = scan.signal_strengths[tuple([coefficient])][process]
-                    xi = np.linspace(xmin, xmax, 10000)
+                    y = scan.scales[tuple([coefficient])][process]
+                    if self.match_nll_window:
+                        xmin = nll[coefficient]['x'][nll[coefficient]['y'] < 13].min()
+                        xmax = nll[coefficient]['x'][nll[coefficient]['y'] < 13].max()
+                    else:
+                        print x
+                        print x * conv
+                        print x / conv
+                        xmin = min(x * conv)
+                        xmax = max(x * conv)
 
-                    ax.plot(xi * nll[coefficient]['conversion'], mus[coefficient][process](xi), color='#C6C6C6')
-                    ax.plot(x * nll[coefficient]['conversion'], y, marker, mfc='none', markeredgewidth=2, markersize=15, label=label[process],
+                    xi = np.linspace(xmin, xmax, 10000).reshape(10000, 1)
+                    ax.plot(xi * conv, scan.evaluate(tuple([coefficient]), xi, process), color='#C6C6C6')
+                    ax.plot(x * conv, y, marker, mfc='none', markeredgewidth=2, markersize=15, label=label[process],
                             color=c)
 
                 if self.overlay_result:
@@ -201,11 +298,11 @@ class NewPhysicsScaling(Plot):
                         )
 
                 plt.xlim(xmin=xmin, xmax=xmax)
-                plt.ylim(ymin=0, ymax=3.2)
                 plt.title(r'CMS Simulation', loc='left', fontweight='bold')
                 plt.title(r'MG5_aMC@NLO LO', loc='right', size=27)
                 ax.legend(loc='upper center')
-                ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+                if self.match_nll_window:
+                    ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 
 
 class NLL(Plot):

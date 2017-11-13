@@ -17,31 +17,26 @@ def load(config):
     return scan.points, scan.cross_sections
 
 
+def load_fitted_scan(config):
+    fn = os.path.join(config['outdir'], 'cross_sections.npz')
+    scan = CrossSectionScan([fn])
+
+    for coefficients in scan.points:
+        scan.fit(coefficients)
+
+    return scan
+
 def load_scales(config):
     scales = defaultdict(dict)
     fn = os.path.join(config['outdir'], 'cross_sections.npz')
     scan = CrossSectionScan([fn])
 
     for coefficients in scan.points:
-        if len(coefficients) > 1:
-            raise NotImplementedError
+        scan.fit(coefficients)
         for process in scan.points[coefficients]:
             if coefficients == 'sm':
                 continue
-            x = scan.points[coefficients][process].flatten()
-            y = scan.signal_strengths[coefficients][process]
-
-            # FIXME put this in CrossSectionScan and do fit instead of zooms
-            # # mu=1 when coefficient=0, make sure the fit goes through that point
-            weights = [1 if (i != 1) else 100000000 for i in y]
-            try:
-                scales[coefficients[0]][process] = Polynomial.fit(x, y, 2, w=weights, window=[min(x), max(x)])
-            except Exception as e:
-                print 'failed to fit {} for process {}: {}'.format(coefficients, process, e)
-
-            # if scales[coefficients][process](1.) / scales[coefficients][process](0.) <= (1 + np.std(y)):
-            #     # We can't tell the difference between this and a straight line, let's keep things simple
-            #     scales[coefficients][process].coef = (1., 0., 0.)
+            scales[coefficients[0]][process] = Polynomial(scan.fit_constants[coefficients][process])
 
     return scales
 
