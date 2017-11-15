@@ -12,11 +12,10 @@ If you are not running at Notre Dame, you will need to setup [cctools](https://c
 
     cd $HOME
     slc=$(egrep "Red Hat Enterprise|Scientific|CentOS" /etc/redhat-release | sed 's/.*[rR]elease \([0-9]*\).*/\1/')
-    wget http://ccl.cse.nd.edu/software/files/cctools-6.0.10-x86_64-redhat$slc.tar.gz
-    gunzip cctools-6.0.10-x86_64-redhat6.tar.gz
-    tar xvf cctools-6.0.16-x86_64-redhat$slc.tar
+    wget http://ccl.cse.nd.edu/software/files/cctools-lobster-148-c1a7ecbd-cvmfs-0941e442-x86_64-redhat$slc.tar.gz
+    tar xvf cctools-lobster-148-c1a7ecbd-cvmfs-0941e442-x86_64-redhat$slc.tar.gz
     # add following line to your login script
-    export PATH=$HOME/cctools-6.0.16-x86_64-redhat$slc/bin:$PATH
+    export PATH=$HOME/cctools-lobster-148-c1a7ecbd-cvmfs-0941e442-x86_64-redhat$slc/bin:$PATH
 
 Now set up a working area:
 
@@ -56,4 +55,4 @@ Calling `run make data/config.py` produces an output directory (specified as `ou
     git apply /afs/crc.nd.edu/user/a/awoodard/www/ttV/1/patch.diff
 
     ```
-It is recommended that you iterate the version number at the end of `outdir` periodically. In this way, you should be able to keep track of differences as the analysis evolves.
+It is recommended that you iterate the version number at the end of `outdir` periodically. In this way, you should be able to keep track of differences as the analysis evolves. Note that `makeflow` works similarly to a makefile; if you delete an output and run makeflow again, all of the outputs which depend on that file will also be re-run.
