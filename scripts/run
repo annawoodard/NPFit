@@ -9,7 +9,6 @@ from EffectiveTTV.EffectiveTTV.actionable import annotate, parse, concatenate, c
 from EffectiveTTV.EffectiveTTV.makeflow import make
 from EffectiveTTV.EffectiveTTV.plotting import plot
 from EffectiveTTV.EffectiveTTV.fluctuate import fluctuate
-from EffectiveTTV.EffectiveTTV.scaling import dump_scales
 
 parser = argparse.ArgumentParser(description='for additional help try `run {mode} -h`')
 subparsers = parser.add_subparsers(help='mode options')
@@ -31,6 +30,8 @@ parse_parser.add_argument('file', help='file to parse')
 parse_parser.set_defaults(func=parse)
 
 concatenate_parser = subparsers.add_parser('concatenate', help='concatenate cross sections')
+concatenate_parser.add_argument('--files', nargs='+', help='files to concatenate (wildcards accepted)')
+concatenate_parser.add_argument('--output', default='cross_sections.npz', help='name of output file')
 concatenate_parser.set_defaults(func=concatenate)
 
 fluctuate_parser = subparsers.add_parser('fluctuate', help="perturb fit values by random amounts sampled from the covariance matrix")
@@ -43,9 +44,6 @@ plot_parser.add_argument('--coefficient', nargs='+', help='only plot given coeff
 plot_parser.add_argument('-e', '--header', help="plot header (final or preliminary)")
 plot_parser.add_argument('-i', '--index', type=int, help='which plot to produce (index in config file, default is all)')
 plot_parser.set_defaults(func=plot)
-
-scaling_parser = subparsers.add_parser('scale', help='fit cross sections to determine scaling functions')
-scaling_parser.set_defaults(func=dump_scales)
 
 combine_parser = subparsers.add_parser('combine', help='run combine')
 combine_parser.add_argument('coefficient', nargs='+', help='coefficients to run on')
@@ -64,6 +62,7 @@ logging.basicConfig(
 logging.__dict__['root'].level = (2 + args.quiet - args.verbose) * 10
 
 config = imp.load_source('', args.config).config
+config['fn'] = os.path.split(args.config)[-1]
 
 for k in ('indir', 'outdir'):
     if k in config:

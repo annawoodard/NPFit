@@ -13,8 +13,10 @@ from EffectiveTTV.EffectiveTTV.actionable import annotate
 
 
 class MakeflowSpecification(object):
-    def __init__(self):
+
+    def __init__(self, config):
         self.rules = []
+        self.config = config
 
     def add(self, inputs, outputs, cmd='run'):
         if isinstance(inputs, basestring):
@@ -24,6 +26,7 @@ class MakeflowSpecification(object):
         if isinstance(cmd, basestring):
             cmd = shlex.split(cmd)
 
+        inputs = [self.config] + inputs
         inputs.sort()
         ins = ' '.join(inputs)
         if isinstance(outputs, dict):
@@ -191,27 +194,27 @@ def multidim_np(config, spec, tasks):
         workspace = os.path.join(config['outdir'], 'workspaces', '{}.root'.format(label))
         cmd = [
             'text2workspace.py', os.path.join(config['outdir'], 'ttV_np.txt'),
-            '-P', 'EffectiveTTV.EffectiveTTV.models:eff_op',
-            '--PO', 'scaling={}'.format(os.path.join(config['outdir'], 'scales.npy')),
+            '-P', 'EffectiveTTV.EffectiveTTV.models:eft',
+            '--PO', 'scan={}'.format(os.path.join(config['outdir'], 'cross_sections.npz')),
             ' '.join(['--PO process={}'.format(x) for x in config['processes']]),
             ' '.join(['--PO poi={}'.format(x) for x in coefficients]),
             '-o', workspace
         ]
 
-        spec.add('scales.npy', workspace, cmd)
+        spec.add(['cross_sections.npz'], workspace, cmd)
 
         best_fit = os.path.join(config['outdir'], 'best-fit-{}.root'.format(label))
         fit_result = os.path.join(config['outdir'], 'fit-result-{}.root'.format(label))
-        cmd = ['run', 'combine'] + list(coefficients) + ['config.py']
-        spec.add(['config.py', workspace, 'scales.npy'], [best_fit, fit_result], cmd)
+        cmd = ['run', 'combine'] + list(coefficients) + [config['fn']]
+        spec.add([workspace], [best_fit, fit_result], cmd)
 
         scans = []
         for index in range(int(tasks)):
             scan = os.path.join(config['outdir'], 'scans', '{}_{}.root'.format(label, index))
             scans.append(scan)
-            cmd = ['run', 'combine'] + list(coefficients) + ['-i', str(index), 'config.py']
+            cmd = ['run', 'combine'] + list(coefficients) + ['-i', str(index), config['fn']]
 
-            spec.add(['config.py', workspace, 'scales.npy'], scan, cmd)
+            spec.add(['cross_sections.npz', workspace], scan, cmd)
 
         outfile = os.path.join(config['outdir'], 'scans', '{}.total.root'.format(label))
         spec.add(scans, outfile, ['hadd', '-f', outfile] + scans)
@@ -226,9 +229,9 @@ def fluctuate(config, spec):
     for coefficients in combinations:
         label = '_'.join(coefficients)
         fit_result = os.path.join(config['outdir'], 'fit-result-{}.root'.format(label))
-        cmd = ['run', 'fluctuate', label, config['fluctuations'], 'config.py']
+        cmd = ['run', 'fluctuate', label, config['fluctuations'], config['fn']]
         outfile = os.path.join(config['outdir'], 'fluctuations-{}.npy'.format(label))
-        spec.add(['config.py', fit_result], outfile, cmd)
+        spec.add([fit_result], outfile, cmd)
         outfiles += [outfile]
 
     return outfiles
@@ -241,11 +244,7 @@ def make(args, config):
     if os.path.isfile(os.path.join(config['outdir'], 'config.py')):
         raise ValueError('refusing to overwrite outdir {}'.format(config['outdir']))
 
-    configfile = os.path.join(config['outdir'], 'config.py')
-    shutil.copy(args.config, configfile)
-
-    data = os.path.join(os.environ['LOCALRT'], 'src', 'EffectiveTTV', 'EffectiveTTV', 'data')
-    shutil.copy(os.path.join(data, 'matplotlibrc'), config['outdir'])
+    shutil.copy(args.config, config['outdir'])
 
     prepare_cards(args, config, cardify)
 
@@ -254,22 +253,21 @@ def make(args, config):
 
     annotate(args, config)
 
-    spec = MakeflowSpecification()
+    spec = MakeflowSpecification(config['fn'])
 
     # adding annotate to the makeflow file without inputs or outputs
     # forces makeflow to run it everytime makeflow is run: this way new
     # code changes are always picked up
-    spec.add(['config.py'], [], ['run', 'annotate', 'config.py'])
+    spec.add([], [], ['run', 'annotate', config['fn']])
 
     files = glob.glob(os.path.join(config['indir'], '*.root'))
     for f in files:
         outputs = os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npz'))
-        spec.add(['config.py'], outputs, ['run', '--parse', f, 'config.py'])
+        spec.add([], outputs, ['run', '--parse', f, config['fn']])
 
-    inputs = [os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npz')) for f in files] + ['config.py']
+    inputs = [os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npz')) for f in files]
     inputs += glob.glob(os.path.join(config['indir'], '*.npz'))
-    spec.add(inputs, 'cross_sections.npz', ['run', 'concatenate', 'config.py'])
-    spec.add(['config.py', 'cross_sections.npz'], 'scales.npy', ['run', 'scale', 'config.py'])
+    spec.add(inputs, 'cross_sections.npz', ['run', 'concatenate', config['fn']])
 
     for index, plot in enumerate(config['plots']):
         plot.make(config, spec, index)

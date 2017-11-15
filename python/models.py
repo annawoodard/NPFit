@@ -1,11 +1,18 @@
-import numpy as np
-from numpy.polynomial import Polynomial
-import ROOT
+import itertools
 
 from HiggsAnalysis.CombinedLimit.PhysicsModel import PhysicsModel
 
+from EffectiveTTVProduction.EffectiveTTVProduction.cross_sections import CrossSectionScan
 
-class EffectiveOperatorModel(PhysicsModel):
+
+class EFTScaling(PhysicsModel):
+    """Apply process scaling due to EFT operators.
+
+    This class takes a `CrossSectionScan`,  performs a fit to describe how processes are
+    scaled as a function of an EFT operator's Wilson coefficient and adds it to
+    the workspace.
+
+    """
 
     def setPhysicsOptions(self, options):
         self.pois = []
@@ -15,35 +22,27 @@ class EffectiveOperatorModel(PhysicsModel):
                 self.pois.append(value)
             if option == 'process':  # processes which will be scaled
                 self.processes.append(value)
-            if option == 'scaling':
-                self.scaling = value
+            if option == 'scan':
+                self.scan = CrossSectionScan(value)
 
     def setup(self):
-        scaling = np.load(self.scaling)[()]
+        dim = len(self.pois)
         for process in self.processes:
-            functions = []
             self.modelBuilder.out.var(process)
-            for poi in self.pois:
-                name = 'r_{0}_{1}'.format(process, poi)
-                if not self.modelBuilder.out.function(name):
-                    functions += [name]
-                    template = "expr::{name}('{a0} + ({a1} * {poi}) + ({a2} * {poi} * {poi})', {poi})"
-                    a0, a1, a2 = scaling[poi][process]
-                    quadratic = self.modelBuilder.factory_(template.format(name=name, a0=a0, a1=a1, a2=a2, poi=poi))
-                    self.modelBuilder.out._import(quadratic)
+            name = 'r_{0}'.format(process)
 
-            self.modelBuilder.factory_('sum::r_{0}({1})'.format(process, ', '.join(functions)))
+            pairs = [x for x in itertools.combinations(range(0, dim), 2)]
 
-    def quadratic(self, x, xi, yi):
-        fit = Polynomial.fit(xi, yi, 2)
+            constant = ['1.0']
+            linear = self.pois
+            quad = ['{p} * {p}'.format(p=p) for p in self.pois]
+            mixed = ['{p0} * {p1}'.format(self.pois[p0], self.pois[p1]) for p0, p1 in pairs]
+            info = zip(self.scan.fit_constants[tuple(self.pois)][process], constant + linear + quad + mixed)
+            terms = ['({s} * {c})'.format(s=s, c=c) for s, c in info]
+            template = 'expr::{name}("{terms}", {pois})'
 
-        a0 = ROOT.RooRealVar("a0", "a0", fit.coef[0])
-        a1 = ROOT.RooRealVar("a1", "a1", fit.coef[1])
-        a2 = ROOT.RooRealVar("a2", "a2", fit.coef[2])
-
-        p = ROOT.RooPolynomial("p", "p", x, ROOT.RooArgList(a0, a1, a2))
-
-        return p
+            scale = self.modelBuilder.factory_(template.format(name=name, terms=' + '.join(terms), pois=', '.join(self.pois)))
+            self.modelBuilder.out._import(scale)
 
     def doParametersOfInterest(self):
         for poi in self.pois:
@@ -63,4 +62,4 @@ class EffectiveOperatorModel(PhysicsModel):
             return name
 
 
-eff_op = EffectiveOperatorModel()
+eft = EFTScaling()

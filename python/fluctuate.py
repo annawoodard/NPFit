@@ -4,14 +4,15 @@ import numpy as np
 import ROOT
 
 from EffectiveTTV.EffectiveTTV.parameters import nlo
-from EffectiveTTV.EffectiveTTV.scaling import load_scales
+
+from EffectiveTTVProduction.EffectiveTTVProduction.cross_sections import CrossSectionScan
 
 
 def fluctuate(args, config):
     ROOT.RooRandom.randomGenerator().SetSeed(0)
 
     coefficient = args.coefficient
-    scales = load_scales(config)
+    scan = CrossSectionScan(os.path.join(config['outdir'], 'cross_sections.npz'))
 
     file = ROOT.TFile.Open(os.path.join(config['outdir'], 'fit-result-{}.root'.format(coefficient)))
     fit = file.Get('fit_mdf')
@@ -47,7 +48,7 @@ def fluctuate(args, config):
 
     cross_sections = get_cross_sections(pars)
     for process in config['processes']:
-        data[0]['x_sec_{}'.format(process)] = cross_sections[process].getVal() * scales[coefficient][process](data[coefficient][0])
+        data[0]['x_sec_{}'.format(process)] = cross_sections[process].getVal() * scan.evaluate(tuple([coefficient]), np.array([[data[coefficient][0]]]), process)
 
     pars = fit.randomizePars()
     cross_sections = get_cross_sections(pars)
@@ -56,9 +57,14 @@ def fluctuate(args, config):
         for par in config['systematics'].keys() + [coefficient]:
             data[i][par] = pars.selectByName(par)[0].getVal()
         for process in config['processes']:
-            data[i]['x_sec_{}'.format(process)] = cross_sections[process].getVal() * scales[coefficient][process](data[i][coefficient])
+            scale = scan.evaluate(tuple([coefficient]), np.array([[data[i][coefficient]]]), process)
+            data[i]['x_sec_{}'.format(process)] = cross_sections[process].getVal() * scale
 
     for process in config['processes']:
-        data['r_{}'.format(process)] = scales[coefficient][process](data[coefficient])
+        print(data[coefficient])
+        print(data[coefficient].shape)
+        print(np.array(data[coefficient]))
+        print(np.array(data[coefficient]).shape)
+        data['r_{}'.format(process)] = scan.evaluate(tuple([coefficient]), data[coefficient].reshape((len(data[coefficient]), 1)), process)
 
     np.save(os.path.join(config['outdir'], 'fluctuations-{}.npy'.format(args.coefficient)), data)

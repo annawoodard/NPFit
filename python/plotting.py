@@ -11,7 +11,6 @@ import tabulate
 import jinja2
 import matplotlib
 from matplotlib.mlab import griddata
-from matplotlib.offsetbox import AnchoredText
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 from mpl_toolkits.axes_grid1 import ImageGrid
@@ -26,6 +25,19 @@ from EffectiveTTV.EffectiveTTV.nll import fit_nll
 from EffectiveTTV.EffectiveTTV.makeflow import multidim_np, multi_signal, max_likelihood_fit, multidim_grid, fluctuate
 
 from EffectiveTTVProduction.EffectiveTTVProduction.cross_sections import CrossSectionScan
+
+import seaborn as sns
+tweaks = {
+    "lines.markeredgewidth": 0.0,
+    "lines.linewidth": 5,
+    "patch.edgecolor": "white",
+    "legend.facecolor": "white",
+    "legend.frameon": True,
+    "legend.edgecolor": "white"
+}
+sns.set(context="poster", style="white", font_scale=1.5, rc=tweaks)
+
+matplotlib.use('Agg')
 
 x_min, x_max, y_min, y_max = np.array([0.200, 1.200, 0.550, 2.250])
 
@@ -100,6 +112,7 @@ class Plotter(object):
 
 
 class Plot(object):
+
     def __init__(self, subdir):
         self.subdir = subdir
 
@@ -125,9 +138,58 @@ class Plot(object):
         except OSError:
             pass  # the directory has already been made
 
+
+class FitErrors(Plot):
+
+    def __init__(self, files, dimensions=[1], processes=['ttZ', 'ttH', 'ttW'], maxpoints=200, subdir='fit_errors'):
+        self.files = sum([glob.glob(os.path.abspath(os.path.expanduser(os.path.expandvars(f)))) for f in files], [])
+        self.dimensions = dimensions
+        self.processes = processes
+        self.maxpoints = maxpoints
+        self.subdir = subdir
+
+    def make(self, config, spec, index):
+        cmd = 'run concatenate {} --output cross_sections.multidim.npz ' + config['fn']
+        spec.add(self.files, 'cross_sections.multidim.npz', cmd.format(' '.join(['--files {}'.format(f) for f in self.files])))
+        spec.add(['cross_sections.multidim.npz'], [], ['run', 'plot', '--index', index, config['fn']])
+
+    def write(self, config, plotter, args):
+        super(FitErrors, self).write(config)
+        scan = load_fitted_scan(config, 'cross_sections.multidim.npz', maxpoints=self.maxpoints)
+
+        name = os.path.join(self.subdir, 'fit_errors')
+        x_label = r'$(\mu_{\mathrm{MG}} - \mu_{\mathrm{fit}}) / \mu_{\mathrm{MG}} * 100$'
+        with plotter.saved_figure(x_label, 'counts', name) as ax:
+            data = []
+            for dimension in self.dimensions:
+                errs = None
+                for coefficients in itertools.combinations(config['coefficients'], dimension):
+                    print 'coefficients ', ' '.join(coefficients)
+                    print scan.fit_errs[coefficients]
+                    for process in self.processes:
+                        if process in scan.fit_errs[coefficients]:
+                            if errs is None:
+                                errs = scan.fit_errs[coefficients][process]
+                            else:
+                                errs = np.concatenate([errs, scan.fit_errs[coefficients][process]])
+                if errs is not None:
+                    data.append(errs)
+
+            ax.hist(data, 20, histtype='step', fill=False, label=['{}d'.format(d) for d in self.dimensions])
+            # ax.hist(data, histtype='step', stacked=True, fill=False, label=['{}d'.format(d) for d in self.dimensions])
+            ax.legend()
+
+
 class NewPhysicsScaling2D(Plot):
-    def __init__(self, processes=['ttZ', 'ttH', 'ttW'], subdir='scaling2d', overlay_result=False, dimensionless=False,
-            match_nll_window=False, vmax=10):
+
+    def __init__(
+            self,
+            processes=['ttZ', 'ttH', 'ttW'],
+            subdir='scaling2d',
+            overlay_result=False,
+            dimensionless=False,
+            match_nll_window=False,
+            vmax=10):
         self.subdir = subdir
         self.processes = processes
         self.overlay_result = overlay_result
@@ -138,18 +200,14 @@ class NewPhysicsScaling2D(Plot):
     def make(self, config, spec, index):
         if config['dimension'] != 2:
             raise NotImplementedError
-        spec.add(['config.py', 'cross_sections.npz'], 'scales.npy', ['run', 'scale', 'config.py'])
-        inputs = ['matplotlibrc', 'config.py', 'scales.npy']
-        if self.match_nll_window:
-            inputs += multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']))
+        inputs = multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']))
 
-        for coefficients in itertools.combinations(config['coefficients'], config['dimension']):
-            spec.add(inputs, [], ['run', 'plot', '--coefficient', ','.join(coefficients), '--index', index, 'config.py'])
+        for coefficients in itertools.combinations(config['coefficients'], 2):
+            spec.add(inputs, [], ['run', 'plot', '--coefficient', ','.join(coefficients), '--index', index, config['fn']])
 
     def write(self, config, plotter, args):
         super(NewPhysicsScaling2D, self).write(config)
-        fn = os.path.join(config['outdir'], 'cross_sections.npz')
-        scan = load_fitted_scan(config)
+        scan = CrossSectionScan(os.path.join(config['outdir'], 'cross_sections.npz'))
         if self.match_nll_window:
             nll = fit_nll(config, transform=False, dimensionless=self.dimensionless)
         for coefficients in itertools.combinations(config['coefficients'], config['dimension']):
@@ -157,31 +215,53 @@ class NewPhysicsScaling2D(Plot):
             name = os.path.join(self.subdir, tag)
             x_label = label[coefficients[0]] + ('' if self.dimensionless else r' $/\Lambda^2$')
             y_label = label[coefficients[1]] + ('' if self.dimensionless else r' $/\Lambda^2$')
+            x_conv = 1. if self.dimensionless else conversion[coefficients[0]]
+            y_conv = 1. if self.dimensionless else conversion[coefficients[1]]
 
             fig = plt.figure(figsize=(30, 9))
-            grid = ImageGrid(fig, 111,
-                             nrows_ncols=(1, len(self.processes)),
-                             axes_pad=0.15,
-                             share_all=True,
-                             cbar_location="right",
-                             cbar_mode="single",
-                             cbar_size="7%",
-                             cbar_pad=0.15,
+            grid = ImageGrid(
+                fig, 111,
+                nrows_ncols=(1, len(self.processes)),
+                axes_pad=0.15,
+                share_all=True,
+                cbar_location="right",
+                cbar_mode="single",
+                cbar_size="7%",
+                cbar_pad=0.15,
             )
 
             for ax, process in zip(grid, self.processes):
                 if process not in scan.points[coefficients]:
+                    print 'skipping missing process {}'.format(process)
                     continue
 
-                x = scan.points[coefficients][process][:, 0]
-                y = scan.points[coefficients][process][:, 1]
+                x = scan.points[coefficients][process][:, 0] * x_conv
+                y = scan.points[coefficients][process][:, 1] * y_conv
                 z_calculated = scan.scales[coefficients][process]
                 z_predicted = scan.evaluate(coefficients, scan.points[coefficients][process], process)
 
-                calculated = ax.scatter(x[::2], y[::2], c=z_calculated[::2], s=300, marker='o',
-                        cmap=plt.get_cmap('hot'), vmin=0, vmax=self.vmax, label='{} MG5_aMC@NLO LO'.format(label[process]))
-                predicted = ax.scatter(x[1::2], y[1::2], c=z_predicted[1::2], s=300, marker='s',
-                        cmap=plt.get_cmap('hot'), vmin=0, vmax=self.vmax, label='{} fit'.format(label[process]))
+                calculated = ax.scatter(
+                    x[::2],
+                    y[::2],
+                    c=z_calculated[::2],
+                    s=300,
+                    marker='o',
+                    cmap=plt.get_cmap('hot'),
+                    vmin=0,
+                    vmax=self.vmax,
+                    label='{} MG5_aMC@NLO LO'.format(label[process])
+                )
+                ax.scatter(
+                    x[1::2],
+                    y[1::2],
+                    c=z_predicted[1::2],
+                    s=300,
+                    marker='s',
+                    cmap=plt.get_cmap('hot'),
+                    vmin=0,
+                    vmax=self.vmax,
+                    label='{} fit'.format(label[process])
+                )
 
                 ax.set_ylabel(y_label, horizontalalignment='right', y=1.0)
                 ax.set_xlim([x.min(), x.max()])
@@ -192,7 +272,6 @@ class NewPhysicsScaling2D(Plot):
                 legend.legendHandles[1].set_color('black')
                 frame = legend.get_frame()
                 frame.set_color('white')
-
 
             bar = ax.cax.colorbar(calculated)
             bar.set_label_text('$\sigma_{NP+SM} / \sigma_{SM}$')
@@ -205,7 +284,13 @@ class NewPhysicsScaling2D(Plot):
 
 
 class NewPhysicsScaling(Plot):
-    def __init__(self, processes=[('ttZ', '+', '#2fd164')], subdir='scaling', overlay_result=False, dimensionless=False,
+
+    def __init__(
+            self,
+            processes=[('ttZ', '+', '#2fd164')],
+            subdir='scaling',
+            overlay_result=False,
+            dimensionless=False,
             match_nll_window=True):
         self.subdir = subdir
         self.processes = processes
@@ -216,18 +301,16 @@ class NewPhysicsScaling(Plot):
     def make(self, config, spec, index):
         if config['dimension'] != 1:
             raise NotImplementedError('only 1 dimension supported for `NewPhysicsScaling`')
-        spec.add(['config.py', 'cross_sections.npz'], 'scales.npy', ['run', 'scale', 'config.py'])
-        inputs = ['matplotlibrc', 'config.py', 'scales.npy']
+        inputs = ['cross_sections.npz']
         if self.match_nll_window:
-            inputs += multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']))
+            inputs = multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']))
 
         for coefficient in config['coefficients']:
-            spec.add(inputs, [], ['run', 'plot', '--coefficient', coefficient, '--index', index, 'config.py'])
+            spec.add(inputs, [], ['run', 'plot', '--coefficient', coefficient, '--index', index, config['fn']])
 
     def write(self, config, plotter, args):
         super(NewPhysicsScaling, self).write(config)
-        fn = os.path.join(config['outdir'], 'cross_sections.npz')
-        scan = load_fitted_scan(config)
+        scan = CrossSectionScan(os.path.join(config['outdir'], 'cross_sections.npz'))
         if self.match_nll_window:
             nll = fit_nll(config, transform=False, dimensionless=self.dimensionless)
 
@@ -247,9 +330,6 @@ class NewPhysicsScaling(Plot):
                         xmin = nll[coefficient]['x'][nll[coefficient]['y'] < 13].min()
                         xmax = nll[coefficient]['x'][nll[coefficient]['y'] < 13].max()
                     else:
-                        print x
-                        print x * conv
-                        print x / conv
                         xmin = min(x * conv)
                         xmax = max(x * conv)
 
@@ -306,28 +386,28 @@ class NewPhysicsScaling(Plot):
 
 
 class NLL(Plot):
+
     def __init__(self, subdir='nll', transform=True, dimensionless=False):
         self.subdir = subdir
         self.transform = transform
         self.dimensionless = dimensionless
 
     def make(self, config, spec, index):
-        inputs = ['matplotlibrc', 'config.py', 'scales.npy']
-        inputs += multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']))
-        spec.add(['config.py', 'cross_sections.npz'], 'scales.npy', ['run', 'scale', 'config.py'])
+        inputs = multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']))
 
         for coefficient in config['coefficients']:
-            spec.add(inputs, [], ['run', 'plot', '--coefficient', coefficient, '--index', index, 'config.py'])
+            outputs = [os.path.join(self.subdir, coefficient + suffix) for suffix in ['.pdf', '.png']]
+            spec.add(inputs, outputs, ['run', 'plot', '--coefficient', coefficient, '--index', index, config['fn']])
 
     def write(self, config, plotter, args):
         super(NLL, self).write(config)
         data = fit_nll(config, self.transform, self.dimensionless)
-        mus = np.load(os.path.join(config['outdir'], 'scales.npy'))[()]
+        scan = CrossSectionScan(os.path.join(config['outdir'], 'cross_sections.npz'))
 
         for coefficient in config['coefficients']:
             info = data[coefficient]
             for p in config['processes']:
-                s0, s1, s2 = mus[coefficient][p].coef
+                s0, s1, s2 = scan.fit_constants[tuple([coefficient])][p]
                 if not ((s1 > 1e-5) or (s2 > 1e-5)):
                     continue  # coefficient has no effect on any of the scaled processes
             x_label = '{} {}'.format(info['label'].replace('\ \mathrm{TeV}^{-2}', ''), info['units'])
@@ -433,6 +513,7 @@ def two_signal_best_fit(config, ax, signals, theory_errors, tag, contours):
 
 
 class TwoProcessCrossSectionSM(Plot):
+
     def __init__(self, subdir='.', signals=['ttW', 'ttZ'], theory_errors=None, tag=None, numpoints=500, chunksize=500, contours=True):
         self.subdir = subdir
         self.signals = signals
@@ -446,14 +527,13 @@ class TwoProcessCrossSectionSM(Plot):
         self.contours = contours
 
     def make(self, config, spec, index):
-        inputs = ['matplotlibrc', 'config.py']
-        inputs += multi_signal(self.signals, self.tag, spec, config)
+        inputs = multi_signal(self.signals, self.tag, spec, config)
         for signal in self.signals:
             inputs += max_likelihood_fit(signal, spec, config)
         if self.contours:
             inputs += multidim_grid(config, self.tag, self.numpoints, self.chunksize, spec)
 
-        spec.add(inputs, [],  ['run', 'plot', '--index', index, 'config.py'])
+        spec.add(inputs, [],  ['run', 'plot', '--index', index, config['fn']])
 
     def write(self, config, plotter, args):
         x = self.signals[0]
@@ -495,6 +575,7 @@ class TwoProcessCrossSectionSM(Plot):
 
 
 class TwoProcessCrossSectionSMAndNP(Plot):
+
     def __init__(self, subdir='.', signals=['ttW', 'ttZ'], theory_errors=None, tag=None, transform=True, dimensionless=False):
         self.subdir = subdir
         self.signals = signals
@@ -507,12 +588,11 @@ class TwoProcessCrossSectionSMAndNP(Plot):
         self.dimensionless = dimensionless
 
     def make(self, config, spec, index):
-        inputs = ['matplotlibrc', 'config.py', 'scales.npy']
-        inputs += multi_signal(self.signals, self.tag, spec, config)
+        inputs = multi_signal(self.signals, self.tag, spec, config)
         inputs += multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']))
         inputs += fluctuate(config, spec)
 
-        spec.add(inputs, [],  ['run', 'plot', '--index', index, 'config.py'])
+        spec.add(inputs, [],  ['run', 'plot', '--index', index, config['fn']])
 
     def write(self, config, plotter, args):
         x_proc = self.signals[0]

@@ -22,7 +22,7 @@ cmsenv
 git clone https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit.git HiggsAnalysis/CombinedLimit
 cd HiggsAnalysis/CombinedLimit
 git fetch origin
-git checkout v7.0.3
+git checkout 81x-root606
 cd $CMSSW_BASE/src
 git clone https://github.com/cms-analysis/CombineHarvester.git CombineHarvester
 git clone git@github.com:annawoodard/EffectiveTTV.git EffectiveTTV/EffectiveTTV
@@ -39,6 +39,7 @@ scramv1 b -j 16
 
 pip install --user tabulate
 pip install --user tempdir
+pip install --user seaborn
 
 ) > setup.log
 

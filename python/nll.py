@@ -7,6 +7,8 @@ import tabulate
 from EffectiveTTV.EffectiveTTV import line
 from EffectiveTTV.EffectiveTTV.parameters import label, conversion
 
+from EffectiveTTVProduction.EffectiveTTVProduction.cross_sections import CrossSectionScan
+
 
 def fit_nll(config, transform=False, dimensionless=True):
     """Note that the best fit is not straightforward with multiple minima, see:
@@ -16,7 +18,7 @@ def fit_nll(config, transform=False, dimensionless=True):
     # TODO only run this once after running combine instead of every time I plot
     # TODO change to returning a dict with dimensionless and transformed
 
-    scales = np.load(os.path.join(config['outdir'], 'scales.npy'))[()]
+    scan = CrossSectionScan(os.path.join(config['outdir'], 'cross_sections.npz'))
     res = {}
     for coefficient in config['coefficients']:
         res[coefficient] = {
@@ -61,7 +63,9 @@ def fit_nll(config, transform=False, dimensionless=True):
         res[coefficient]['units'] = '' if conversion_factor == 1. else '$\ [\mathrm{TeV}^{-2}]$'
         if transform and (len(x[minima][threshold]) == 2 or config['asimov data']):
             xi = np.linspace(x.min(), x.max(), 10000)
-            total = scales[coefficient]['ttH'](xi) + scales[coefficient]['ttZ'](xi) + scales[coefficient]['ttW'](xi)
+            total = 0
+            for process in config['processes']:
+                total += scan.evaluate(tuple([coefficient]), xi.reshape((len(xi), 1)), process)
             offset = xi[total.argmin()] * conversion_factor
 
             def transform(i):
@@ -80,9 +84,9 @@ def fit_nll(config, transform=False, dimensionless=True):
             template = r'$|{}{}|$' if conversion_factor == 1. else r'$|{}/\Lambda^2{}|$'
             if round(offset, 1) != 0:
                 res[coefficient]['label'] = template.format(
-                        label[coefficient].replace('$', ''),
-                        r' {} {:03.1f}{}'.format(sign, np.abs(offset), '\ \mathrm{TeV}^{-2}' if conversion_factor != 1. else ''))
-                # res[coefficient]['units'] = ''
+                    label[coefficient].replace('$', ''),
+                    r' {} {:03.1f}{}'.format(sign, np.abs(offset), '\ \mathrm{TeV}^{-2}' if conversion_factor != 1. else '')
+                )
             else:
                 res[coefficient]['label'] = template.format(label[coefficient].replace('$', ''), '')
             res[coefficient]['transformed'] = True

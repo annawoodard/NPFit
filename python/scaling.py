@@ -6,30 +6,29 @@ from numpy.polynomial import Polynomial
 import tabulate
 
 from EffectiveTTVProduction.EffectiveTTVProduction.cross_sections import CrossSectionScan
-# TODO only run this once
-# TODO do this with roofit instead of numpy, for simpler PhysicsModel
 
 
 def load(config):
     fn = os.path.join(config['outdir'], 'cross_sections.npz')
-    scan = CrossSectionScan([fn])
+    scan = CrossSectionScan(fn)
 
     return scan.points, scan.cross_sections
 
 
-def load_fitted_scan(config):
-    fn = os.path.join(config['outdir'], 'cross_sections.npz')
-    scan = CrossSectionScan([fn])
+def load_fitted_scan(config, fn='cross_sections.npz', maxpoints=None):
+    fn = os.path.join(config['outdir'], fn)
+    scan = CrossSectionScan(fn)
 
     for coefficients in scan.points:
-        scan.fit(coefficients)
+        scan.fit(coefficients, maxpoints)
 
     return scan
+
 
 def load_scales(config):
     scales = defaultdict(dict)
     fn = os.path.join(config['outdir'], 'cross_sections.npz')
-    scan = CrossSectionScan([fn])
+    scan = CrossSectionScan(fn)
 
     for coefficients in scan.points:
         scan.fit(coefficients)

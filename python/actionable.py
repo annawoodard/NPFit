@@ -43,14 +43,14 @@ def annotate(args, config):
     cd {code_dir}
     git checkout {head}
     """.format(
-            batch_type=config['batch type'],
-            outdir=config['outdir'],
-            label=config['label'],
-            factory=os.path.join(os.environ['LOCALRT'], 'src', 'EffectiveTTV', 'EffectiveTTV', 'data', 'factory.json'),
-            shared=' '.join(shared_filesystem),
-            code_dir=os.path.dirname(__file__),
-            head=head
-        )
+        batch_type=config['batch type'],
+        outdir=config['outdir'],
+        label=config['label'],
+        factory=os.path.join(os.environ['LOCALRT'], 'src', 'EffectiveTTV', 'EffectiveTTV', 'data', 'factory.json'),
+        shared=' '.join(shared_filesystem),
+        code_dir=os.path.dirname(__file__),
+        head=head
+    )
 
     if diff:
         with open(os.path.join(config['outdir'], 'patch.diff'), 'w') as f:
@@ -91,37 +91,30 @@ def parse(args, config):
 
 
 def concatenate(args, config):
-    files = glob.glob(os.path.join(config['outdir'], 'cross_sections', '*.npz'))
-    if 'indir' in config:
-        files += glob.glob(os.path.join(config['indir'], '*.npz'))
+    if args.files is not None:
+        files = sum([glob.glob(x) for x in args.files], [])
+    else:
+        files = glob.glob(os.path.join(config['outdir'], 'cross_sections', '*.npz'))
+        if 'indir' in config:
+            files += glob.glob(os.path.join(config['indir'], '*.npz'))
 
     result = CrossSectionScan(files)
     for coefficients in result.points:
         for process in result.points[coefficients]:
             result.deduplicate(coefficients, process)
+        result.fit(coefficients)
 
-    outfile = os.path.join(config['outdir'], 'cross_sections.npz')
+    outfile = os.path.join(config['outdir'], args.output)
     result.dump(outfile)
 
 
 def combine(args, config):
-    scales = np.load(os.path.join(config['outdir'], 'scales.npy'))[()]
-
-    # convergence of the loop expansion requires c < (4 * pi)^2
-    # see section 7 in https://arxiv.org/pdf/1205.4231.pdf
-    c_max = (4 * np.pi) ** 2
-    pmin = -1 * c_max
-    pmax = c_max
     label = '_'.join(args.coefficient)
-    for p in config['processes']:
-        if (scales[label][p](c_max) > config['scale window']):
-            pmin = max([(scales[label][p] - config['scale window']).roots().min(), pmin])
-            pmax = min([(scales[label][p] - config['scale window']).roots().max(), pmax])
 
     cmd = [
         'combine', '-M', 'MultiDimFit', ' --saveFitResult', '{}'.format(os.path.join(config['outdir'], 'workspaces', '{}.root'.format(label))),
         '--setParameters', '{}'.format(','.join(['{}=0.0'.format(x) for x in args.coefficient])),
-        '--setParameterRanges', '{}'.format(':'.join(['{}={},{}'.format(x, pmin, pmax) for x in args.coefficient]))
+        '--autoRange={}'.format(config['scale window'] * 2),
     ]
     if config['asimov data']:
         cmd += ['-t', '-1']
