@@ -4,10 +4,10 @@ import numpy as np
 import scipy.signal
 import tabulate
 
-from EffectiveTTV.EffectiveTTV import line
-from EffectiveTTV.EffectiveTTV.parameters import label, conversion
+from NPFit.NPFit import line
+from NPFit.NPFit.parameters import label, conversion
 
-from EffectiveTTVProduction.EffectiveTTVProduction.cross_sections import CrossSectionScan
+from NPFitProduction.NPFitProduction.cross_sections import CrossSectionScan
 
 
 def fit_nll(config, transform=False, dimensionless=True):

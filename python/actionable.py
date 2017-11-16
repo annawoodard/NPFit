@@ -6,7 +6,7 @@ import shlex
 import shutil
 import subprocess
 
-from EffectiveTTVProduction.EffectiveTTVProduction.cross_sections import CrossSectionScan
+from NPFitProduction.NPFitProduction.cross_sections import CrossSectionScan
 
 
 def annotate(args, config):
@@ -46,7 +46,7 @@ def annotate(args, config):
         batch_type=config['batch type'],
         outdir=config['outdir'],
         label=config['label'],
-        factory=os.path.join(os.environ['LOCALRT'], 'src', 'EffectiveTTV', 'EffectiveTTV', 'data', 'factory.json'),
+        factory=os.path.join(os.environ['LOCALRT'], 'src', 'NPFit', 'NPFit', 'data', 'factory.json'),
         shared=' '.join(shared_filesystem),
         code_dir=os.path.dirname(__file__),
         head=head

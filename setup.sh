@@ -2,7 +2,7 @@
 
 cat <<EOF
 =========================================================================
-this script creates a working directory for the EffectiveTTV analysis
+this script creates a working directory for the NPFit analysis
 output is in setup.log
 =========================================================================
 EOF
@@ -25,10 +25,10 @@ git fetch origin
 git checkout 81x-root606
 cd $CMSSW_BASE/src
 git clone https://github.com/cms-analysis/CombineHarvester.git CombineHarvester
-git clone git@github.com:annawoodard/EffectiveTTV.git EffectiveTTV/EffectiveTTV
+git clone git@github.com:annawoodard/NPFit.git NPFit/NPFit
 
-git clone git@github.com:annawoodard/EffectiveTTVProduction.git EffectiveTTVProduction/EffectiveTTVProduction
-cd EffectiveTTVProduction/EffectiveTTVProduction
+git clone git@github.com:annawoodard/NPFitProduction.git NPFitProduction/NPFitProduction
+cd NPFitProduction/NPFitProduction
 git config core.sparsecheckout true
 echo "python/" >> .git/info/sparse-checkout
 git checkout master
@@ -38,7 +38,6 @@ scramv1 b clean
 scramv1 b -j 16
 
 pip install --user tabulate
-pip install --user tempdir
 pip install --user seaborn
 
 ) > setup.log

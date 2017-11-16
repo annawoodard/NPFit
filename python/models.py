@@ -2,7 +2,7 @@ import itertools
 
 from HiggsAnalysis.CombinedLimit.PhysicsModel import PhysicsModel
 
-from EffectiveTTVProduction.EffectiveTTVProduction.cross_sections import CrossSectionScan
+from NPFitProduction.NPFitProduction.cross_sections import CrossSectionScan
 
 
 class EFTScaling(PhysicsModel):

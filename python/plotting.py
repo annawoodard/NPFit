@@ -18,13 +18,13 @@ from mpl_toolkits.axes_grid1 import ImageGrid
 import numpy as np
 from root_numpy import root2array
 
-from EffectiveTTV.EffectiveTTV.parameters import nlo, label, conversion
-from EffectiveTTV.EffectiveTTV.scaling import load_fitted_scan
-from EffectiveTTV.EffectiveTTV import kde
-from EffectiveTTV.EffectiveTTV.nll import fit_nll
-from EffectiveTTV.EffectiveTTV.makeflow import multidim_np, multi_signal, max_likelihood_fit, multidim_grid, fluctuate
+from NPFit.NPFit.parameters import nlo, label, conversion
+from NPFit.NPFit.scaling import load_fitted_scan
+from NPFit.NPFit import kde
+from NPFit.NPFit.nll import fit_nll
+from NPFit.NPFit.makeflow import multidim_np, multi_signal, max_likelihood_fit, multidim_grid, fluctuate
 
-from EffectiveTTVProduction.EffectiveTTVProduction.cross_sections import CrossSectionScan
+from NPFitProduction.NPFitProduction.cross_sections import CrossSectionScan
 
 import seaborn as sns
 tweaks = {
@@ -49,7 +49,7 @@ class Plotter(object):
         self.config = config
 
     def webify(self):
-        path = os.path.join(os.environ['LOCALRT'], 'src', 'EffectiveTTV', 'EffectiveTTV', 'data')
+        path = os.path.join(os.environ['LOCALRT'], 'src', 'NPFit', 'NPFit', 'data')
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(path))
         env.filters["datetime"] = lambda d: datetime.fromtimestamp(d).strftime('%a, %d %b %Y, %H:%M')
         env.filters["basename"] = lambda d: os.path.basename(d)

@@ -5,7 +5,7 @@ import numpy as np
 from numpy.polynomial import Polynomial
 import tabulate
 
-from EffectiveTTVProduction.EffectiveTTVProduction.cross_sections import CrossSectionScan
+from NPFitProduction.NPFitProduction.cross_sections import CrossSectionScan
 
 
 def load(config):

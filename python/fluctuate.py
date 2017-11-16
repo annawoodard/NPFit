@@ -3,9 +3,9 @@ import os
 import numpy as np
 import ROOT
 
-from EffectiveTTV.EffectiveTTV.parameters import nlo
+from NPFit.NPFit.parameters import nlo
 
-from EffectiveTTVProduction.EffectiveTTVProduction.cross_sections import CrossSectionScan
+from NPFitProduction.NPFitProduction.cross_sections import CrossSectionScan
 
 
 def fluctuate(args, config):

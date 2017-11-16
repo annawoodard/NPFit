@@ -1,4 +1,4 @@
-This is the code used for the Effective Field Theory interpretation in the CMS TOP-17-005 ([CADI](http://cms.cern.ch/iCMS/analysisadmin/cadilines?line=TOP-17-005)) analysis. Code used for running Madgraph to calculate cross sections is located in a separate repository which can be found [here](https://github.com/annawoodard/EffectiveTTVProduction).
+This is the code used for the Effective Field Theory interpretation in the CMS TOP-17-005 ([CADI](http://cms.cern.ch/iCMS/analysisadmin/cadilines?line=TOP-17-005)) analysis. Code used for running Madgraph to calculate cross sections is located in a separate repository which can be found [here](https://github.com/annawoodard/NPFitProduction).
 
 ## Installation
 
@@ -19,7 +19,7 @@ If you are not running at Notre Dame, you will need to setup [cctools](https://c
 
 Now set up a working area:
 
-    curl https://raw.githubusercontent.com/annawoodard/EffectiveTTV/master/setup.sh|sh -
+    curl https://raw.githubusercontent.com/annawoodard/NPFit/master/setup.sh|sh -
 
 ## Quick start
 To reproduce the TOP-17-005 plots, no modification of the configuration file is necessary (with caveats [1]) After `cmsenv`ing in your working area, setup the output directory and produce the Makeflow specification:
@@ -30,7 +30,7 @@ Follow the instructions which will be printed to the screen. They should look si
 
     # to run, issue the following commands:
     cd /afs/crc.nd.edu/user/a/awoodard/www/ttV/1
-    nohup work_queue_factory -T condor -M ttV_FTW -C /afs/crc.nd.edu/user/a/awoodard/releases/CMSSW_8_1_0/src/EffectiveTTV/EffectiveTTV/data/factory.json >& factory.log &
+    nohup work_queue_factory -T condor -M ttV_FTW -C /afs/crc.nd.edu/user/a/awoodard/releases/CMSSW_8_1_0/src/NPFit/NPFit/data/factory.json >& factory.log &
     makeflow -T wq -M ttV_FTW --shared-fs '/afs'
 Note that you only need to run the `work_queue_factory` command once; you can leave it running and it will only submit jobs as they are needed for any makeflow process matching `label` in [test/config.py](test/config.py) (there is no reason to change the label between runs).
 
@@ -50,7 +50,7 @@ Calling `run make data/config.py` produces an output directory (specified as `ou
 3) all of the commands run (specified in `Makefile`), and
 4) a git patch in order to exactly reproduce the code as it was the last time `makeflow` was called. Instructions for reproducing the code are saved to `outdir` in a text file called `README.txt`, which should contain something like the following:
     ```
-    cd /afs/crc.nd.edu/user/a/awoodard/releases/CMSSW_8_1_0/python/EffectiveTTV/EffectiveTTV
+    cd /afs/crc.nd.edu/user/a/awoodard/releases/CMSSW_8_1_0/python/NPFit/NPFit
     git checkout d7bb6f7
     git apply /afs/crc.nd.edu/user/a/awoodard/www/ttV/1/patch.diff
 

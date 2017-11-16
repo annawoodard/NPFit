@@ -5,10 +5,10 @@ import imp
 import logging
 import os
 
-from EffectiveTTV.EffectiveTTV.actionable import annotate, parse, concatenate, combine
-from EffectiveTTV.EffectiveTTV.makeflow import make
-from EffectiveTTV.EffectiveTTV.plotting import plot
-from EffectiveTTV.EffectiveTTV.fluctuate import fluctuate
+from NPFit.NPFit.actionable import annotate, parse, concatenate, combine
+from NPFit.NPFit.makeflow import make
+from NPFit.NPFit.plotting import plot
+from NPFit.NPFit.fluctuate import fluctuate
 
 parser = argparse.ArgumentParser(description='for additional help try `run {mode} -h`')
 subparsers = parser.add_subparsers(help='mode options')
