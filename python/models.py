@@ -36,7 +36,7 @@ class EFTScaling(PhysicsModel):
             constant = ['1.0']
             linear = self.pois
             quad = ['{p} * {p}'.format(p=p) for p in self.pois]
-            mixed = ['{p0} * {p1}'.format(self.pois[p0], self.pois[p1]) for p0, p1 in pairs]
+            mixed = ['{p0} * {p1}'.format(p0=self.pois[p0], p1=self.pois[p1]) for p0, p1 in pairs]
             info = zip(self.scan.fit_constants[tuple(self.pois)][process], constant + linear + quad + mixed)
             terms = ['({s} * {c})'.format(s=s, c=c) for s, c in info]
             template = 'expr::{name}("{terms}", {pois})'

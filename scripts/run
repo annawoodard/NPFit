@@ -62,7 +62,7 @@ logging.basicConfig(
 logging.__dict__['root'].level = (2 + args.quiet - args.verbose) * 10
 
 config = imp.load_source('', args.config).config
-config['fn'] = os.path.split(args.config)[-1]
+configdir, config['fn'] = os.path.split(args.config)
 
 for k in ('indir', 'outdir'):
     if k in config:

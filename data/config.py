@@ -1,30 +1,35 @@
 import NPFit.NPFit.plotting as plotting
 
 config = {
-    'outdir': '~/www/ttV/1',  # Output directory; iterate the version each time you make changes.
-    'indir': '/hadoop/store/user/$USER/ttV/cross_sections/1/1d/final*',  # Where the input cross section scans are located
+    #  Wildcards are accepted, for example:
+    # 'indir': '/hadoop/store/user/$USER/ttV/cross_sections/1/1d/final*',
+    'indir': '~/YOUR-NPFIT-DIR-HERE/data/cross_sections/13-TeV/1d.npz',  # Where input scans are
+    'outdir': '~/www/ttV/1/',  # Output directory; iterate the version each time you make changes
     'coefficients': ['cuW', 'cuB', 'cH', 'tc3G', 'c3G', 'cHu', 'c2G', 'cuG'],
     'dimension': 1,
     'plots': [
-        plotting.FitErrors(['/hadoop/store/user/$USER/ttV/cross_sections/1/1d/final*/*npz'], dimensions=[1]),
+        # Wildcards are accepted, for example:
+        # plotting.FitErrors(['/hadoop/store/user/$USER/ttV/cross_sections/1/1d/final*/*npz'], dimensions=[1]),
         plotting.NewPhysicsScaling([ ('ttW', 'x', 'blue'), ('ttZ', '+', '#2fd164'), ('ttH', 'o', '#ff321a')],
             match_nll_window=False,
             subdir='scaling_free_window_dimensionless',
             dimensionless=True
         ),
-        plotting.NewPhysicsScaling([('ttW', 'x', 'blue'), ('ttZ', '+', '#2fd164'), ('ttH', 'o', '#ff321a')],
-            match_nll_window=False,
-            subdir='scaling_free_window'
-        ),
-        plotting.NewPhysicsScaling([('ttw', 'x', 'blue'), ('ttz', '+', '#2fd164'), ('tth', 'o', '#ff321a')]),
         plotting.NLL(),
-        plotting.TwoProcessCrossSectionSM(subdir='.', signals=['ttw', 'ttz'], theory_errors={'ttw': (0.1173, 0.1316), 'ttz': (0.1164, 0.10)}, numpoints=500, chunksize=250, contours=true),
-        plotting.TwoProcessCrossSectionSMAndNP(subdir='.', signals=['ttw', 'ttz'], theory_errors={'ttw': (0.1173, 0.1316), 'ttz': (0.1164, 0.10)})
+        plotting.TwoProcessCrossSectionSM(
+            subdir='.',
+            signals=['ttW', 'ttZ'],
+            theory_errors={'ttW': (0.1173, 0.1316), 'ttZ': (0.1164, 0.10)},
+            numpoints=500, chunksize=250, contours=True),
+        plotting.TwoProcessCrossSectionSMAndNP(
+            subdir='.',
+            signals=['ttW', 'ttZ'],
+            theory_errors={'ttW': (0.1173, 0.1316), 'ttZ': (0.1164, 0.10)})
     ],
     # uncomment below for scanning two coefficients at a time
     # 'dimension': 2,
     # 'plots': [
-    #     plotting.FitErrors(['/hadoop/store/user/$USER/ttV/cross_sections/6/2d/final*/*npz', '/hadoop/store/user/$USER/ttV/cross_sections/6/2d/final*/*npz'], dimensions=[1, 2]),
+    #     plotting.FitErrors(['/hadoop/store/user/$USER/ttV/cross_sections/1/1d/final*/*npz', '/hadoop/store/user/$USER/ttV/cross_sections/1/2d/final*/*npz'], dimensions=[1, 2]),
     #     plotting.NewPhysicsScaling2D(['ttZ', 'ttH', 'ttW'], dimensionless=True)
     # ],
     'indir shared': True,  # Can the batch system machines access this directory? If so, files will not be copied (this is faster)

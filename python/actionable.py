@@ -97,7 +97,8 @@ def concatenate(args, config):
         files = glob.glob(os.path.join(config['outdir'], 'cross_sections', '*.npz'))
         if 'indir' in config:
             files += glob.glob(os.path.join(config['indir'], '*.npz'))
-
+            files += glob.glob(config['indir'])
+            files = [f for f in files if 'npz' in f]
     result = CrossSectionScan(files)
     for coefficients in result.points:
         for process in result.points[coefficients]:
@@ -136,8 +137,6 @@ def combine(args, config):
     else:
         cmd += ['--algo=singles']
 
-    # FIXME: do I still need this?
-    # '--autoRange={}'.format('15' if config['asimov data'] else '20'),
     subprocess.call(' '.join(cmd), shell=True)
 
     if args.index is not None:

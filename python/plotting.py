@@ -10,6 +10,7 @@ import tabulate
 
 import jinja2
 import matplotlib
+matplotlib.use('Agg')
 from matplotlib.mlab import griddata
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
@@ -37,7 +38,6 @@ tweaks = {
 }
 sns.set(context="poster", style="white", font_scale=1.5, rc=tweaks)
 
-matplotlib.use('Agg')
 
 x_min, x_max, y_min, y_max = np.array([0.200, 1.200, 0.550, 2.250])
 
@@ -186,13 +186,11 @@ class NewPhysicsScaling2D(Plot):
             self,
             processes=['ttZ', 'ttH', 'ttW'],
             subdir='scaling2d',
-            overlay_result=False,
             dimensionless=False,
             match_nll_window=False,
             vmax=10):
         self.subdir = subdir
         self.processes = processes
-        self.overlay_result = overlay_result
         self.dimensionless = dimensionless
         self.match_nll_window = match_nll_window
         self.vmax = 10
@@ -200,10 +198,11 @@ class NewPhysicsScaling2D(Plot):
     def make(self, config, spec, index):
         if config['dimension'] != 2:
             raise NotImplementedError
-        inputs = multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']))
 
         for coefficients in itertools.combinations(config['coefficients'], 2):
-            spec.add(inputs, [], ['run', 'plot', '--coefficient', ','.join(coefficients), '--index', index, config['fn']])
+            cmd = 'run plot {coefficients} --index {index} {fn}'
+            coefficient_cl = ' '.join(['--coefficient {}'.format(c) for c in coefficients])
+            spec.add(['cross_sections.npz'], [], cmd.format(coefficients=coefficient_cl, index=index, fn=config['fn']))
 
     def write(self, config, plotter, args):
         super(NewPhysicsScaling2D, self).write(config)
@@ -273,8 +272,8 @@ class NewPhysicsScaling2D(Plot):
                 frame = legend.get_frame()
                 frame.set_color('white')
 
-            bar = ax.cax.colorbar(calculated)
-            bar.set_label_text('$\sigma_{NP+SM} / \sigma_{SM}$')
+                bar = ax.cax.colorbar(calculated)
+                bar.set_label_text('$\sigma_{NP+SM} / \sigma_{SM}$')
 
             logging.info('saving {}'.format(name))
             ax.set_xlabel(x_label, horizontalalignment='right', x=1.0)
@@ -396,8 +395,7 @@ class NLL(Plot):
         inputs = multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']))
 
         for coefficient in config['coefficients']:
-            outputs = [os.path.join(self.subdir, coefficient + suffix) for suffix in ['.pdf', '.png']]
-            spec.add(inputs, outputs, ['run', 'plot', '--coefficient', coefficient, '--index', index, config['fn']])
+            spec.add(inputs, [], ['run', 'plot', '--coefficient', coefficient, '--index', index, config['fn']])
 
     def write(self, config, plotter, args):
         super(NLL, self).write(config)

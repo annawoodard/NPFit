@@ -9,7 +9,7 @@ import subprocess
 
 import numpy as np
 
-from EffectiveTTV.EffectiveTTV.actionable import annotate
+from NPFit.NPFit.actionable import annotate
 
 
 class MakeflowSpecification(object):
@@ -194,7 +194,7 @@ def multidim_np(config, spec, tasks):
         workspace = os.path.join(config['outdir'], 'workspaces', '{}.root'.format(label))
         cmd = [
             'text2workspace.py', os.path.join(config['outdir'], 'ttV_np.txt'),
-            '-P', 'EffectiveTTV.EffectiveTTV.models:eft',
+            '-P', 'NPFit.NPFit.models:eft',
             '--PO', 'scan={}'.format(os.path.join(config['outdir'], 'cross_sections.npz')),
             ' '.join(['--PO process={}'.format(x) for x in config['processes']]),
             ' '.join(['--PO poi={}'.format(x) for x in coefficients]),
