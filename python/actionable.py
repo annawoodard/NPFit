@@ -101,7 +101,12 @@ def concatenate(args, config):
     result = CrossSectionScan(files)
     for coefficients in result.points:
         for process in result.points[coefficients]:
-            result.deduplicate(coefficients, process)
+            try:
+                result.deduplicate(coefficients, process)
+                result.update_scales(coefficients, process)
+            except (RuntimeError, KeyError) as e:
+                print(e)
+                result.prune(process, coefficients)
         result.fit(coefficients)
 
     outfile = os.path.join(config['outdir'], args.output)
