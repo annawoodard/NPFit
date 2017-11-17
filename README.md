@@ -1,4 +1,4 @@
-This is the code used for the Effective Field Theory interpretation in the CMS TOP-17-005 ([CADI](http://cms.cern.ch/iCMS/analysisadmin/cadilines?line=TOP-17-005)) analysis. Code used for running Madgraph to calculate cross sections is located in a separate repository which can be found [here](https://github.com/annawoodard/NPFitProduction).
+This is the code used for the Effective Field Theory interpretation in the CMS TOP-17-005 analysis (paper submitted to JHEP.) The preprint is available [here](https://arxiv.org/abs/1711.02547). Code used for running Madgraph to calculate cross sections is located in a separate repository which can be found [here](https://github.com/annawoodard/NPFitProduction).
 
 ## Installation
 
@@ -22,7 +22,7 @@ Now set up a working area:
     curl https://raw.githubusercontent.com/annawoodard/NPFit/master/setup.sh|sh -
 
 ## Quick start
-To reproduce the TOP-17-005 plots, no modification of the configuration file is necessary (with caveats [1]) After `cmsenv`ing in your working area, setup the output directory and produce the Makeflow specification:
+Example cross section scans are included in the [data](data) directory. To reproduce the TOP-17-005 plots, only one modification of the configuration file is necessary (with caveats [1].) Edit `indir` in [data/config.py](data/config.py) to point to [data/cross_sections/13TeV/1d.npz](data/cross_sections/13TeV/1d.npz). After `cmsenv`ing in your working area, setup the output directory and produce the Makeflow specification:
 
     run make data/config.py
 
