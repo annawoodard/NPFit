@@ -1,5 +1,4 @@
 import glob
-import itertools
 import logging
 import os
 import re
@@ -10,6 +9,7 @@ import subprocess
 import numpy as np
 
 from NPFit.NPFit.actionable import annotate
+from NPFitProduction.NPFitProduction.utils import sorted_combos
 
 
 class MakeflowSpecification(object):
@@ -187,9 +187,8 @@ def multidim_grid(config, tag, points, chunksize, spec):
 
 
 def multidim_np(config, spec, tasks):
-    combinations = [sorted(list(x)) for x in itertools.combinations(config['coefficients'], config['dimension'])]
     outfiles = []
-    for coefficients in combinations:
+    for coefficients in sorted_combos(config['coefficients'], config['dimension']):
         label = '_'.join(coefficients)
         workspace = os.path.join(config['outdir'], 'workspaces', '{}.root'.format(label))
         cmd = [
@@ -224,9 +223,8 @@ def multidim_np(config, spec, tasks):
 
 
 def fluctuate(config, spec):
-    combinations = [sorted(list(x)) for x in itertools.combinations(config['coefficients'], config['dimension'])]
     outfiles = []
-    for coefficients in combinations:
+    for coefficients in sorted_combos(config['coefficients'], config['dimension']):
         label = '_'.join(coefficients)
         fit_result = os.path.join(config['outdir'], 'fit-result-{}.root'.format(label))
         cmd = ['run', 'fluctuate', label, config['fluctuations'], config['fn']]
@@ -270,6 +268,6 @@ def make(args, config):
     spec.add(inputs, 'cross_sections.npz', ['run', 'concatenate', config['fn']])
 
     for index, plot in enumerate(config['plots']):
-        plot.make(config, spec, index)
+        plot.specify(config, spec, index)
 
     spec.dump(makefile)

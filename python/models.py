@@ -1,8 +1,7 @@
-import itertools
-
 from HiggsAnalysis.CombinedLimit.PhysicsModel import PhysicsModel
 
 from NPFitProduction.NPFitProduction.cross_sections import CrossSectionScan
+from NPFitProduction.NPFitProduction.utils import sorted_combos
 
 
 class EFTScaling(PhysicsModel):
@@ -28,10 +27,12 @@ class EFTScaling(PhysicsModel):
     def setup(self):
         dim = len(self.pois)
         for process in self.processes:
+            if process not in self.scan.fit_constants[self.pois]:
+                raise RuntimeError('no fit provided for process {}'.format(process))
             self.modelBuilder.out.var(process)
             name = 'r_{0}'.format(process)
 
-            pairs = [x for x in itertools.combinations(range(0, dim), 2)]
+            pairs = sorted_combos(range(0, dim), 2)
 
             constant = ['1.0']
             linear = self.pois
@@ -40,6 +41,7 @@ class EFTScaling(PhysicsModel):
             info = zip(self.scan.fit_constants[tuple(self.pois)][process], constant + linear + quad + mixed)
             terms = ['({s} * {c})'.format(s=s, c=c) for s, c in info]
             template = 'expr::{name}("{terms}", {pois})'
+            print 'building ', template.format(name=name, terms=' + '.join(terms), pois=', '.join(self.pois))
 
             scale = self.modelBuilder.factory_(template.format(name=name, terms=' + '.join(terms), pois=', '.join(self.pois)))
             self.modelBuilder.out._import(scale)

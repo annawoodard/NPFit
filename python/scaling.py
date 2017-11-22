@@ -19,8 +19,7 @@ def load_fitted_scan(config, fn='cross_sections.npz', maxpoints=None):
     fn = os.path.join(config['outdir'], fn)
     scan = CrossSectionScan(fn)
 
-    for coefficients in scan.points:
-        scan.fit(coefficients, maxpoints)
+    scan.fit(maxpoints)
 
     return scan
 

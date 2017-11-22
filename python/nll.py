@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+from root_numpy import root2array
 import scipy.signal
 import tabulate
 
@@ -14,7 +15,6 @@ def fit_nll(config, transform=False, dimensionless=True):
     """Note that the best fit is not straightforward with multiple minima, see:
     https://hypernews.cern.ch/HyperNews/CMS/get/statistics/551/1.html
     """
-    from root_numpy import root2array
     # TODO only run this once after running combine instead of every time I plot
     # TODO change to returning a dict with dimensionless and transformed
 
@@ -35,8 +35,6 @@ def fit_nll(config, transform=False, dimensionless=True):
         data['deltaNLL'] -= data['deltaNLL'].min()
         max_nll = (14. / 2)
         # max_nll = (30. / 2)
-        # data = data[data['deltaNLL'] < max_nll]
-        # _, unique = np.unique(data[coefficient], return_index=True)
         if data['deltaNLL'].max() > max_nll:
             while len(data[data['deltaNLL'] < max_nll][coefficient]) < 10:
                 max_nll += 1
@@ -65,7 +63,7 @@ def fit_nll(config, transform=False, dimensionless=True):
             xi = np.linspace(x.min(), x.max(), 10000)
             total = 0
             for process in config['processes']:
-                total += scan.evaluate(tuple([coefficient]), xi.reshape((len(xi), 1)), process)
+                total += scan.evaluate(coefficient, xi.reshape((len(xi), 1)), process)
             offset = xi[total.argmin()] * conversion_factor
 
             def transform(i):

@@ -108,7 +108,7 @@ def concatenate(args, config):
             except (RuntimeError, KeyError) as e:
                 print(e)
                 result.prune(process, coefficients)
-        result.fit(coefficients)
+    result.fit()
 
     outfile = os.path.join(config['outdir'], args.output)
     result.dump(outfile)
