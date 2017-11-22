@@ -117,10 +117,14 @@ def concatenate(args, config):
 def combine(args, config):
     label = '_'.join(args.coefficient)
 
+    scan = CrossSectionScan([os.path.join(config['outdir'], 'cross_sections.npz')])
+    mins = np.amin(scan.points[tuple(args.coefficient)][config['processes'][-1]], axis=0)
+    maxes = np.amax(scan.points[tuple(args.coefficient)][config['processes'][-1]], axis=0)
+
     cmd = [
         'combine', '-M', 'MultiDimFit', ' --saveFitResult', '{}'.format(os.path.join(config['outdir'], 'workspaces', '{}.root'.format(label))),
         '--setParameters', '{}'.format(','.join(['{}=0.0'.format(x) for x in args.coefficient])),
-        '--autoRange={}'.format(config['scale window'] * 2),
+        '--setParameterRanges', ':'.join(['{c}={low},{high}'.format(c=c, low=low, high=high) for c, low, high in zip(args.coefficient, mins, maxes)])
     ]
     if config['asimov data']:
         cmd += ['-t', '-1']
