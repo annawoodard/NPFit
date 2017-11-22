@@ -383,6 +383,73 @@ class NewPhysicsScaling(Plot):
                 if self.match_nll_window:
                     ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 
+class NLL2D(Plot):
+
+    def __init__(self, subdir='nll2d', dimensionless=False, scatter=False):
+        self.subdir = subdir
+        self.dimensionless = dimensionless
+        self.scatter = scatter
+
+    def specify(self, config, spec, index):
+        inputs = multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']))
+
+        for coefficients in sorted_combos(config['coefficients'], 2):
+            spec.add(inputs, [], ['run', 'plot', '--coefficient', coefficient, '--index', index, config['fn']])
+
+    def write(self, config, plotter, args):
+        super(NLL2D, self).write(config)
+
+        for coefficients in sorted_combos(config['coefficients'], 2):
+            tag = '_'.join(coefficients)
+            data = root2array(os.path.join(config['outdir'], 'scans', '{}.total.root'.format(tag)))
+            # make sure min point is at 0 (combine might have chosen wrong best
+            # fit for offset)
+            # data['deltaNLL'] -= data['deltaNLL'].min()
+
+            x = data[coefficients[0]]
+            y = data[coefficients[1]]
+            x_label = label[coefficients[0]]
+            y_label = label[coefficients[1]]
+            # x_label = label[coefficients[0]] + ('' if self.dimensionless else r' $/\Lambda^2$')
+            # y_label = label[coefficients[1]] + ('' if self.dimensionless else r' $/\Lambda^2$')
+            if not self.dimensionless:
+                x *= conversion[coefficients[0]]
+                y *= conversion[coefficients[1]]
+                x_label += '$\ [\mathrm{TeV}^{-2}]$'
+                y_label += '$\ [\mathrm{TeV}^{-2}]$'
+            with plotter.saved_figure(
+                    x_label,
+                    y_label,
+                    os.path.join(self.subdir, tag),
+                    header=config['header']) as ax:
+
+                xi = np.linspace(x.min(), x.max(), 500)
+                yi = np.linspace(y.min(), y.max(), 500)
+                zi = griddata(x, y, data['deltaNLL'] * 2, xi, yi, interp='linear')
+
+                contour = ax.contour(
+                    xi,
+                    yi,
+                    zi,
+                    [1.0, 3.84],
+                    colors=['#ff321a', 'blue'],
+                    linestyles=['-.', '--'],
+                    labels=['68% CL', '95% CL']
+                )
+                if self.scatter:
+                    ax.scatter(
+                        x,
+                        y,
+                        c=2 * data['deltaNLL'],
+                        s=300,
+                        marker='o',
+                        cmap=plt.get_cmap('hot'),
+                        label='$-2\ \Delta\ \mathrm{ln}\ \mathrm{L}$'
+                    )
+
+                ax.legend(loc='upper center')
+                ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+
 
 class NLL(Plot):
 
