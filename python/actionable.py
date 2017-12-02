@@ -6,8 +6,7 @@ import shlex
 import shutil
 import subprocess
 
-from NPFitProduction.NPFitProduction.cross_sections import CrossSectionScan
-
+from NPFitProduction.NPFitProduction.cross_sections import CrossSectionScan, get_perimeter
 
 def annotate(args, config):
     """Annotate the output directory with a README
@@ -104,7 +103,6 @@ def concatenate(args, config):
         for process in result.points[coefficients]:
             try:
                 result.deduplicate(coefficients, process)
-                result.update_scales(coefficients, process)
             except (RuntimeError, KeyError) as e:
                 print(e)
                 result.prune(process, coefficients)
@@ -124,8 +122,10 @@ def combine(args, config):
     cmd = [
         'combine', '-M', 'MultiDimFit', ' --saveFitResult', '{}'.format(os.path.join(config['outdir'], 'workspaces', '{}.root'.format(label))),
         '--setParameters', '{}'.format(','.join(['{}=0.0'.format(x) for x in args.coefficient])),
-        '--setParameterRanges', ':'.join(['{c}={low},{high}'.format(c=c, low=low, high=high) for c, low, high in zip(args.coefficient, mins, maxes)])
+        '--setParameterRanges', ':'.join(['{c}={low},{high}'.format(c=c, low=low, high=high) for c, low, high in zip(args.coefficient, mins, maxes)]),
+        '--autoBoundsPOIs=*'
     ]
+
     if config['asimov data']:
         cmd += ['-t', '-1']
     if args.index is not None:
@@ -139,7 +139,7 @@ def combine(args, config):
             '--lastPoint={}'.format(last)
         ]
     else:
-        cmd += ['--algo=singles']
+        cmd += ['--algo=cross']
 
     subprocess.call(' '.join(cmd), shell=True)
 

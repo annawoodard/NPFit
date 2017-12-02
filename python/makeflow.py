@@ -150,7 +150,7 @@ def multi_signal(signals, tag, spec, config):
         'higgsCombineTest.MultiDimFit.mH120.root': best_fit,
         'multidimfit.root': fit_result
     }
-    cmd = 'combine -M MultiDimFit {} --saveFitResult --algo=singles >& {}.fit.log'.format(workspace, card)
+    cmd = 'combine -M MultiDimFit {} --autoBoundsPOIs=* --saveFitResult --algo=cross >& {}.fit.log'.format(workspace, card)
     spec.add(workspace, outputs, cmd)
 
     return [best_fit, fit_result]
@@ -176,6 +176,7 @@ def multidim_grid(config, tag, points, chunksize, spec):
             '-n', '_{}_{}'.format(tag, index),
             '--firstPoint {}'.format(first),
             '--lastPoint {}'.format(last),
+            '--autoBoundsPOIs=*'
         ]
 
         spec.add(workspace, {filename: scan}, cmd)
