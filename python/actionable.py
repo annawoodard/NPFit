@@ -123,7 +123,7 @@ def combine(args, config):
         'combine', '-M', 'MultiDimFit', ' --saveFitResult', '{}'.format(os.path.join(config['outdir'], 'workspaces', '{}.root'.format(label))),
         '--setParameters', '{}'.format(','.join(['{}=0.0'.format(x) for x in args.coefficient])),
         '--setParameterRanges', ':'.join(['{c}={low},{high}'.format(c=c, low=low, high=high) for c, low, high in zip(args.coefficient, mins, maxes)]),
-        '--autoBoundsPOIs=*'
+        '--autoBoundsPOIs=*', '--autoMaxPOIs=*', '--verbose=1'
     ]
 
     if config['asimov data']:
@@ -139,8 +139,12 @@ def combine(args, config):
             '--lastPoint={}'.format(last)
         ]
     else:
-        cmd += ['--algo=cross']
+        if config['dimension'] == 1:
+            cmd += ['--algo=singles']
+        else:
+            cmd += ['--algo=cross', '--cl=0.95']
 
+    print 'calling ', ' '.join(cmd)
     subprocess.call(' '.join(cmd), shell=True)
 
     if args.index is not None:
@@ -151,6 +155,7 @@ def combine(args, config):
         shutil.move(
             'higgsCombineTest.MultiDimFit.mH120.root',
             os.path.join(config['outdir'], 'best-fit-{}.root'.format(label)))
-        shutil.move(
-            'multidimfit.root',
-            os.path.join(config['outdir'], 'fit-result-{}.root'.format(label)))
+        if config['dimension'] == 1:
+            shutil.move(
+                'multidimfit.root',
+                os.path.join(config['outdir'], 'fit-result-{}.root'.format(label)))

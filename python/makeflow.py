@@ -63,6 +63,7 @@ def prepare_cards(args, config, cardify):
     with open(cardify('4l'), 'r') as f:
         card = f.read()
     with open(cardify('4l'), 'w') as f:
+        # TODO fix this
         f.write(card[:card.find('nuisance parameters') + 19])
         f.write('''
 ----------------------------------------------------------------------------------------------------------------------------------
@@ -206,7 +207,10 @@ def multidim_np(config, spec, tasks):
         best_fit = os.path.join(config['outdir'], 'best-fit-{}.root'.format(label))
         fit_result = os.path.join(config['outdir'], 'fit-result-{}.root'.format(label))
         cmd = ['run', 'combine'] + list(coefficients) + [config['fn']]
-        spec.add([workspace], [best_fit, fit_result], cmd)
+        if config['dimension'] == 1:
+            spec.add([workspace], [best_fit, fit_result], cmd)
+        else:
+            spec.add([workspace], [best_fit], cmd)
 
         scans = []
         for index in range(int(tasks)):
