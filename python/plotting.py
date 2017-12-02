@@ -77,6 +77,18 @@ def get_masked_colormap(bottom_map, top_map, norm, width, masked_value):
 
     return cmap
 
+def get_stacked_colormaps(cmaps, interfaces, norm):
+    colors = []
+    low = 0.
+    for cmap, interface in zip(cmaps, interfaces):
+        colors += zip(np.linspace(low, norm(interface), 100), cmap(np.linspace(0, 1., 100)))
+        low = norm(interface)
+
+    colors += zip(np.linspace(low, 1., 100), cmaps[-1](np.linspace(0, 1., 100)))
+
+    cmap = matplotlib.colors.LinearSegmentedColormap.from_list('masked_map', colors)
+
+    return cmap
 
 class Plotter(object):
 
@@ -510,11 +522,12 @@ class NewPhysicsScaling(Plot):
 
 class NLL2D(Plot):
 
-    def __init__(self, subdir='nll2d', dimensionless=False, scatter=False, maxnll=12):
+    def __init__(self, subdir='nll2d', dimensionless=False, scatter=False, maxnll=12, vmin=0.02):
         self.subdir = subdir
         self.dimensionless = dimensionless
         self.scatter = scatter
         self.maxnll = maxnll
+        self.vmin = vmin
 
     def specify(self, config, spec, index):
         inputs = multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']))
@@ -526,6 +539,14 @@ class NLL2D(Plot):
     def write(self, config, plotter, args):
         super(NLL2D, self).write(config)
 
+        levels = sorted(chi2.isf(np.array([0.05, 0.32]), 2))
+        labels = ['68% CL', '95% CL']
+        tables = {}
+        for l in labels:
+            tables[l] = np.empty((len(config['coefficients']), len(config['coefficients']) + 1), dtype='U35')
+            tables[l][:, 0] = sorted(config['coefficients'])
+
+        indexes = dict((c, i) for i, c in enumerate(sorted(config['coefficients'])))
         for coefficients in sorted_combos(config['coefficients'], 2):
             tag = '_'.join(coefficients)
             try:
@@ -534,15 +555,16 @@ class NLL2D(Plot):
                 print 'input data missing, skipping {}'.format(tag)
                 continue
 
-            z = 2 * data['deltaNLL']
-            x = data[coefficients[0]]
-            y = data[coefficients[1]]
-            z = z
-            x_label = label[coefficients[0]] + ('' if self.dimensionless else r' $/\Lambda^2$')
-            y_label = label[coefficients[1]] + ('' if self.dimensionless else r' $/\Lambda^2$')
+            x = coefficients[0]
+            y = coefficients[1]
+            zi = 2 * data['deltaNLL']
+            xi = data[x]
+            yi = data[y]
+            x_label = label[x] + ('' if self.dimensionless else r' $/\Lambda^2$')
+            y_label = label[y] + ('' if self.dimensionless else r' $/\Lambda^2$')
             if not self.dimensionless:
-                x *= conversion[coefficients[0]]
-                y *= conversion[coefficients[1]]
+                xi *= conversion[x]
+                yi *= conversion[y]
                 x_label += '$\ [\mathrm{TeV}^{-2}]$'
                 y_label += '$\ [\mathrm{TeV}^{-2}]$'
             with plotter.saved_figure(
@@ -553,19 +575,19 @@ class NLL2D(Plot):
                     figsize=(15, 11)) as ax:
 
                 contour = plt.tricontour(
-                    x[z != 0],
-                    y[z != 0],
-                    z[z != 0],
-                    sorted(chi2.isf(np.array([0.05, 0.32]), 2)),
+                    xi[zi != 0],
+                    yi[zi != 0],
+                    zi[zi != 0],
+                    levels,
                     colors=['black', 'black'],
                     linestyles=['--', '-']
                 )
-                contour.collections[0].set_label('68% CL')
-                contour.collections[1].set_label('95% CL')
+                for i, l in enumerate(labels):
+                    contour.collections[i].set_label(l)
 
                 plt.plot(
-                    x[z.argmin()],
-                    y[z.argmin()],
+                    xi[zi.argmin()],
+                    yi[zi.argmin()],
                     mew=3,
                     marker="x",
                     linestyle='None',
@@ -574,29 +596,57 @@ class NLL2D(Plot):
                 )
 
                 if self.scatter:
-                    xmin = x[z < self.maxnll].min()
-                    xmax = x[z < self.maxnll].max()
-                    ymin = y[z < self.maxnll].min()
-                    ymax = y[z < self.maxnll].max()
-                    window = (x > xmin) & (x < xmax) & (y > ymin) & (y < ymax)
+                    xmin = xi[zi < self.maxnll].min()
+                    xmax = xi[zi < self.maxnll].max()
+                    ymin = yi[zi < self.maxnll].min()
+                    ymax = yi[zi < self.maxnll].max()
+                    window = (xi > xmin) & (xi < xmax) & (yi > ymin) & (yi < ymax)
 
-                    z[z < 0.1] = 0.11
+                    np.clip(zi, self.vmin, zi.max(), zi)
                     scatter = ax.scatter(
-                        x[window],
-                        y[window],
-                        c=z[window],
-                        norm=matplotlib.colors.LogNorm(vmin=0.1, vmax=z[window].max()),
+                        xi[window],
+                        yi[window],
+                        c=zi[window],
+                        norm=matplotlib.colors.LogNorm(vmin=self.vmin, vmax=zi[window].max()),
                         s=600,
                         marker='s',
                         linewidths=0,
-                        cmap=sns.diverging_palette(240, 10, s=99, l=55, sep=1, as_cmap=True)
+                        # cmap=sns.diverging_palette(240, 10, s=99, l=55, sep=1, as_cmap=True)
+                        cmap=get_stacked_colormaps(
+                            [sns.light_palette("red", reverse=True, as_cmap=True), sns.light_palette("blue", as_cmap=True)],
+                            interfaces=levels[:-1],
+                            norm=matplotlib.colors.LogNorm(vmin=self.vmin, vmax=zi[window].max())
+                        )
                     )
-                    plt.colorbar(scatter, label='$-2\ \Delta\ \mathrm{ln}\ \mathrm{L}$' + (' (asimov data)' if config['asimov data'] else ''))
-
+                    bar = plt.colorbar(
+                        scatter,
+                        label='$-2\ \Delta\ \mathrm{ln}\ \mathrm{L}$' + (' (asimov data)' if config['asimov data'] else ''),
+                        ticks=LogLocator(subs=range(10))
+                    )
+                    for t in bar.ax.get_yticklines():
+                        bar.ax.add_artist(t)
                 ax.legend(fancybox=True, ncol=3)
-                plt.ylim(ymin=y[z < self.maxnll].min(), ymax=y[z < self.maxnll].max())
-                plt.xlim(xmin=x[z < self.maxnll].min(), xmax=x[z < self.maxnll].max())
+                plt.ylim(ymin=yi[zi < self.maxnll].min(), ymax=yi[zi < self.maxnll].max())
+                plt.xlim(xmin=xi[zi < self.maxnll].min(), xmax=xi[zi < self.maxnll].max())
                 # ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+            for level, l in zip(levels, labels):
+                cell = '[{:.1f}, {:.1f}] \\ [{:.1f}, {:.1f}]'.format(
+                    xi[zi < level].min(),
+                    xi[zi < level].max(),
+                    yi[zi < level].min(),
+                    yi[zi < level].max()
+                )
+                tables[l][indexes[x]][indexes[y] + 1] = cell
+
+        with open(os.path.join(config['outdir'], 'results.tex'), 'w') as f:
+            for l, table in tables.items():
+                text = tabulate.tabulate(table.tolist(), headers=sorted(config['coefficients']), tablefmt='latex_booktabs', missingval='-')
+                f.write('\n\n{line} {l} {line}\n{text}'.format(line='#' * (len(text.splitlines()[0]) / 3), l=l, text=text))
+
+        with open(os.path.join(config['outdir'], 'results.txt'), 'w') as f:
+            for l, table in tables.items():
+                text = tabulate.tabulate(table.tolist(), headers=sorted(config['coefficients']), missingval='-')
+                f.write('\n\n{line} {l} {line}\n{text}'.format(line='#' * (len(text.splitlines()[0]) / 3), l=l, text=text))
 
 
 class NLL(Plot):
