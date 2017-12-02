@@ -31,6 +31,7 @@ git clone git@github.com:annawoodard/NPFitProduction.git NPFitProduction/NPFitPr
 cd NPFitProduction/NPFitProduction
 git config core.sparsecheckout true
 echo "python/" >> .git/info/sparse-checkout
+echo "scripts/" >> .git/info/sparse-checkout
 git checkout master
 cd $CMSSW_BASE/src
 
