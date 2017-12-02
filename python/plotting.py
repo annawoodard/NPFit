@@ -1,38 +1,37 @@
-import pandas as pd
 import atexit
 import contextlib
-from collections import defaultdict
-from datetime import datetime
 import glob
 import logging
 import os
 import tarfile
-import tabulate
+from collections import defaultdict
+from datetime import datetime
 
 import jinja2
 import matplotlib
-matplotlib.use('Agg')
-from matplotlib.mlab import griddata
 import matplotlib.pyplot as plt
-from matplotlib.ticker import LogLocator, FormatStrFormatter
-from mpl_toolkits.axes_grid1 import ImageGrid
+import numpy as np
+import pandas as pd
 import scipy
 import scipy.ndimage
+import seaborn as sns
+import tabulate
+from matplotlib.mlab import griddata
+from matplotlib.ticker import FormatStrFormatter, LogLocator
+from mpl_toolkits.axes_grid1 import ImageGrid
+from root_numpy import root2array
 from scipy.stats import chi2
 
-import numpy as np
-from root_numpy import root2array
-
 from NPFit.NPFit import kde
-from NPFit.NPFit.makeflow import multidim_np, multi_signal, max_likelihood_fit, multidim_grid, fluctuate
+from NPFit.NPFit.makeflow import (fluctuate, max_likelihood_fit, multi_signal,
+                                  multidim_grid, multidim_np)
 from NPFit.NPFit.nll import fit_nll
-from NPFit.NPFit.parameters import nlo, label, conversion
+from NPFit.NPFit.parameters import conversion, label, nlo
 from NPFit.NPFit.scaling import load_fitted_scan
-
 from NPFitProduction.NPFitProduction.cross_sections import CrossSectionScan
-from NPFitProduction.NPFitProduction.utils import sorted_combos, cartesian_product
+from NPFitProduction.NPFitProduction.utils import (cartesian_product,
+                                                   sorted_combos)
 
-import seaborn as sns
 tweaks = {
     "lines.markeredgewidth": 0.0,
     "lines.linewidth": 5,
@@ -236,7 +235,6 @@ class FitErrors(Plot):
             plt.ylim(ymin=0)
             plt.legend()
 
-
         headers = ['fit points', 'test points with |err| > 5%', 'total test points', 'percent failure']
         with open(os.path.join(config['outdir'], 'fit_errors.txt'), 'w') as f:
             f.write(tabulate.tabulate(table, headers=headers) + '\n')
@@ -293,7 +291,7 @@ class NewPhysicsScaling2D(Plot):
             x = coefficients[0]
             y = coefficients[1]
             x_label = label[x] + ('' if self.dimensionless else r' $/\Lambda^2\ [\mathrm{TeV}^{-2}]$')
-            y_label = label[y]+ ('' if self.dimensionless else r' $/\Lambda^2\ [\mathrm{TeV}^{-2}]$')
+            y_label = label[y] + ('' if self.dimensionless else r' $/\Lambda^2\ [\mathrm{TeV}^{-2}]$')
             x_conv = 1. if self.dimensionless else conversion[x]
             y_conv = 1. if self.dimensionless else conversion[y]
 
@@ -381,10 +379,16 @@ class NewPhysicsScaling2D(Plot):
                 ax.set_ylabel(y_label, horizontalalignment='right', y=1.0)
                 ax.set_xlim([data[x].min(), data[x].max()])
                 ax.set_ylim([data[y].min(), data[y].max()])
-                ax.annotate(label[process], xy=(0.5, 0.9), xycoords='axes fraction', horizontalalignment='center',
-                        bbox=dict(boxstyle="round,pad=.5", fc="white", ec="none"))
+                ax.annotate(
+                    label[process],
+                    xy=(0.5, 0.9),
+                    xycoords='axes fraction',
+                    horizontalalignment='center',
+                    bbox=dict(boxstyle="round,pad=.5", fc="white", ec="none")
+                )
 
-            bar = fig.colorbar(scatter,
+            bar = fig.colorbar(
+                    scatter,
                     cax=ax.cax,
                     label='$\sigma_{NP+SM} / \sigma_{SM}$',
                     ticks=LogLocator(subs=range(10)),
@@ -502,6 +506,7 @@ class NewPhysicsScaling(Plot):
                 ax.legend(loc='upper center')
                 if self.match_nll_window:
                     ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+
 
 class NLL2D(Plot):
 
