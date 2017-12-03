@@ -188,9 +188,9 @@ def multidim_grid(config, tag, points, chunksize, spec):
     return [outfile]
 
 
-def multidim_np(config, spec, tasks):
+def multidim_np(config, spec, tasks, dimension):
     outfiles = []
-    for coefficients in sorted_combos(config['coefficients'], config['dimension']):
+    for coefficients in sorted_combos(config['coefficients'], dimension):
         label = '_'.join(coefficients)
         workspace = os.path.join(config['outdir'], 'workspaces', '{}.root'.format(label))
         cmd = [
@@ -207,7 +207,7 @@ def multidim_np(config, spec, tasks):
         best_fit = os.path.join(config['outdir'], 'best-fit-{}.root'.format(label))
         fit_result = os.path.join(config['outdir'], 'fit-result-{}.root'.format(label))
         cmd = ['run', 'combine'] + list(coefficients) + [config['fn']]
-        if config['dimension'] == 1:
+        if dimension == 1:
             spec.add([workspace], [best_fit, fit_result], cmd)
         else:
             spec.add([workspace], [best_fit], cmd)
@@ -229,7 +229,7 @@ def multidim_np(config, spec, tasks):
 
 def fluctuate(config, spec):
     outfiles = []
-    for coefficients in sorted_combos(config['coefficients'], config['dimension']):
+    for coefficients in sorted_combos(config['coefficients'], 1):
         label = '_'.join(coefficients)
         fit_result = os.path.join(config['outdir'], 'fit-result-{}.root'.format(label))
         cmd = ['run', 'fluctuate', label, config['fluctuations'], config['fn']]
@@ -263,13 +263,16 @@ def make(args, config):
     # code changes are always picked up
     spec.add([], [], ['run', 'annotate', config['fn']])
 
-    files = glob.glob(os.path.join(config['indir'], '*.root'))
+    files = sum([glob.glob(os.path.join(indir, '*.root')) for indir in config['indirs']], [])
     for f in files:
         outputs = os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npz'))
         spec.add([], outputs, ['run', '--parse', f, config['fn']])
 
     inputs = [os.path.join('cross_sections', os.path.basename(f).replace('.root', '.npz')) for f in files]
-    inputs += glob.glob(os.path.join(config['indir'], '*.npz'))
+    if 'indirs' in config:
+        for indir in config['indirs']:
+            for root, _, filenames in os.walk(indir):
+                inputs += [os.path.join(root, fn) for fn in filenames if fn.endswith('.npz')]
     spec.add(inputs, 'cross_sections.npz', ['run', 'concatenate', config['fn']])
 
     for index, plot in enumerate(config['plots']):

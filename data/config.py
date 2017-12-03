@@ -1,10 +1,9 @@
 import NPFit.NPFit.plotting as plotting
 
 config = {
-    #  Wildcards are accepted, for example:
-    # 'indir': '/hadoop/store/user/$USER/ttV/cross_sections/1/1d/final*',
-    'indir': '~/YOUR-NPFIT-DIR-HERE/data/cross_sections/13-TeV/1d.npz',  # Where input scans are
-    'outdir': '~/www/ttV/1/',  # Output directory; iterate the version each time you make changes
+    'indirs': ['/hadoop/store/user/$USER/ttV/cross_sections/18/'],
+    'outdir': '~/www/.private/ttV/79/',  # Output directory; iterate the version each time you make changes
+    'shared-fs': ['/afs', '/hadoop'],  # Declare filesystems the batch system can access-- files will not be copied (faster)
     'coefficients': ['cuW', 'cuB', 'cH', 'tc3G', 'c3G', 'cHu', 'c2G', 'cuG'],
     'dimension': 1,
     'plots': [

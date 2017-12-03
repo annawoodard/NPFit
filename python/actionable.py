@@ -21,14 +21,11 @@ def annotate(args, config):
     os.chdir(start)
 
     shared_filesystem = []
-    if config['indir shared']:
-        if not config['indir'].startswith('/'):
-            raise Exception('absolute path required for shared filesystems: {}'.format(config['indir']))
-        shared_filesystem += ["--shared-fs '/{}'".format(config['indir'].split('/')[1])]
-    if config['outdir shared']:
-        if not config['outdir'].startswith('/'):
-            raise Exception('absolute path required for shared filesystems: {}'.format(config['outdir']))
-        shared_filesystem += ["--shared-fs '/{}'".format(config['outdir'].split('/')[1])]
+    if 'shared-fs' in config:
+        for directory in config['shared-fs']:
+            if not directory.startswith('/'):
+                raise Exception('absolute path required for shared filesystems: {}'.format(directory))
+            shared_filesystem += ["--shared-fs '/{}'".format(directory.split('/')[1])]
 
     info = """
     # to run, issue the following commands:
@@ -94,10 +91,11 @@ def concatenate(args, config):
         files = sum([glob.glob(x) for x in args.files], [])
     else:
         files = glob.glob(os.path.join(config['outdir'], 'cross_sections', '*.npz'))
-        if 'indir' in config:
-            files += glob.glob(os.path.join(config['indir'], '*.npz'))
-            files += glob.glob(config['indir'])
-            files = [f for f in files if 'npz' in f]
+        if 'indirs' in config:
+            for indir in config['indirs']:
+                for root, _, filenames in os.walk(indir):
+                    files += [os.path.join(root, fn) for fn in filenames if fn.endswith('.npz')]
+
     result = CrossSectionScan(files)
     for coefficients in result.points:
         for process in result.points[coefficients]:
@@ -113,7 +111,7 @@ def concatenate(args, config):
 
 
 def combine(args, config):
-    label = '_'.join(args.coefficient)
+    label = '_'.join(args.coefficients)
 
     scan = CrossSectionScan([os.path.join(config['outdir'], 'cross_sections.npz')])
     mins = np.amin(scan.points[tuple(args.coefficient)][config['processes'][-1]], axis=0)

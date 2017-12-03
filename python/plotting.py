@@ -9,6 +9,7 @@ from datetime import datetime
 
 import jinja2
 import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -189,8 +190,7 @@ class Plot(object):
 
 class FitErrors(Plot):
 
-    def __init__(self, files, dimensions=[1], processes=['ttZ', 'ttH', 'ttW'], fitpoints=[100], subdir='fit_errors', xmin=-20, xmax=20):
-        self.files = sum([glob.glob(os.path.abspath(os.path.expanduser(os.path.expandvars(f)))) for f in files], [])
+    def __init__(self, dimensions=[1], processes=['ttZ', 'ttH', 'ttW'], fitpoints=[100], subdir='fit_errors', xmin=-20, xmax=20):
         self.dimensions = dimensions
         self.processes = processes
         self.fitpoints = np.array(fitpoints)
@@ -199,9 +199,7 @@ class FitErrors(Plot):
         self.xmax = xmax
 
     def specify(self, config, spec, index):
-        cmd = 'run concatenate {} --output cross_sections.multidim.npz ' + config['fn']
-        spec.add(self.files, 'cross_sections.multidim.npz', cmd.format(' '.join(['--files {}'.format(f) for f in self.files])))
-        spec.add(['cross_sections.multidim.npz'], [], ['run', 'plot', '--index', index, config['fn']])
+        spec.add(['cross_sections.npz'], [], ['run', 'plot', '--index', index, config['fn']])
 
     def write(self, config, plotter, args):
         super(FitErrors, self).write(config)
@@ -241,7 +239,7 @@ class FitErrors(Plot):
             for dimension in self.dimensions:
                 label = '{} fit points ({}d fit)'.format(optimal_fitpoints, dimension)
                 errs = get_errs(scan, dimension)
-                np.clip(errs, self.min, self.max)
+                np.clip(errs, self.xmin, self.xmax)
                 ax.hist(errs, 100, histtype='step', fill=False, label=label)
             ax.set_yscale('log')
             plt.ylim(ymin=0)
@@ -274,11 +272,11 @@ class NewPhysicsScaling2D(Plot):
         self.numbins = numbins
 
     def specify(self, config, spec, index):
-        if config['dimension'] != 2:
-            raise NotImplementedError
+        if self.maxnll is not None:
+            inputs = multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']), 2)
 
         for coefficients in sorted_combos(config['coefficients'], 2):
-            cmd = 'run plot --coefficient {coefficients} --index {index} {fn}'
+            cmd = 'run plot --coefficients {coefficients} --index {index} {fn}'
             spec.add(['cross_sections.npz'], [], cmd.format(coefficients=' '.join(coefficients), index=index, fn=config['fn']))
 
     def write(self, config, plotter, args):
@@ -288,7 +286,7 @@ class NewPhysicsScaling2D(Plot):
         if self.match_zwindows:
             zmin = None
             zmax = None
-            for coefficients in sorted_combos(config['coefficients'], config['dimension']):
+            for coefficients in sorted_combos(config['coefficients'], 2):
                 madgraph = scan.dataframe(coefficients)
                 if zmin is None:
                     zmin = min(madgraph[self.processes].min())
@@ -297,7 +295,7 @@ class NewPhysicsScaling2D(Plot):
                     zmin = min(min(madgraph[self.processes].min()), zmin)
                     zmax = max(max(madgraph[self.processes].max()), zmax)
 
-        for coefficients in sorted_combos(config['coefficients'], config['dimension']):
+        for coefficients in sorted_combos(config['coefficients'], 2):
             tag = '_'.join(coefficients)
             name = os.path.join(self.subdir, tag)
             x = coefficients[0]
@@ -434,17 +432,16 @@ class NewPhysicsScaling(Plot):
         self.match_nll_window = match_nll_window
 
     def specify(self, config, spec, index):
-        if config['dimension'] != 1:
-            raise NotImplementedError('only 1 dimension supported for `NewPhysicsScaling`')
         inputs = ['cross_sections.npz']
         if self.match_nll_window:
-            inputs = multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']))
+            inputs = multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']), 1)
 
         for coefficient in config['coefficients']:
-            spec.add(inputs, [], ['run', 'plot', '--coefficient', coefficient, '--index', index, config['fn']])
+            spec.add(inputs, [], ['run', 'plot', '--coefficients', coefficient, '--index', index, config['fn']])
 
     def write(self, config, plotter, args):
         super(NewPhysicsScaling, self).write(config)
+        # FIXME does this work letting WQ transfer?
         scan = CrossSectionScan(os.path.join(config['outdir'], 'cross_sections.npz'))
         if self.match_nll_window:
             nll = fit_nll(config, transform=False, dimensionless=self.dimensionless)
@@ -530,10 +527,10 @@ class NLL2D(Plot):
         self.vmin = vmin
 
     def specify(self, config, spec, index):
-        inputs = multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']))
+        inputs = multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']), 2)
 
         for coefficients in sorted_combos(config['coefficients'], 2):
-            cmd = 'run plot --coefficient {coefficients} --index {index} {fn}'
+            cmd = 'run plot --coefficients {coefficients} --index {index} {fn}'
             spec.add(inputs, [], cmd.format(coefficients=' '.join(coefficients), index=index, fn=config['fn']))
 
     def write(self, config, plotter, args):
@@ -657,7 +654,7 @@ class NLL(Plot):
         self.dimensionless = dimensionless
 
     def specify(self, config, spec, index):
-        inputs = multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']))
+        inputs = multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']), 1)
 
         for coefficient in config['coefficients']:
             spec.add(inputs, [], ['run', 'plot', '--coefficient', coefficient, '--index', index, config['fn']])
@@ -852,7 +849,7 @@ class TwoProcessCrossSectionSMAndNP(Plot):
 
     def specify(self, config, spec, index):
         inputs = multi_signal(self.signals, self.tag, spec, config)
-        inputs += multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']))
+        inputs += multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']), 1)
         inputs += fluctuate(config, spec)
 
         spec.add(inputs, [],  ['run', 'plot', '--index', index, config['fn']])
@@ -919,8 +916,8 @@ def plot(args, config):
 
     plotter = Plotter(config)
 
-    if args.coefficient:
-        config['coefficients'] = args.coefficient
+    if args.coefficients:
+        config['coefficients'] = args.coefficients
 
     if args.header:
         config['header'] = args.header

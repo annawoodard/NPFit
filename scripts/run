@@ -40,13 +40,13 @@ fluctuate_parser.add_argument('perturbations', help='number of perturbations to 
 fluctuate_parser.set_defaults(func=fluctuate)
 
 plot_parser = subparsers.add_parser('plot', help='plot cross section scans and results')
-plot_parser.add_argument('--coefficient', nargs='+', help='only plot given coefficients (default is all)')
+plot_parser.add_argument('--coefficients', nargs='+', help='only plot given coefficients (default is all)')
 plot_parser.add_argument('-e', '--header', help="plot header (final or preliminary)")
 plot_parser.add_argument('-i', '--index', type=int, help='which plot to produce (index in config file, default is all)')
 plot_parser.set_defaults(func=plot)
 
 combine_parser = subparsers.add_parser('combine', help='run combine')
-combine_parser.add_argument('coefficient', nargs='+', help='coefficients to run on')
+combine_parser.add_argument('coefficients', nargs='+', help='coefficients to run on')
 combine_parser.add_argument('-i', '--index', type=int, help='index to run (for grid scans)')
 combine_parser.set_defaults(func=combine)
 
@@ -64,9 +64,11 @@ logging.__dict__['root'].level = (2 + args.quiet - args.verbose) * 10
 config = imp.load_source('', args.config).config
 configdir, config['fn'] = os.path.split(args.config)
 
-for k in ('indir', 'outdir'):
-    if k in config:
-        config[k] = os.path.abspath(os.path.expanduser(os.path.expandvars(config[k])))
+if 'outdir' in config:
+    config['outdir'] = os.path.abspath(os.path.expanduser(os.path.expandvars(config['outdir'])))
+
+if 'indirs' in config:
+    config['indirs'] = [os.path.abspath(os.path.expanduser(os.path.expandvars(x))) for x in config['indirs']]
 
 for path in ('cross_sections', 'workspaces', 'scans', 'plots'):
     if not os.path.exists(os.path.join(config['outdir'], path)):
