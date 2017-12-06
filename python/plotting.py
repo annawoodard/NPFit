@@ -3,6 +3,7 @@ import contextlib
 import glob
 import logging
 import os
+import sys
 import tarfile
 from collections import defaultdict
 from datetime import datetime
@@ -217,33 +218,49 @@ class FitErrors(Plot):
             return errs
 
         name = os.path.join(self.subdir, 'fit_errors')
-        x_label = r'$(\mu_{\mathrm{MG}} - \mu_{\mathrm{fit}}) / \mu_{\mathrm{MG}} * 100$'
+        x_label = r'$(\mathrm{r}_{\mathrm{MG}} - \mathrm{r}_{\mathrm{fit}}) / \mathrm{r}_{\mathrm{MG}} * 100$'
+        maxtestpoints = None
+        for dimension in self.dimensions:
+            scan = load_fitted_scan(config, 'cross_sections.npz', maxpoints=max(self.fitpoints))
+            errs = get_errs(scan, dimension)
+            print 'max test points ', maxtestpoints
+            if maxtestpoints is None:
+                maxtestpoints = len(errs)
+            else:
+                maxtestpoints = min(errs, maxtestpoints)
+            print 'now max test points ', maxtestpoints
         with plotter.saved_figure(x_label, 'counts', name) as ax:
             labels = []
             table = []
-            template = '\ntest points: {:,d} / {:,d} ({:.1f} %) outside [-5, 5]'
-            scan = load_fitted_scan(config, 'cross_sections.multidim.npz')
-            self.fitpoints = np.array(range(5, 500, 1))
+            scan = load_fitted_scan(config, 'cross_sections.npz')
             failure_ratio = np.zeros(len(self.fitpoints))
 
             for index, points in enumerate(self.fitpoints):
-                scan = load_fitted_scan(config, 'cross_sections.multidim.npz', maxpoints=points)
+                scan = load_fitted_scan(config, 'cross_sections.npz', maxpoints=points)
                 for dimension in self.dimensions:
                     errs = get_errs(scan, dimension)
+                    np.random.shuffle(errs)
+                    errs = errs[:maxtestpoints]
                     bad = errs[np.abs(errs) > 5]
                     table.append([points, len(bad), len(errs), '{:.1f} %'.format(100. * len(bad) / len(errs))])
                     failure_ratio[index] = float(len(bad)) / len(errs)
+                    # residuals
 
-            optimal_fitpoints = self.fitpoints[failure_ratio.argmin()]
-            scan = load_fitted_scan(config, 'cross_sections.multidim.npz', maxpoints=optimal_fitpoints)
+            scan = load_fitted_scan(config, 'cross_sections.npz', maxpoints=400)
             for dimension in self.dimensions:
-                label = '{} fit points ({}d fit)'.format(optimal_fitpoints, dimension)
                 errs = get_errs(scan, dimension)
-                np.clip(errs, self.xmin, self.xmax)
-                ax.hist(errs, 100, histtype='step', fill=False, label=label)
-            ax.set_yscale('log')
-            plt.ylim(ymin=0)
+                errs[errs < self.xmin] = self.xmin
+                errs[errs > self.xmax] = self.xmax
+                label = '{}d fit ({:,} test points)'.format(dimension, len(errs))
+                ax.hist(errs, 70, histtype='step', fill=False, label=label)
+            ax.set_yscale('log', subsy=range(10))
+            ax.yaxis.set_tick_params('minor', size=5)
+            plt.ylim(ymin=0, ymax=5e5)
             plt.legend()
+
+        name = os.path.join(self.subdir, 'fit_failures')
+        with plotter.saved_figure('fit points', 'percent failure (|percent error| > 5%)', name) as ax:
+            ax.plot(self.fitpoints, failure_ratio * 100., marker='o', markersize=10, linewidth=1)
 
         headers = ['fit points', 'test points with |err| > 5%', 'total test points', 'percent failure']
         with open(os.path.join(config['outdir'], 'fit_errors.txt'), 'w') as f:
@@ -272,12 +289,13 @@ class NewPhysicsScaling2D(Plot):
         self.numbins = numbins
 
     def specify(self, config, spec, index):
+        inputs = []
         if self.maxnll is not None:
-            inputs = multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']), 2)
+            inputs += multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']), 2)
 
         for coefficients in sorted_combos(config['coefficients'], 2):
             cmd = 'run plot --coefficients {coefficients} --index {index} {fn}'
-            spec.add(['cross_sections.npz'], [], cmd.format(coefficients=' '.join(coefficients), index=index, fn=config['fn']))
+            spec.add(inputs + ['cross_sections.npz'], [], cmd.format(coefficients=' '.join(coefficients), index=index, fn=config['fn']))
 
     def write(self, config, plotter, args):
         super(NewPhysicsScaling2D, self).write(config)
@@ -536,12 +554,15 @@ class NLL2D(Plot):
     def write(self, config, plotter, args):
         super(NLL2D, self).write(config)
 
-        levels = sorted(chi2.isf(np.array([0.05, 0.32]), 2))
+        levels = sorted(chi2.isf([0.05, 0.32], 2))
         labels = ['68% CL', '95% CL']
         tables = {}
+        headers = ['\\' + x.replace('3', 'three').replace('2', 'two') for x in sorted(config['coefficients'])]
+        if not self.dimensionless:
+            headers = [x + '$/\Lambda^2$' for x in headers]
         for l in labels:
-            tables[l] = np.empty((len(config['coefficients']), len(config['coefficients']) + 1), dtype='U35')
-            tables[l][:, 0] = sorted(config['coefficients'])
+            tables[l] = np.empty((len(config['coefficients']) - 1, len(config['coefficients'])), dtype='U65')
+            tables[l][:, 0] = headers[:-1]
 
         indexes = dict((c, i) for i, c in enumerate(sorted(config['coefficients'])))
         for coefficients in sorted_combos(config['coefficients'], 2):
@@ -589,7 +610,8 @@ class NLL2D(Plot):
                     marker="x",
                     linestyle='None',
                     color='black',
-                    label='best fit'
+                    label='best fit',
+                    zorder=10
                 )
 
                 if self.scatter:
@@ -627,22 +649,19 @@ class NLL2D(Plot):
                 plt.xlim(xmin=xi[zi < self.maxnll].min(), xmax=xi[zi < self.maxnll].max())
                 # ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
             for level, l in zip(levels, labels):
-                cell = '[{:.1f}, {:.1f}] \\ [{:.1f}, {:.1f}]'.format(
+                cell = '\\diagbox{{[{:.1f}, {:.1f}]}}{{\\textcolor{{red}}{{[{:.1f}, {:.1f}]}}}}'.format(
                     xi[zi < level].min(),
                     xi[zi < level].max(),
                     yi[zi < level].min(),
                     yi[zi < level].max()
                 )
-                tables[l][indexes[x]][indexes[y] + 1] = cell
+                tables[l][indexes[x]][indexes[y]] = cell
 
+        headers = [""] + ['\\textcolor{{red}}{{{}}}'.format(x) for x in headers[1:]]
+        print 'headers', headers
         with open(os.path.join(config['outdir'], 'results.tex'), 'w') as f:
             for l, table in tables.items():
-                text = tabulate.tabulate(table.tolist(), headers=sorted(config['coefficients']), tablefmt='latex_booktabs', missingval='-')
-                f.write('\n\n{line} {l} {line}\n{text}'.format(line='#' * (len(text.splitlines()[0]) / 3), l=l, text=text))
-
-        with open(os.path.join(config['outdir'], 'results.txt'), 'w') as f:
-            for l, table in tables.items():
-                text = tabulate.tabulate(table.tolist(), headers=sorted(config['coefficients']), missingval='-')
+                text = tabulate.tabulate(table.tolist(), headers=headers, tablefmt='latex_raw', missingval='-')
                 f.write('\n\n{line} {l} {line}\n{text}'.format(line='#' * (len(text.splitlines()[0]) / 3), l=l, text=text))
 
 

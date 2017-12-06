@@ -48,6 +48,7 @@ plot_parser.set_defaults(func=plot)
 combine_parser = subparsers.add_parser('combine', help='run combine')
 combine_parser.add_argument('coefficients', nargs='+', help='coefficients to run on')
 combine_parser.add_argument('-i', '--index', type=int, help='index to run (for grid scans)')
+combine_parser.add_argument('-t', '--tabulate', type=bool, default=False, help='tabulate all results')
 combine_parser.set_defaults(func=combine)
 
 args = parser.parse_args()

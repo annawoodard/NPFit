@@ -1,3 +1,5 @@
+import numpy as np
+
 from HiggsAnalysis.CombinedLimit.PhysicsModel import PhysicsModel
 
 from NPFitProduction.NPFitProduction.cross_sections import CrossSectionScan
@@ -47,9 +49,11 @@ class EFTScaling(PhysicsModel):
             self.modelBuilder.out._import(scale)
 
     def doParametersOfInterest(self):
+        # convergence of the loop expansion requires c < (4 * pi)^2
+        # see section 7 https://arxiv.org/pdf/1205.4231.pdf
+        cutoff = (4 * np.pi) ** 2
         for poi in self.pois:
-            # user should call combine with `--setPhysicsModelParameterRanges` set to sensible ranges
-            self.modelBuilder.doVar('{0}[0, -inf, inf]'.format(poi))
+            self.modelBuilder.doVar('{poi}[0, -{cutoff}, {cutoff}]'.format(poi=poi, cutoff=cutoff))
 
         self.modelBuilder.doSet('POI', ','.join(self.pois))
 

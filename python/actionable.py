@@ -114,46 +114,51 @@ def combine(args, config):
     label = '_'.join(args.coefficients)
 
     scan = CrossSectionScan([os.path.join(config['outdir'], 'cross_sections.npz')])
-    mins = np.amin(scan.points[tuple(args.coefficient)][config['processes'][-1]], axis=0)
-    maxes = np.amax(scan.points[tuple(args.coefficient)][config['processes'][-1]], axis=0)
+    mins = np.amin(scan.points[tuple(args.coefficients)][config['processes'][-1]], axis=0)
+    maxes = np.amax(scan.points[tuple(args.coefficients)][config['processes'][-1]], axis=0)
 
-    cmd = [
-        'combine', '-M', 'MultiDimFit', ' --saveFitResult', '{}'.format(os.path.join(config['outdir'], 'workspaces', '{}.root'.format(label))),
-        '--setParameters', '{}'.format(','.join(['{}=0.0'.format(x) for x in args.coefficient])),
-        '--setParameterRanges', ':'.join(['{c}={low},{high}'.format(c=c, low=low, high=high) for c, low, high in zip(args.coefficient, mins, maxes)]),
-        '--autoBoundsPOIs=*', '--autoMaxPOIs=*', '--verbose=1'
-    ]
+    def call_combine(postfix):
+        cmd = [
+            'combine', '-M', 'MultiDimFit', ' --saveFitResult', '{}'.format(os.path.join(config['outdir'], 'workspaces', '{}.root'.format(label))),
+            '--setParameters', '{}'.format(','.join(['{}=0.0'.format(x) for x in args.coefficients])),
+        ]
+        if tuple(args.coefficients) in config['autorange']:
+            cmd += ['--autoRange={}'.format(config['autorange'][tuple(args.coefficients)])]
+        else:
+            cmd += [
+            '--setParameterRanges', ':'.join(['{c}={low},{high}'.format(c=c, low=low, high=high) for c, low, high in zip(args.coefficients, mins, maxes)]),
+            '--autoBoundsPOIs=*', '--autoMaxPOIs=*'# , '--verbose=1'
+        ]
+        if config['asimov data']:
+            cmd += ['-t', '-1']
 
-    if config['asimov data']:
-        cmd += ['-t', '-1']
-    if args.index is not None:
+        cmd += postfix
+
+        print 'calling ', ' '.join(cmd)
+        subprocess.call(' '.join(cmd), shell=True)
+
+    if args.index is None:
+        if len(args.coefficients) == 1:
+            call_combine(['--algo=singles'])
+            shutil.move(
+                'multidimfit.root',
+                os.path.join(config['outdir'], 'fit-result-{}.root'.format(label)))
+        else:
+            call_combine(['--algo=cross'])
+            shutil.move(
+                'higgsCombineTest.MultiDimFit.mH120.root',
+                os.path.join(config['outdir'], 'best-fit-{}.root'.format(label)))
+    else:
         lowers = np.arange(1, config['np points'], config['np chunksize'])
         uppers = np.arange(config['np chunksize'], config['np points'] + config['np chunksize'], config['np chunksize'])
         first, last = zip(lowers, uppers)[args.index]
-        cmd += [
+        postfix = [
             '--algo=grid',
             '--points={}'.format(config['np points']),
             '--firstPoint={}'.format(first),
             '--lastPoint={}'.format(last)
         ]
-    else:
-        if config['dimension'] == 1:
-            cmd += ['--algo=singles']
-        else:
-            cmd += ['--algo=cross', '--cl=0.95']
-
-    print 'calling ', ' '.join(cmd)
-    subprocess.call(' '.join(cmd), shell=True)
-
-    if args.index is not None:
+        call_combine(postfix)
         shutil.move(
             'higgsCombineTest.MultiDimFit.mH120.root',
             os.path.join(config['outdir'], 'scans', '{}_{}.root'.format(label, args.index)))
-    else:
-        shutil.move(
-            'higgsCombineTest.MultiDimFit.mH120.root',
-            os.path.join(config['outdir'], 'best-fit-{}.root'.format(label)))
-        if config['dimension'] == 1:
-            shutil.move(
-                'multidimfit.root',
-                os.path.join(config['outdir'], 'fit-result-{}.root'.format(label)))
