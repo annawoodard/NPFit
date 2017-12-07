@@ -31,9 +31,12 @@ def annotate(args, config):
     # to run, issue the following commands:
     cd {outdir}
     nohup work_queue_factory -T {batch_type} -M {label} -C {factory} >& factory.log &
-
-    # then keep running this command until makeflow no longer submits jobs (may take a few tries):
     makeflow -T wq -M {label} {shared}
+
+    # if you do not have much work to do, it may be faster to run locally instead of submitting to the queue
+    # so you can use this instead:
+    cd {outdir}
+    makeflow -T local
 
     # to reproduce the code:
     cd {code_dir}

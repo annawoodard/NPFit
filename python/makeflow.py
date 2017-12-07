@@ -261,7 +261,7 @@ def make(args, config):
     # adding annotate to the makeflow file without inputs or outputs
     # forces makeflow to run it everytime makeflow is run: this way new
     # code changes are always picked up
-    spec.add([], [], ['run', 'annotate', config['fn']])
+    spec.add([], [], ['LOCAL', 'run', 'annotate', config['fn']])
 
     files = sum([glob.glob(os.path.join(indir, '*.root')) for indir in config['indirs']], [])
     for f in files:
@@ -273,7 +273,7 @@ def make(args, config):
         for indir in config['indirs']:
             for root, _, filenames in os.walk(indir):
                 inputs += [os.path.join(root, fn) for fn in filenames if fn.endswith('.npz')]
-    spec.add(inputs, 'cross_sections.npz', ['run', 'concatenate', config['fn']])
+    spec.add(inputs, 'cross_sections.npz', ['LOCAL', 'run', 'concatenate', config['fn']])
 
     for index, plot in enumerate(config['plots']):
         plot.specify(config, spec, index)
