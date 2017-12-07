@@ -56,12 +56,6 @@ args = parser.parse_args()
 if 'LOCALRT' not in os.environ:
     parser.error("need to do a `cmsenv` first")
 
-logging.basicConfig(
-    datefmt="%Y-%m-%d %H:%M:%S",
-    format="%(asctime)s [%(levelname)s] - %(filename)s %(lineno)d: %(message)s")
-
-logging.__dict__['root'].level = (2 + args.quiet - args.verbose) * 10
-
 config = imp.load_source('', args.config).config
 configdir, config['fn'] = os.path.split(args.config)
 
@@ -71,8 +65,21 @@ if 'outdir' in config:
 if 'indirs' in config:
     config['indirs'] = [os.path.abspath(os.path.expanduser(os.path.expandvars(x))) for x in config['indirs']]
 
-for path in ('cross_sections', 'workspaces', 'scans', 'plots'):
+for path in ('cross_sections', 'workspaces', 'scans', 'plots', 'cl_intervals'):
     if not os.path.exists(os.path.join(config['outdir'], path)):
         os.makedirs(os.path.join(config['outdir'], path))
+
+logging.__dict__['root'].level = (2 + args.quiet - args.verbose) * 10
+logger = logging.getLogger('NPFit')
+formatter = logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(filename)s %(lineno)d: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+console = logging.StreamHandler()
+console.setFormatter(formatter)
+logger.addHandler(console)
+
+if args.func is not make:
+    fileh = logging.handlers.RotatingFileHandler(os.path.join(config['outdir'], 'run.log'), maxBytes=100e6, backupCount=10)
+    fileh.setFormatter(formatter)
+    fileh.setLevel(logging.INFO)
+    logger.addHandler(fileh)
 
 args.func(args, config)

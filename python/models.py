@@ -1,10 +1,12 @@
 import numpy as np
+import logging
 
 from HiggsAnalysis.CombinedLimit.PhysicsModel import PhysicsModel
 
 from NPFitProduction.NPFitProduction.cross_sections import CrossSectionScan
 from NPFitProduction.NPFitProduction.utils import sorted_combos
 
+logger = logging.getLogger(__name__)
 
 class EFTScaling(PhysicsModel):
     """Apply process scaling due to EFT operators.
@@ -43,7 +45,7 @@ class EFTScaling(PhysicsModel):
             info = zip(self.scan.fit_constants[tuple(self.pois)][process], constant + linear + quad + mixed)
             terms = ['({s} * {c})'.format(s=s, c=c) for s, c in info]
             template = 'expr::{name}("{terms}", {pois})'
-            print 'building ', template.format(name=name, terms=' + '.join(terms), pois=', '.join(self.pois))
+            logger.info('building ' + template.format(name=name, terms=' + '.join(terms), pois=', '.join(self.pois)))
 
             scale = self.modelBuilder.factory_(template.format(name=name, terms=' + '.join(terms), pois=', '.join(self.pois)))
             self.modelBuilder.out._import(scale)
