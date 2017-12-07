@@ -119,16 +119,16 @@ def combine(args, config):
 
     def call_combine(postfix):
         cmd = [
-            'combine', '-M', 'MultiDimFit', ' --saveFitResult', '{}'.format(os.path.join(config['outdir'], 'workspaces', '{}.root'.format(label))),
+            'combine', '-M', 'MultiDimFit', '{}'.format(os.path.join(config['outdir'], 'workspaces', '{}.root'.format(label))),
             '--setParameters', '{}'.format(','.join(['{}=0.0'.format(x) for x in args.coefficients])),
         ]
         if tuple(args.coefficients) in config['autorange']:
             cmd += ['--autoRange={}'.format(config['autorange'][tuple(args.coefficients)])]
         else:
             cmd += [
-            '--setParameterRanges', ':'.join(['{c}={low},{high}'.format(c=c, low=low, high=high) for c, low, high in zip(args.coefficients, mins, maxes)]),
-            '--autoBoundsPOIs=*', '--autoMaxPOIs=*'# , '--verbose=1'
-        ]
+                '--setParameterRanges', ':'.join(['{c}={low},{high}'.format(c=c, low=low, high=high) for c, low, high in zip(args.coefficients, mins, maxes)]),
+                '--autoBoundsPOIs=*', '--autoMaxPOIs=*'# , '--verbose=1'
+            ]
         if config['asimov data']:
             cmd += ['-t', '-1']
 
@@ -139,7 +139,7 @@ def combine(args, config):
 
     if args.index is None:
         if len(args.coefficients) == 1:
-            call_combine(['--algo=singles'])
+            call_combine(['--saveFitResult', '--algo=singles'])
             shutil.move(
                 'multidimfit.root',
                 os.path.join(config['outdir'], 'fit-result-{}.root'.format(label)))
