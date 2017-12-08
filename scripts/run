@@ -3,11 +3,13 @@
 import argparse
 import imp
 import logging
+import logging.handlers
 import os
 
 from NPFit.NPFit.actionable import annotate, parse, concatenate, combine
 from NPFit.NPFit.makeflow import make
 from NPFit.NPFit.plotting import plot
+from NPFit.NPFit.tabulation import tabulate
 from NPFit.NPFit.fluctuate import fluctuate
 
 parser = argparse.ArgumentParser(description='for additional help try `run {mode} -h`')
@@ -48,8 +50,12 @@ plot_parser.set_defaults(func=plot)
 combine_parser = subparsers.add_parser('combine', help='run combine')
 combine_parser.add_argument('coefficients', nargs='+', help='coefficients to run on')
 combine_parser.add_argument('-i', '--index', type=int, help='index to run (for grid scans)')
-combine_parser.add_argument('-t', '--tabulate', type=bool, default=False, help='tabulate all results')
+combine_parser.add_argument('--cl', type=float, help='calculate CL intervals')
 combine_parser.set_defaults(func=combine)
+
+tabulate_parser = subparsers.add_parser('tabulate', help='make tables for results')
+tabulate_parser.add_argument('-i', '--index', type=int, help='which to produce (default is all)')
+tabulate_parser.set_defaults(func=tabulate)
 
 args = parser.parse_args()
 

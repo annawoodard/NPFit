@@ -1,36 +1,39 @@
 import NPFit.NPFit.plotting as plotting
+import NPFit.NPFit.tabulation as tabulation
 
 config = {
-    'indirs': ['/hadoop/store/user/$USER/ttV/cross_sections/18/'],
-    'outdir': '~/www/.private/ttV/80/',  # Output directory; iterate the version each time you make changes
+    'indirs': ['/hadoop/store/user/$USER/ttV/cross_sections/1/', '/hadoop/store/user/$USER/ttV/cross_sections/2/1d'],
+    'outdir': '~/www/ttV/1/',  # Output directory; iterate the version each time you make changes
     'shared-fs': ['/afs', '/hadoop'],  # Declare filesystems the batch system can access-- files will not be copied (faster)
     'coefficients': ['cuW', 'cuB', 'cH', 'tc3G', 'c3G', 'cHu', 'c2G', 'cuG'],
-    # 'dimension': 1,
-    # 'plots': [
-    #     # Wildcards are accepted, for example:
-    #     # plotting.FitErrors(['/hadoop/store/user/$USER/ttV/cross_sections/1/1d/final*/*npz'], dimensions=[1]),
-    #     plotting.NewPhysicsScaling([ ('ttW', 'x', 'blue'), ('ttZ', '+', '#2fd164'), ('ttH', 'o', '#ff321a')],
-    #         match_nll_window=False,
-    #         subdir='scaling_free_window_dimensionless',
-    #         dimensionless=True
-    #     ),
-    #     plotting.NLL(),
-    #     plotting.TwoProcessCrossSectionSM(
-    #         subdir='.',
-    #         signals=['ttW', 'ttZ'],
-    #         theory_errors={'ttW': (0.1173, 0.1316), 'ttZ': (0.1164, 0.10)},
-    #         numpoints=500, chunksize=250, contours=True),
-    #     plotting.TwoProcessCrossSectionSMAndNP(
-    #         subdir='.',
-    #         signals=['ttW', 'ttZ'],
-    #         theory_errors={'ttW': (0.1173, 0.1316), 'ttZ': (0.1164, 0.10)})
-    # ],
-    # uncomment below for scanning two coefficients at a time
     'plots': [
-        plotting.FitErrors(dimensions=[2], fitpoints=list(range(6, 500, 1)),
-        plotting.NewPhysicsScaling2D(['ttZ', 'ttH', 'ttW'], maxnll=70),
+        plotting.NewPhysicsScaling([('ttW', 'x', 'blue'), ('ttZ', '+', '#2fd164'), ('ttH', 'o', '#ff321a')],
+            match_nll_window=False,
+            subdir='scaling_free_window_dimensionless',
+            dimensionless=True
+        ),
+        plotting.NLL(),
+        plotting.TwoProcessCrossSectionSM(
+            subdir='.',
+            signals=['ttW', 'ttZ'],
+            theory_errors={'ttW': (0.1173, 0.1316), 'ttZ': (0.1164, 0.10)},
+            numpoints=500, chunksize=250, contours=True),
+        plotting.TwoProcessCrossSectionSMAndNP(
+            subdir='.',
+            signals=['ttW', 'ttZ'],
+            theory_errors={'ttW': (0.1173, 0.1316), 'ttZ': (0.1164, 0.10)}),
+        plotting.FitErrors(dimensions=[2, 8]),
+        plotting.FitFailures(dimensions=[2, 8]),
+        plotting.NewPhysicsScaling2D(['ttZ', 'ttH', 'ttW'], subdir='scaling2dmatchingwindow', maxnll=70),
+        plotting.NewPhysicsScaling2D(['ttZ', 'ttH', 'ttW'], subdir='scaling2d2dfit'),
+        plotting.NewPhysicsScaling2D(['ttZ', 'ttH', 'ttW'], subdir='scaling2d8dfit', dimension=8),
         plotting.NLL2D(scatter=True, maxnll=70),
         plotting.NLL2D(scatter=True, subdir='nll2ddimensionless', maxnll=70, dimensionless=True)
+    ],
+    'tables': [
+        tabulation.CLIntervals(dimension=1),
+        tabulation.CLIntervals(dimension=2),
+        tabulation.CLIntervals(dimension=8)
     ],
     'asimov data': False,  # Calculate expected values with MC data only (Asimov dataset), false for real data.
     'cards': {

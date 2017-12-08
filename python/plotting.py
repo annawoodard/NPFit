@@ -189,12 +189,77 @@ class Plot(object):
             pass  # the directory has already been made
 
 
-class FitErrors(Plot):
+def get_errs(scan, dimension, processes, config):
+    errs = None
+    for coefficients in sorted_combos(config['coefficients'], dimension):
+        for process in processes:
+            if process in scan.fit_errs[coefficients]:
+                if errs is None:
+                    errs = scan.fit_errs[coefficients][process]
+                else:
+                    errs = np.concatenate([errs, scan.fit_errs[coefficients][process]])
 
-    def __init__(self, dimensions=[1], processes=['ttZ', 'ttH', 'ttW'], fitpoints=[100], subdir='fit_errors', xmin=-20, xmax=20):
+    return errs
+
+
+class FitFailures(Plot):
+
+    def __init__(self, dimensions=[1], processes=['ttZ', 'ttH', 'ttW'], points=None, subdir='fit'):
         self.dimensions = dimensions
         self.processes = processes
-        self.fitpoints = np.array(fitpoints)
+        self.subdir = subdir
+        if points is None:
+            self.fitpoints = np.array(range(10, 150, 10))
+        else:
+            self.fitpoints = np.array(points)
+
+    def specify(self, config, spec, index):
+        spec.add(['cross_sections.npz'], [], ['run', 'plot', '--index', index, config['fn']])
+
+    def write(self, config, plotter, args):
+        super(FitFailures, self).write(config)
+
+        name = os.path.join(self.subdir, 'errors')
+        x_label = r'$(\mathrm{r}_{\mathrm{MG}} - \mathrm{r}_{\mathrm{fit}}) / \mathrm{r}_{\mathrm{MG}} * 100$'
+        maxtestpoints = None
+        for dimension in self.dimensions:
+            scan = load_fitted_scan(config, 'cross_sections.npz', maxpoints=max(self.fitpoints))
+            errs = get_errs(scan, dimension, self.processes, config)
+            if maxtestpoints is None:
+                maxtestpoints = len(errs)
+            else:
+                maxtestpoints = min(errs, maxtestpoints)
+        with plotter.saved_figure(x_label, 'counts', name) as ax:
+            labels = []
+            table = []
+            scan = load_fitted_scan(config, 'cross_sections.npz')
+            failure_ratio = np.zeros(len(self.fitpoints))
+
+            for index, points in enumerate(self.fitpoints):
+                scan = load_fitted_scan(config, 'cross_sections.npz', maxpoints=points)
+                for dimension in self.dimensions:
+                    errs = get_errs(scan, dimension, self.processes, config)
+                    np.random.shuffle(errs)
+                    errs = errs[:maxtestpoints]
+                    bad = errs[np.abs(errs) > 5]
+                    table.append([points, len(bad), len(errs), '{:.1f} %'.format(100. * len(bad) / len(errs))])
+                    failure_ratio[index] = float(len(bad)) / len(errs)
+                    # residuals
+
+        name = os.path.join(self.subdir, 'fit_failures')
+        with plotter.saved_figure('fit points', 'percent failure (|percent error| > 5%)', name) as ax:
+            ax.plot(self.fitpoints, failure_ratio * 100., marker='o', markersize=10, linewidth=1)
+
+        headers = ['fit points', 'test points with |err| > 5%', 'total test points', 'percent failure']
+        with open(os.path.join(config['outdir'], 'fit_failures.txt'), 'w') as f:
+            f.write(tabulate.tabulate(table, headers=headers) + '\n')
+
+class FitErrors(Plot):
+
+    def __init__(self, dimensions=[1], processes=['ttZ', 'ttH', 'ttW'], maxpoints=400, subdir='fit', xmin=-20, xmax=20):
+        self.dimensions = dimensions
+        self.processes = processes
+        self.maxpoints = maxpoints
         self.subdir = subdir
         self.xmin = xmin
         self.xmax = xmax
@@ -205,66 +270,31 @@ class FitErrors(Plot):
     def write(self, config, plotter, args):
         super(FitErrors, self).write(config)
 
-        def get_errs(scan, dimension):
-            errs = None
-            for coefficients in sorted_combos(config['coefficients'], dimension):
-                for process in self.processes:
-                    if process in scan.fit_errs[coefficients]:
-                        if errs is None:
-                            errs = scan.fit_errs[coefficients][process]
-                        else:
-                            errs = np.concatenate([errs, scan.fit_errs[coefficients][process]])
-
-            return errs
-
-        name = os.path.join(self.subdir, 'fit_errors')
+        name = os.path.join(self.subdir, 'errors')
         x_label = r'$(\mathrm{r}_{\mathrm{MG}} - \mathrm{r}_{\mathrm{fit}}) / \mathrm{r}_{\mathrm{MG}} * 100$'
         maxtestpoints = None
         for dimension in self.dimensions:
-            scan = load_fitted_scan(config, 'cross_sections.npz', maxpoints=max(self.fitpoints))
-            errs = get_errs(scan, dimension)
-            print 'max test points ', maxtestpoints
+            scan = load_fitted_scan(config, 'cross_sections.npz', maxpoints=self.maxpoints)
+            errs = get_errs(scan, dimension, self.processes, config)
             if maxtestpoints is None:
                 maxtestpoints = len(errs)
             else:
-                maxtestpoints = min(errs, maxtestpoints)
-            print 'now max test points ', maxtestpoints
+                maxtestpoints = min(len(errs), maxtestpoints)
         with plotter.saved_figure(x_label, 'counts', name) as ax:
             labels = []
             table = []
-            scan = load_fitted_scan(config, 'cross_sections.npz')
-            failure_ratio = np.zeros(len(self.fitpoints))
 
-            for index, points in enumerate(self.fitpoints):
-                scan = load_fitted_scan(config, 'cross_sections.npz', maxpoints=points)
-                for dimension in self.dimensions:
-                    errs = get_errs(scan, dimension)
-                    np.random.shuffle(errs)
-                    errs = errs[:maxtestpoints]
-                    bad = errs[np.abs(errs) > 5]
-                    table.append([points, len(bad), len(errs), '{:.1f} %'.format(100. * len(bad) / len(errs))])
-                    failure_ratio[index] = float(len(bad)) / len(errs)
-                    # residuals
-
-            scan = load_fitted_scan(config, 'cross_sections.npz', maxpoints=400)
+            scan = load_fitted_scan(config, 'cross_sections.npz', maxpoints=self.maxpoints)
             for dimension in self.dimensions:
-                errs = get_errs(scan, dimension)
+                errs = get_errs(scan, dimension, self.processes, config)
                 errs[errs < self.xmin] = self.xmin
                 errs[errs > self.xmax] = self.xmax
-                label = '{}d fit ({:,} test points)'.format(dimension, len(errs))
+                label = '{}d fit ({:,} test points, var={:.1f})'.format(dimension, len(errs), np.std(errs))
                 ax.hist(errs, 70, histtype='step', fill=False, label=label)
             ax.set_yscale('log', subsy=range(10))
             ax.yaxis.set_tick_params('minor', size=5)
             plt.ylim(ymin=0, ymax=5e5)
             plt.legend()
-
-        name = os.path.join(self.subdir, 'fit_failures')
-        with plotter.saved_figure('fit points', 'percent failure (|percent error| > 5%)', name) as ax:
-            ax.plot(self.fitpoints, failure_ratio * 100., marker='o', markersize=10, linewidth=1)
-
-        headers = ['fit points', 'test points with |err| > 5%', 'total test points', 'percent failure']
-        with open(os.path.join(config['outdir'], 'fit_errors.txt'), 'w') as f:
-            f.write(tabulate.tabulate(table, headers=headers) + '\n')
 
 
 class NewPhysicsScaling2D(Plot):
@@ -274,28 +304,39 @@ class NewPhysicsScaling2D(Plot):
             processes=['ttZ', 'ttH', 'ttW'],
             subdir='scaling2d',
             dimensionless=False,
+            dimension=2,
             maxnll=None,
             match_zwindows=False,
             madgraph=False,
             numvalues=100,
-            numbins=80):
+            numbins=80,
+            points=40000):
+        if dimension < 2:
+            raise NotImplementedError('must have at least two dimensions')
+        if maxnll is True and dimension is not 2:
+            raise NotImplementedError('maxnll only works with dimension == 2')
+        if madgraph is True and dimension is not 2:
+            raise NotImplementedError('madgraph=True only works with dimension == 2')
         self.subdir = subdir
         self.processes = processes
         self.dimensionless = dimensionless
+        self.dimension = dimension
         self.maxnll = maxnll
         self.match_zwindows = match_zwindows
         self.madgraph = madgraph
         self.numvalues = numvalues
         self.numbins = numbins
+        self.points = points
 
     def specify(self, config, spec, index):
         inputs = []
         if self.maxnll is not None:
-            inputs += multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']), 2)
+            inputs += multidim_np(config, spec, self.dimension, np.ceil(self.points / config['np chunksize']))
 
         for coefficients in sorted_combos(config['coefficients'], 2):
             cmd = 'run plot --coefficients {coefficients} --index {index} {fn}'
-            spec.add(inputs + ['cross_sections.npz'], [], cmd.format(coefficients=' '.join(coefficients), index=index, fn=config['fn']))
+            outputs = [os.path.join(config['outdir'], 'plots', self.subdir, '_'.join(coefficients), ext) for ext in ['.pdf', '.png']]
+            spec.add(inputs + ['cross_sections.npz'], outputs, cmd.format(coefficients=' '.join(coefficients), index=index, fn=config['fn']))
 
     def write(self, config, plotter, args):
         super(NewPhysicsScaling2D, self).write(config)
@@ -371,19 +412,20 @@ class NewPhysicsScaling2D(Plot):
             if self.madgraph:
                 df = madgraph
             else:
-                values = [
-                    np.linspace(madgraph[x].min(), madgraph[x].max(), self.numvalues),
-                    np.linspace(madgraph[y].min(), madgraph[y].max(), self.numvalues)
-                ]
-                df = scan.dataframe(coefficients, evaluate_points=cartesian_product(*values))
+                values = []
+                columns = coefficients if self.dimension is 2 else sorted(config['coefficients'])
+                for column in columns:
+                    if column in coefficients:
+                        values += [np.linspace(madgraph[column].min(), madgraph[column].max(), self.numvalues)]
+                    else:
+                        values += [np.zeros(1)]
+                df = scan.dataframe(columns, evaluate_points=cartesian_product(*values))
 
             for ax, process in zip(grid, self.processes):
-                columns = list(coefficients)[::-1] + [process]
-                data = df[columns].dropna()
+                columns = list(coefficients) + [process]
+                data = df[columns]
                 data[x] *= x_conv
                 data[y] *= y_conv
-
-                print process
 
                 scatter = ax.scatter(
                         data[x].tolist(),
@@ -418,7 +460,7 @@ class NewPhysicsScaling2D(Plot):
             bar = fig.colorbar(
                     scatter,
                     cax=ax.cax,
-                    label='$\sigma_{NP+SM} / \sigma_{SM}$',
+                    label='$\sigma_{NP+SM} / \sigma_{SM}$ ' + '({}d fit)'.format(self.dimension) if not self.madgraph else '',
                     ticks=LogLocator(subs=range(10)),
                 )
             # there is bug in this version of matplotlib ignores zorder, so redraw ticklines
@@ -442,17 +484,19 @@ class NewPhysicsScaling(Plot):
             subdir='scaling',
             overlay_result=False,
             dimensionless=False,
-            match_nll_window=True):
+            match_nll_window=True,
+            points=300):
         self.subdir = subdir
         self.processes = processes
         self.overlay_result = overlay_result
         self.dimensionless = dimensionless
         self.match_nll_window = match_nll_window
+        self.points = points
 
     def specify(self, config, spec, index):
         inputs = ['cross_sections.npz']
         if self.match_nll_window:
-            inputs = multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']), 1)
+            inputs = multidim_np(config, spec, 1, np.ceil(self.points / config['np chunksize']))
 
         for coefficient in config['coefficients']:
             spec.add(inputs, [], ['run', 'plot', '--coefficients', coefficient, '--index', index, config['fn']])
@@ -537,15 +581,16 @@ class NewPhysicsScaling(Plot):
 
 class NLL2D(Plot):
 
-    def __init__(self, subdir='nll2d', dimensionless=False, scatter=False, maxnll=12, vmin=0.02):
+    def __init__(self, subdir='nll2d', dimensionless=False, scatter=False, maxnll=12, vmin=0.02, points=40000):
         self.subdir = subdir
         self.dimensionless = dimensionless
         self.scatter = scatter
         self.maxnll = maxnll
         self.vmin = vmin
+        self.points = points
 
     def specify(self, config, spec, index):
-        inputs = multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']), 2)
+        inputs = multidim_np(config, spec, 2, np.ceil(self.points / config['np chunksize']))
 
         for coefficients in sorted_combos(config['coefficients'], 2):
             cmd = 'run plot --coefficients {coefficients} --index {index} {fn}'
@@ -555,16 +600,7 @@ class NLL2D(Plot):
         super(NLL2D, self).write(config)
 
         levels = sorted(chi2.isf([0.05, 0.32], 2))
-        labels = ['68% CL', '95% CL']
-        tables = {}
-        headers = ['\\' + x.replace('3', 'three').replace('2', 'two') for x in sorted(config['coefficients'])]
-        if not self.dimensionless:
-            headers = [x + '$/\Lambda^2$' for x in headers]
-        for l in labels:
-            tables[l] = np.empty((len(config['coefficients']) - 1, len(config['coefficients'])), dtype='U65')
-            tables[l][:, 0] = headers[:-1]
-
-        indexes = dict((c, i) for i, c in enumerate(sorted(config['coefficients'])))
+        labels = ['68\% CL', '95\% CL']
         for coefficients in sorted_combos(config['coefficients'], 2):
             tag = '_'.join(coefficients)
             try:
@@ -648,32 +684,18 @@ class NLL2D(Plot):
                 plt.ylim(ymin=yi[zi < self.maxnll].min(), ymax=yi[zi < self.maxnll].max())
                 plt.xlim(xmin=xi[zi < self.maxnll].min(), xmax=xi[zi < self.maxnll].max())
                 # ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-            for level, l in zip(levels, labels):
-                cell = '\\diagbox{{[{:.1f}, {:.1f}]}}{{\\textcolor{{red}}{{[{:.1f}, {:.1f}]}}}}'.format(
-                    xi[zi < level].min(),
-                    xi[zi < level].max(),
-                    yi[zi < level].min(),
-                    yi[zi < level].max()
-                )
-                tables[l][indexes[x]][indexes[y]] = cell
-
-        headers = [""] + ['\\textcolor{{red}}{{{}}}'.format(x) for x in headers[1:]]
-        print 'headers', headers
-        with open(os.path.join(config['outdir'], 'results.tex'), 'w') as f:
-            for l, table in tables.items():
-                text = tabulate.tabulate(table.tolist(), headers=headers, tablefmt='latex_raw', missingval='-')
-                f.write('\n\n{line} {l} {line}\n{text}'.format(line='#' * (len(text.splitlines()[0]) / 3), l=l, text=text))
 
 
 class NLL(Plot):
 
-    def __init__(self, subdir='nll', transform=True, dimensionless=False):
+    def __init__(self, subdir='nll', transform=True, dimensionless=False, points=300):
         self.subdir = subdir
         self.transform = transform
         self.dimensionless = dimensionless
+        self.points = points
 
     def specify(self, config, spec, index):
-        inputs = multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']), 1)
+        inputs = multidim_np(config, spec, 1, np.ceil(self.points / config['np chunksize']))
 
         for coefficient in config['coefficients']:
             spec.add(inputs, [], ['run', 'plot', '--coefficient', coefficient, '--index', index, config['fn']])
@@ -855,7 +877,7 @@ class TwoProcessCrossSectionSM(Plot):
 
 class TwoProcessCrossSectionSMAndNP(Plot):
 
-    def __init__(self, subdir='.', signals=['ttW', 'ttZ'], theory_errors=None, tag=None, transform=True, dimensionless=False):
+    def __init__(self, subdir='.', signals=['ttW', 'ttZ'], theory_errors=None, tag=None, transform=True, dimensionless=False, points=300):
         self.subdir = subdir
         self.signals = signals
         self.theory_errors = theory_errors
@@ -865,10 +887,11 @@ class TwoProcessCrossSectionSMAndNP(Plot):
             self.tag = '-'.join(signals)
         self.transform = transform
         self.dimensionless = dimensionless
+        self.points = points
 
     def specify(self, config, spec, index):
         inputs = multi_signal(self.signals, self.tag, spec, config)
-        inputs += multidim_np(config, spec, np.ceil(config['np points'] / config['np chunksize']), 1)
+        inputs += multidim_np(config, spec, 1, np.ceil(self.points / config['np chunksize']))
         inputs += fluctuate(config, spec)
 
         spec.add(inputs, [],  ['run', 'plot', '--index', index, config['fn']])

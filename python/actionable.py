@@ -141,16 +141,24 @@ def combine(args, config):
         subprocess.call(' '.join(cmd), shell=True)
 
     if args.index is None:
-        if len(args.coefficients) == 1:
+        if len(args.coefficients) == 1 and args.cl is None:
             call_combine(['--saveFitResult', '--algo=singles'])
             shutil.move(
                 'multidimfit.root',
                 os.path.join(config['outdir'], 'fit-result-{}.root'.format(label)))
-        else:
+            shutil.move(
+                'higgsCombineTest.MultiDimFit.mH120.root',
+                os.path.join(config['outdir'], 'best-fit-{}.root'.format(label)))
+        elif args.cl is None:
             call_combine(['--algo=cross'])
             shutil.move(
                 'higgsCombineTest.MultiDimFit.mH120.root',
                 os.path.join(config['outdir'], 'best-fit-{}.root'.format(label)))
+        else:
+            call_combine(['--algo=cross', '--stepSize=0.01', '--cl={}'.format(args.cl)])
+            shutil.move(
+                'higgsCombineTest.MultiDimFit.mH120.root',
+                os.path.join(config['outdir'], 'cl_intervals/{}-{}.root'.format(label, args.cl)))
     else:
         lowers = np.arange(1, config['np points'], config['np chunksize'])
         uppers = np.arange(config['np chunksize'], config['np points'] + config['np chunksize'], config['np chunksize'])

@@ -188,7 +188,7 @@ def multidim_grid(config, tag, points, chunksize, spec):
     return [outfile]
 
 
-def multidim_np(config, spec, tasks, dimension):
+def multidim_np(config, spec, dimension, tasks=None, cl=None):
     outfiles = []
     for coefficients in sorted_combos(config['coefficients'], dimension):
         label = '_'.join(coefficients)
@@ -207,22 +207,30 @@ def multidim_np(config, spec, tasks, dimension):
         best_fit = os.path.join(config['outdir'], 'best-fit-{}.root'.format(label))
         fit_result = os.path.join(config['outdir'], 'fit-result-{}.root'.format(label))
         cmd = ['run', 'combine'] + list(coefficients) + [config['fn']]
-        if dimension == 1:
+        if dimension == 1 and cl is None:
             spec.add([workspace], [best_fit, fit_result], cmd)
-        else:
+            outfiles += [best_fit, fit_result]
+        elif tasks is None and cl is None:
             spec.add([workspace], [best_fit], cmd)
+            outfiles += [best_fit]
+        elif cl is not None:
+            for level in cl:
+                outfile = os.path.join(config['outdir'], 'cl_intervals/{}-{}.root'.format(label, level))
+                cmd = ['run', 'combine'] + list(coefficients) + ['--cl', str(level), config['fn']]
+                spec.add(['cross_sections.npz', workspace], outfile, cmd)
+                outfiles += [outfile]
+        else:
+            scans = []
+            for index in range(int(tasks)):
+                scan = os.path.join(config['outdir'], 'scans', '{}_{}.root'.format(label, index))
+                scans.append(scan)
+                cmd = ['run', 'combine'] + list(coefficients) + ['-i', str(index), config['fn']]
 
-        scans = []
-        for index in range(int(tasks)):
-            scan = os.path.join(config['outdir'], 'scans', '{}_{}.root'.format(label, index))
-            scans.append(scan)
-            cmd = ['run', 'combine'] + list(coefficients) + ['-i', str(index), config['fn']]
+                spec.add(['cross_sections.npz', workspace], scan, cmd)
 
-            spec.add(['cross_sections.npz', workspace], scan, cmd)
-
-        outfile = os.path.join(config['outdir'], 'scans', '{}.total.root'.format(label))
-        spec.add(scans, outfile, ['hadd', '-f', outfile] + scans)
-        outfiles += [outfile]
+            outfile = os.path.join(config['outdir'], 'scans', '{}.total.root'.format(label))
+            spec.add(scans, outfile, ['hadd', '-f', outfile] + scans)
+            outfiles += [outfile]
 
     return outfiles
 
@@ -275,7 +283,10 @@ def make(args, config):
                 inputs += [os.path.join(root, fn) for fn in filenames if fn.endswith('.npz')]
     spec.add(inputs, 'cross_sections.npz', ['LOCAL', 'run', 'concatenate', config['fn']])
 
-    for index, plot in enumerate(config['plots']):
+    for index, plot in enumerate(config.get('plots', [])):
         plot.specify(config, spec, index)
+
+    for index, table in enumerate(config.get('tables', [])):
+        table.specify(config, spec, index)
 
     spec.dump(makefile)
