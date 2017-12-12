@@ -37,9 +37,7 @@ config = {
     ],
     'asimov data': False,  # Calculate expected values with MC data only (Asimov dataset), false for real data.
     'cards': {
-        '2l': '/afs/cern.ch/user/a/awoodard/public/TOP-17-005/2L',
-        '3l': '/afs/cern.ch/user/a/awoodard/public/TOP-17-005/3L',
-        '4l': '/afs/cern.ch/user/a/awoodard/public/TOP-17-005/4L.txt'
+        < to be posted pending approval from the TOP conveners >
     },
     'luminosity': 36,
     'scale window': 10,  # maximum scaling of any scaled process at which to set the scan boundaries
