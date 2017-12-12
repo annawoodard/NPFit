@@ -22,6 +22,9 @@ Now set up a working area:
     curl https://raw.githubusercontent.com/annawoodard/NPFit/master/setup.sh|sh -
 
 ## Quick start
+```diff
+- OUT OF DATE, NEEDS UPDATE-- CHECK BACK IN A DAY OR TWO
+```
 Example cross section scans are included in the [data](data) directory. To reproduce the TOP-17-005 plots, only one modification of the configuration file is necessary (with caveats [1].) Edit `indir` in [data/config.py](data/config.py) to point to [data/cross_sections/13TeV/1d.npz](data/cross_sections/13TeV/1d.npz). After `cmsenv`ing in your working area, setup the output directory and produce the Makeflow specification:
 
     run make data/config.py
