@@ -188,7 +188,7 @@ def multidim_grid(config, tag, points, chunksize, spec):
     return [outfile]
 
 
-def multidim_np(config, spec, dimension, tasks=None, cl=None):
+def multidim_np(config, spec, dimension, points=None, cl=None):
     outfiles = []
     for coefficients in sorted_combos(config['coefficients'], dimension):
         label = '_'.join(coefficients)
@@ -210,7 +210,7 @@ def multidim_np(config, spec, dimension, tasks=None, cl=None):
         if dimension == 1 and cl is None:
             spec.add([workspace], [best_fit, fit_result], cmd)
             outfiles += [best_fit, fit_result]
-        elif tasks is None and cl is None:
+        elif points is None and cl is None:
             spec.add([workspace], [best_fit], cmd)
             outfiles += [best_fit]
         elif cl is not None:
@@ -221,10 +221,10 @@ def multidim_np(config, spec, dimension, tasks=None, cl=None):
                 outfiles += [outfile]
         else:
             scans = []
-            for index in range(int(tasks)):
+            for index in range(int(np.ceil(points / config['np chunksize']))):
                 scan = os.path.join(config['outdir'], 'scans', '{}_{}.root'.format(label, index))
                 scans.append(scan)
-                cmd = ['run', 'combine'] + list(coefficients) + ['-i', str(index), config['fn']]
+                cmd = ['run', 'combine'] + list(coefficients) + ['-i', str(index), '-p', str(points), config['fn']]
 
                 spec.add(['cross_sections.npz', workspace], scan, cmd)
 

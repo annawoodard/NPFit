@@ -28,14 +28,14 @@ def annotate(args, config):
             shared_filesystem += ["--shared-fs '/{}'".format(directory.split('/')[1])]
 
     info = """
-    # to run, issue the following commands:
+    # to run, go to your output directory:
     cd {outdir}
+
+    # if you are using a batch queue, start a factory to submit workers and execute the makeflow:
     nohup work_queue_factory -T {batch_type} -M {label} -C {factory} >& factory.log &
     makeflow -T wq -M {label} {shared}
 
-    # if you do not have much work to do, it may be faster to run locally instead of submitting to the queue
-    # so you can use this instead:
-    cd {outdir}
+    # alternatively, if you do not have much work to do, it may be faster to run locally instead:
     makeflow -T local
 
     # to reproduce the code:
@@ -160,12 +160,12 @@ def combine(args, config):
                 'higgsCombineTest.MultiDimFit.mH120.root',
                 os.path.join(config['outdir'], 'cl_intervals/{}-{}.root'.format(label, args.cl)))
     else:
-        lowers = np.arange(1, config['np points'], config['np chunksize'])
-        uppers = np.arange(config['np chunksize'], config['np points'] + config['np chunksize'], config['np chunksize'])
+        lowers = np.arange(1, args.points, config['np chunksize'])
+        uppers = np.arange(config['np chunksize'], args.points + config['np chunksize'], config['np chunksize'])
         first, last = zip(lowers, uppers)[args.index]
         postfix = [
             '--algo=grid',
-            '--points={}'.format(config['np points']),
+            '--points={}'.format(args.points),
             '--firstPoint={}'.format(first),
             '--lastPoint={}'.format(last)
         ]

@@ -36,7 +36,7 @@ from NPFitProduction.NPFitProduction.utils import (cartesian_product,
 
 tweaks = {
     "lines.markeredgewidth": 0.0,
-    "lines.linewidth": 5,
+    "lines.linewidth": 7,
     "lines.markersize": 23,
     "patch.edgecolor": "black",
     "legend.facecolor": "white",
@@ -190,16 +190,31 @@ class Plot(object):
 
 
 def get_errs(scan, dimension, processes, config):
-    errs = None
+    res = None
     for coefficients in sorted_combos(config['coefficients'], dimension):
         for process in processes:
-            if process in scan.fit_errs[coefficients]:
-                if errs is None:
-                    errs = scan.fit_errs[coefficients][process]
-                else:
-                    errs = np.concatenate([errs, scan.fit_errs[coefficients][process]])
+            if process in scan.points[coefficients]:
+                predicted = scan.evaluate(coefficients, scan.points[coefficients][process], process)
+                scales = scan.scales(coefficients, process)
+                print('scales shape ', scales.shape, scan.points[coefficients][process].shape, coefficients, process)
+                errs = (scales - predicted) / scales * 100
 
-    return errs
+                bad = scan.points[coefficients][process][np.abs(errs) > 5]
+                good = scan.points[coefficients][process][np.abs(errs) < 5]
+                try:
+                    print coefficients, process, 'len bad ', len(bad), 'len good ', len(good), len(bad) / float(len(good)) * 100
+                    # for row in bad:
+                    #     print row
+                    # for row in good:
+                    #     print row
+                except ZeroDivisionError:
+                    pass
+                if res is None:
+                    res = errs
+                else:
+                    res = np.concatenate([res, errs])
+
+    return res
 
 
 class FitFailures(Plot):
@@ -209,7 +224,7 @@ class FitFailures(Plot):
         self.processes = processes
         self.subdir = subdir
         if points is None:
-            self.fitpoints = np.array(range(10, 150, 10))
+            self.fitpoints = np.array(range(10, 1000, 100))
         else:
             self.fitpoints = np.array(points)
 
@@ -228,7 +243,7 @@ class FitFailures(Plot):
             if maxtestpoints is None:
                 maxtestpoints = len(errs)
             else:
-                maxtestpoints = min(errs, maxtestpoints)
+                maxtestpoints = min(len(errs), maxtestpoints)
         with plotter.saved_figure(x_label, 'counts', name) as ax:
             labels = []
             table = []
@@ -246,20 +261,22 @@ class FitFailures(Plot):
                     failure_ratio[index] = float(len(bad)) / len(errs)
                     # residuals
 
-        name = os.path.join(self.subdir, 'fit_failures')
+        name = os.path.join(self.subdir, 'failures')
         with plotter.saved_figure('fit points', 'percent failure (|percent error| > 5%)', name) as ax:
             ax.plot(self.fitpoints, failure_ratio * 100., marker='o', markersize=10, linewidth=1)
 
         headers = ['fit points', 'test points with |err| > 5%', 'total test points', 'percent failure']
-        with open(os.path.join(config['outdir'], 'fit_failures.txt'), 'w') as f:
+        with open(os.path.join(config['outdir'], 'failures.txt'), 'w') as f:
             f.write(tabulate.tabulate(table, headers=headers) + '\n')
 
 class FitErrors(Plot):
 
-    def __init__(self, dimensions=[1], processes=['ttZ', 'ttH', 'ttW'], maxpoints=400, subdir='fit', xmin=-20, xmax=20):
-        self.dimensions = dimensions
+    def __init__(self, fit_dimensions=[1], eval_dimensions=[1], processes=['ttZ', 'ttH', 'ttW'], fit_to_test_ratio=1,
+            subdir='fit', xmin=-100, xmax=50):
+        self.fit_dimensions = fit_dimensions
+        self.eval_dimensions = eval_dimensions
         self.processes = processes
-        self.maxpoints = maxpoints
+        self.fit_to_test_ratio = float(fit_to_test_ratio)
         self.subdir = subdir
         self.xmin = xmin
         self.xmax = xmax
@@ -272,29 +289,38 @@ class FitErrors(Plot):
 
         name = os.path.join(self.subdir, 'errors')
         x_label = r'$(\mathrm{r}_{\mathrm{MG}} - \mathrm{r}_{\mathrm{fit}}) / \mathrm{r}_{\mathrm{MG}} * 100$'
-        maxtestpoints = None
-        for dimension in self.dimensions:
-            scan = load_fitted_scan(config, 'cross_sections.npz', maxpoints=self.maxpoints)
-            errs = get_errs(scan, dimension, self.processes, config)
-            if maxtestpoints is None:
-                maxtestpoints = len(errs)
-            else:
-                maxtestpoints = min(len(errs), maxtestpoints)
+        maxpoints = None
+        scan = CrossSectionScan(os.path.join(config['outdir'], 'cross_sections.npz'))
+        for coefficients in scan.points:
+            if len(coefficients) in sum(self.fit_dimensions, []):
+                for process in scan.points[coefficients]:
+                    numpoints = len(scan.points[coefficients][process])
+                    if maxpoints is None:
+                        maxpoints = int(np.ceil(self.fit_to_test_ratio * numpoints / (self.fit_to_test_ratio + 1)))
+                    else:
+                        maxpoints = int(min(maxpoints, np.ceil(self.fit_to_test_ratio * numpoints / (self.fit_to_test_ratio + 1))))
+
         with plotter.saved_figure(x_label, 'counts', name) as ax:
             labels = []
             table = []
 
-            scan = load_fitted_scan(config, 'cross_sections.npz', maxpoints=self.maxpoints)
-            for dimension in self.dimensions:
-                errs = get_errs(scan, dimension, self.processes, config)
-                errs[errs < self.xmin] = self.xmin
-                errs[errs > self.xmax] = self.xmax
-                label = '{}d fit ({:,} test points, var={:.1f})'.format(dimension, len(errs), np.std(errs))
-                ax.hist(errs, 70, histtype='step', fill=False, label=label)
-            ax.set_yscale('log', subsy=range(10))
-            ax.yaxis.set_tick_params('minor', size=5)
-            plt.ylim(ymin=0, ymax=5e5)
-            plt.legend()
+            for fit_dims in self.fit_dimensions:
+                scan.fit(maxpoints=maxpoints, dimensions=fit_dims)
+                for eval_dim in self.eval_dimensions:
+                    errs = get_errs(scan, eval_dim, self.processes, config)
+                    errs[errs < self.xmin] = self.xmin
+                    errs[errs > self.xmax] = self.xmax
+                    bad = errs[np.abs(errs) > 5]
+                    label = '{} fit, {}d evaluation\n{:,} test points'.format(
+                        ' and '.join(('{}d'.format(dim) for dim in fit_dims)),
+                        eval_dim,
+                        len(errs),
+                    )
+                    ax.hist(errs, 70, histtype='step', fill=False, label=label)
+                ax.set_yscale('log', subsy=range(10))
+                ax.yaxis.set_tick_params('minor', size=5)
+                plt.ylim(ymin=0, ymax=10e5)
+                plt.legend(fontsize='x-small', loc='upper left')
 
 
 class NewPhysicsScaling2D(Plot):
@@ -331,16 +357,18 @@ class NewPhysicsScaling2D(Plot):
     def specify(self, config, spec, index):
         inputs = []
         if self.maxnll is not None:
-            inputs += multidim_np(config, spec, self.dimension, np.ceil(self.points / config['np chunksize']))
+            inputs += multidim_np(config, spec, self.dimension, points=self.points)
 
         for coefficients in sorted_combos(config['coefficients'], 2):
             cmd = 'run plot --coefficients {coefficients} --index {index} {fn}'
-            outputs = [os.path.join(config['outdir'], 'plots', self.subdir, '_'.join(coefficients), ext) for ext in ['.pdf', '.png']]
+            base = os.path.join(config['outdir'], 'plots', self.subdir, '_'.join(coefficients))
+            outputs = [base + ext for ext in ['.pdf', '.png']]
             spec.add(inputs + ['cross_sections.npz'], outputs, cmd.format(coefficients=' '.join(coefficients), index=index, fn=config['fn']))
 
     def write(self, config, plotter, args):
         super(NewPhysicsScaling2D, self).write(config)
-        scan = load_fitted_scan(config)
+        scan = CrossSectionScan(os.path.join(config['outdir'], 'cross_sections.npz'))
+        scan.fit(dimensions=[self.dimension])
 
         if self.match_zwindows:
             zmin = None
@@ -427,13 +455,15 @@ class NewPhysicsScaling2D(Plot):
                 data[x] *= x_conv
                 data[y] *= y_conv
 
+                msize = 200 if self.madgraph else 25
+                marker = 'o' if self.madgraph else 's'
                 scatter = ax.scatter(
                         data[x].tolist(),
                         data[y].tolist(),
                         c=data[process],
                         norm=norm,
-                        s=25,
-                        marker='s',
+                        s=msize,
+                        marker=marker,
                         cmap=masked_map,
                         edgecolors='face'
                 )
@@ -496,7 +526,7 @@ class NewPhysicsScaling(Plot):
     def specify(self, config, spec, index):
         inputs = ['cross_sections.npz']
         if self.match_nll_window:
-            inputs = multidim_np(config, spec, 1, np.ceil(self.points / config['np chunksize']))
+            inputs = multidim_np(config, spec, 1, points=self.points)
 
         for coefficient in config['coefficients']:
             spec.add(inputs, [], ['run', 'plot', '--coefficients', coefficient, '--index', index, config['fn']])
@@ -519,7 +549,7 @@ class NewPhysicsScaling(Plot):
 
                 for process, marker, c in self.processes:
                     x = scan.points[coefficient][process]
-                    y = scan.scales[coefficient][process]
+                    y = scan.scales(coefficient, process)
                     if self.match_nll_window:
                         xmin = nll[coefficient]['x'][nll[coefficient]['y'] < 13].min()
                         xmax = nll[coefficient]['x'][nll[coefficient]['y'] < 13].max()
@@ -590,7 +620,7 @@ class NLL2D(Plot):
         self.points = points
 
     def specify(self, config, spec, index):
-        inputs = multidim_np(config, spec, 2, np.ceil(self.points / config['np chunksize']))
+        inputs = multidim_np(config, spec, 2, points=self.points)
 
         for coefficients in sorted_combos(config['coefficients'], 2):
             cmd = 'run plot --coefficients {coefficients} --index {index} {fn}'
@@ -600,7 +630,7 @@ class NLL2D(Plot):
         super(NLL2D, self).write(config)
 
         levels = sorted(chi2.isf([0.05, 0.32], 2))
-        labels = ['68\% CL', '95\% CL']
+        labels = ['68% CL', '95% CL']
         for coefficients in sorted_combos(config['coefficients'], 2):
             tag = '_'.join(coefficients)
             try:
@@ -695,7 +725,7 @@ class NLL(Plot):
         self.points = points
 
     def specify(self, config, spec, index):
-        inputs = multidim_np(config, spec, 1, np.ceil(self.points / config['np chunksize']))
+        inputs = multidim_np(config, spec, 1, points=self.points)
 
         for coefficient in config['coefficients']:
             spec.add(inputs, [], ['run', 'plot', '--coefficient', coefficient, '--index', index, config['fn']])
@@ -891,7 +921,7 @@ class TwoProcessCrossSectionSMAndNP(Plot):
 
     def specify(self, config, spec, index):
         inputs = multi_signal(self.signals, self.tag, spec, config)
-        inputs += multidim_np(config, spec, 1, np.ceil(self.points / config['np chunksize']))
+        inputs += multidim_np(config, spec, 1, points=self.points)
         inputs += fluctuate(config, spec)
 
         spec.add(inputs, [],  ['run', 'plot', '--index', index, config['fn']])

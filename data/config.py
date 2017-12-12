@@ -2,16 +2,15 @@ import NPFit.NPFit.plotting as plotting
 import NPFit.NPFit.tabulation as tabulation
 
 config = {
-    'indirs': ['/hadoop/store/user/$USER/ttV/cross_sections/1/', '/hadoop/store/user/$USER/ttV/cross_sections/2/1d'],
-    'outdir': '~/www/ttV/1/',  # Output directory; iterate the version each time you make changes
+    'indirs': [
+        '/hadoop/store/user/$USER/ttV/cross_sections/1',
+        '/hadoop/store/user/$USER/ttV/cross_sections/2',
+    ],
+    'outdir': '~/www/ttV/1',  # Output directory; iterate the version each time you make changes
     'shared-fs': ['/afs', '/hadoop'],  # Declare filesystems the batch system can access-- files will not be copied (faster)
     'coefficients': ['cuW', 'cuB', 'cH', 'tc3G', 'c3G', 'cHu', 'c2G', 'cuG'],
     'plots': [
-        plotting.NewPhysicsScaling([('ttW', 'x', 'blue'), ('ttZ', '+', '#2fd164'), ('ttH', 'o', '#ff321a')],
-            match_nll_window=False,
-            subdir='scaling_free_window_dimensionless',
-            dimensionless=True
-        ),
+        plotting.NewPhysicsScaling([('ttW', 'x', 'blue'), ('ttZ', '+', '#2fd164'), ('ttH', 'o', '#ff321a')]),
         plotting.NLL(),
         plotting.TwoProcessCrossSectionSM(
             subdir='.',
@@ -22,11 +21,12 @@ config = {
             subdir='.',
             signals=['ttW', 'ttZ'],
             theory_errors={'ttW': (0.1173, 0.1316), 'ttZ': (0.1164, 0.10)}),
-        plotting.FitErrors(dimensions=[2, 8]),
+        plotting.FitErrors(fit_dimensions=[[2], [8], [2, 8]], eval_dimensions=[2, 8]),
         plotting.FitFailures(dimensions=[2, 8]),
-        plotting.NewPhysicsScaling2D(['ttZ', 'ttH', 'ttW'], subdir='scaling2dmatchingwindow', maxnll=70),
-        plotting.NewPhysicsScaling2D(['ttZ', 'ttH', 'ttW'], subdir='scaling2d2dfit'),
-        plotting.NewPhysicsScaling2D(['ttZ', 'ttH', 'ttW'], subdir='scaling2d8dfit', dimension=8),
+        plotting.NewPhysicsScaling2D(subdir='scaling2d2dfit'),
+        plotting.NewPhysicsScaling2D(subdir='scaling2d2dfitmadgraph', madgraph=True),
+        plotting.NewPhysicsScaling2D(subdir='scaling2d8dfit', dimension=8),
+        plotting.NewPhysicsScaling2D(subdir='scaling2dmatchingwindow', maxnll=70),
         plotting.NLL2D(scatter=True, maxnll=70),
         plotting.NLL2D(scatter=True, subdir='nll2ddimensionless', maxnll=70, dimensionless=True)
     ],
@@ -48,7 +48,6 @@ config = {
     'fluctuations': 10000,
     'header': 'preliminary',
     'interp points': 100,
-    'np points': 40000,
     'np chunksize': 300,
     'systematics': {  # below, list any additional (NP-specific, beyond what is in `cards`) systematics to apply
         'PDF_gg': {

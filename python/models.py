@@ -31,21 +31,20 @@ class EFTScaling(PhysicsModel):
     def setup(self):
         dim = len(self.pois)
         for process in self.processes:
-            if process not in self.scan.fit_constants[self.pois]:
+            if process not in self.scan.fit_constants:
                 raise RuntimeError('no fit provided for process {}'.format(process))
             self.modelBuilder.out.var(process)
             name = 'r_{0}'.format(process)
 
             pairs = sorted_combos(range(0, dim), 2)
+            fit_constants = self.scan.construct(process, tuple(self.pois))
 
             constant = ['1.0']
             linear = self.pois
             quad = ['{p} * {p}'.format(p=p) for p in self.pois]
             mixed = ['{p0} * {p1}'.format(p0=self.pois[p0], p1=self.pois[p1]) for p0, p1 in pairs]
-            info = zip(self.scan.fit_constants[tuple(self.pois)][process], constant + linear + quad + mixed)
-            terms = ['({s:0.8f} * {c})'.format(s=s, c=c) for s, c in info]
+            terms = ['({s:0.8f} * {c})'.format(s=s, c=c) for s, c in zip(fit_constants, constant + linear + quad + mixed)]
             template = 'expr::{name}("{terms}", {pois})'
-            logger.info('building ' + template.format(name=name, terms=' + '.join(terms), pois=', '.join(self.pois)))
 
             scale = self.modelBuilder.factory_(template.format(name=name, terms=' + '.join(terms), pois=', '.join(self.pois)))
             self.modelBuilder.out._import(scale)

@@ -50,6 +50,7 @@ plot_parser.set_defaults(func=plot)
 combine_parser = subparsers.add_parser('combine', help='run combine')
 combine_parser.add_argument('coefficients', nargs='+', help='coefficients to run on')
 combine_parser.add_argument('-i', '--index', type=int, help='index to run (for grid scans)')
+combine_parser.add_argument('-p', '--points', type=int, help='total number of points (for grid scans)')
 combine_parser.add_argument('--cl', type=float, help='calculate CL intervals')
 combine_parser.set_defaults(func=combine)
 

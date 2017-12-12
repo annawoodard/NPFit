@@ -19,7 +19,7 @@ class CLIntervals(object):
         )
 
     def specify(self, config, spec, index):
-        inputs = multidim_np(config, spec, self.dimension, tasks=None, cl=self.levels)
+        inputs = multidim_np(config, spec, self.dimension, cl=self.levels)
         outputs = [os.path.join(config['outdir'], self.base + extension) for extension in ['.tex', '.txt']]
         spec.add(inputs, outputs, ['run', 'tabulate', '-i', index, config['fn']])
 
@@ -58,14 +58,25 @@ class CLIntervals(object):
                     data = root2array(
                         os.path.join(config['outdir'], 'cl_intervals/{}-{}.root'.format(tag, level))
                     )
-                    cell = (
-                        data[x][0] * (1. if self.dimensionless else conversion[x]),
-                        data[y][0] * (1. if self.dimensionless else conversion[y]),
-                        data[x][1] * (1. if self.dimensionless else conversion[x]),
-                        data[x][2] * (1. if self.dimensionless else conversion[x]),
-                        data[y][3] * (1. if self.dimensionless else conversion[y]),
-                        data[y][4] * (1. if self.dimensionless else conversion[x])
-                    )
+                    print tag, level, y, data[y]
+                    try:
+                        cell = (
+                            data[x][0] * (1. if self.dimensionless else conversion[x]),
+                            data[y][0] * (1. if self.dimensionless else conversion[y]),
+                            data[x][1] * (1. if self.dimensionless else conversion[x]),
+                            data[x][2] * (1. if self.dimensionless else conversion[x]),
+                            data[y][3] * (1. if self.dimensionless else conversion[y]),
+                            data[y][4] * (1. if self.dimensionless else conversion[x])
+                        )
+                    except IndexError:
+                        cell = (
+                            -99.,
+                            -99.,
+                            data[x][0] * (1. if self.dimensionless else conversion[x]),
+                            data[x][1] * (1. if self.dimensionless else conversion[x]),
+                            data[y][2] * (1. if self.dimensionless else conversion[y]),
+                            data[y][3] * (1. if self.dimensionless else conversion[x])
+                        )
                     tables[level][indexes[x]][indexes[y]] = cell
 
             with open(os.path.join(config['outdir'], self.base + '.txt'), 'w') as f:
