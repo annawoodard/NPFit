@@ -210,7 +210,7 @@ def multidim_np(config, spec, dimension, points=None, cl=None):
         if dimension == 1 and cl is None:
             spec.add([workspace], [best_fit, fit_result], cmd)
             outfiles += [best_fit, fit_result]
-        elif points is None and cl is None:
+        if points is None and cl is None:
             spec.add([workspace], [best_fit], cmd)
             outfiles += [best_fit]
         elif cl is not None:

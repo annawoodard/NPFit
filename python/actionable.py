@@ -129,7 +129,7 @@ def combine(args, config):
             cmd += ['--autoRange={}'.format(config['autorange'][tuple(args.coefficients)])]
         else:
             cmd += [
-                '--setParameterRanges', ':'.join(['{c}={low},{high}'.format(c=c, low=low, high=high) for c, low, high in zip(args.coefficients, mins, maxes)]),
+                '--setParameterRanges', ':'.join(['{c}={low},{high}'.format(c=c, low=low * 10, high=high * 10) for c, low, high in zip(args.coefficients, mins, maxes)]),
                 '--autoBoundsPOIs=*', '--autoMaxPOIs=*'# , '--verbose=1'
             ]
         if config['asimov data']:

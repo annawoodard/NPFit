@@ -305,7 +305,7 @@ class FitErrors(Plot):
             table = []
 
             for fit_dims in self.fit_dimensions:
-                scan.fit(maxpoints=maxpoints, dimensions=fit_dims)
+                scan.fit(dimensions=fit_dims)
                 for eval_dim in self.eval_dimensions:
                     errs = get_errs(scan, eval_dim, self.processes, config)
                     errs[errs < self.xmin] = self.xmin
@@ -320,6 +320,9 @@ class FitErrors(Plot):
                 ax.set_yscale('log', subsy=range(10))
                 ax.yaxis.set_tick_params('minor', size=5)
                 plt.ylim(ymin=0, ymax=10e5)
+                # box = ax.get_position()
+                # ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+                # ax.legend(loc='center left', fontsize='small', bbox_to_anchor=(1, 0.5))
                 plt.legend(fontsize='x-small', loc='upper left')
 
 
@@ -420,7 +423,7 @@ class NewPhysicsScaling2D(Plot):
                     sns.light_palette("navy", as_cmap=True),
                     sns.light_palette((210, 90, 60), input="husl", as_cmap=True),
                     norm,
-                    0.2,
+                    0.1,
                     1.0
             )
 
@@ -738,7 +741,7 @@ class NLL(Plot):
         for coefficient in config['coefficients']:
             info = data[coefficient]
             for p in config['processes']:
-                s0, s1, s2 = scan.fit_constants[coefficient][p]
+                s0, s1, s2 = scan.construct(p, [coefficient])
                 if not ((s1 > 1e-5) or (s2 > 1e-5)):
                     continue  # coefficient has no effect on any of the scaled processes
             x_label = '{} {}'.format(info['label'].replace('\ \mathrm{TeV}^{-2}', ''), info['units'])

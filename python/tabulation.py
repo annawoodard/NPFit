@@ -1,11 +1,15 @@
 import os
 import tabulate as tb
+import matplotlib.pyplot as plt
 import numpy as np
 from NPFit.NPFit.makeflow import multidim_np
 from NPFit.NPFit.parameters import conversion, label
 from root_numpy import root2array
 from NPFitProduction.NPFitProduction.utils import sorted_combos
+from scipy.stats import chi2
 
+def round(num, sig_figs):
+    return str(float('{0:.{1}e}'.format(num, sig_figs - 1)))
 
 class CLIntervals(object):
     def __init__(self, dimension, dimensionless=False, levels=[0.68, 0.95]):
@@ -25,93 +29,68 @@ class CLIntervals(object):
 
     def write(self, config, args):
         precision = 3 if self.dimensionless else 2
+        sf = 2
         if self.dimension == 2:
-            tables = {}
-            indexes = dict((c, i) for i, c in enumerate(sorted(config['coefficients'])))
-            headers = sorted(config['coefficients'])
+            def contiguous(segments):
+                for i in range(len(segments) - 1):
+                    if max(segments[i]) < min(segments[i + 1]):
+                        return False
+                return True
+            coefficients = sorted(config['coefficients'])
+            indices = dict((i, c) for c, i in enumerate(coefficients))
+            tables = dict((level, [[c] + ['-'] * len(coefficients) for c in coefficients]) for level in self.levels)
+            for x, y in sorted_combos(config['coefficients'], 2):
+                data = root2array(os.path.join(config['outdir'], 'scans/{}_{}.total.root'.format(x, y)))
+                zi = 2 * data['deltaNLL']
+                xi = data[x]
+                yi = data[y]
+                if not self.dimensionless:
+                    xi *= conversion[x]
+                    yi *= conversion[y]
 
-            def get_text(low, high, table, tablefmt, cellfmt, headers):
-                txt_table = []
-                for row in table:
-                    txt_row = [row[0]]
-                    for cell in row[1:]:
-                        if cell is None:
-                            txt_row += ['-']
-                        else:
-                            txt_row += [cellfmt.format(*cell[low:high], p=precision)]
-                    txt_table += [txt_row]
-
-                return tb.tabulate(txt_table, headers=headers, tablefmt=tablefmt)
-
-            for level in self.levels:
-                tables[level] = np.empty(
-                    (len(config['coefficients']) - 1, len(config['coefficients'])),
-                    dtype=object
+                contour = plt.tricontour(
+                    xi[zi != 0],
+                    yi[zi != 0],
+                    zi[zi != 0],
+                    sorted(chi2.isf([1 - l for l in self.levels], 2))
                 )
-                tables[level][:, 0] = headers[:-1]
-
-            for level in self.levels:
-                for coefficients in sorted_combos(config['coefficients'], 2):
-                    tag = '_'.join(coefficients)
-                    x = coefficients[0]
-                    y = coefficients[1]
-                    data = root2array(
-                        os.path.join(config['outdir'], 'cl_intervals/{}-{}.root'.format(tag, level))
-                    )
-                    print tag, level, y, data[y]
-                    try:
-                        cell = (
-                            data[x][0] * (1. if self.dimensionless else conversion[x]),
-                            data[y][0] * (1. if self.dimensionless else conversion[y]),
-                            data[x][1] * (1. if self.dimensionless else conversion[x]),
-                            data[x][2] * (1. if self.dimensionless else conversion[x]),
-                            data[y][3] * (1. if self.dimensionless else conversion[y]),
-                            data[y][4] * (1. if self.dimensionless else conversion[x])
-                        )
-                    except IndexError:
-                        cell = (
-                            -99.,
-                            -99.,
-                            data[x][0] * (1. if self.dimensionless else conversion[x]),
-                            data[x][1] * (1. if self.dimensionless else conversion[x]),
-                            data[y][2] * (1. if self.dimensionless else conversion[y]),
-                            data[y][3] * (1. if self.dimensionless else conversion[x])
-                        )
-                    tables[level][indexes[x]][indexes[y]] = cell
+                for i, l in enumerate(self.levels):
+                    res = {
+                        x: [],
+                        y: []
+                    }
+                    for path in contour.collections[i].get_paths():
+                        polygons = path.to_polygons()
+                        for p in polygons:
+                            res[x].append((p[:, 0].min(), p[:, 0].max()))
+                            res[y].append((p[:, 1].min(), p[:, 1].max()))
+                    for key in res:
+                        res[key].sort()
+                        if contiguous(res[key]):
+                            flattened = sum(res[key], ())
+                            res[key] = [(min(flattened), max(flattened))]
+                    intervals = ['[{}, {}]'.format(round(low, sf), round(high, sf)) for low, high in res[x]]
+                    tables[l][indices[x]][indices[y] + 1] = ' and '.join(intervals)
+                    intervals = ['[{}, {}]'.format(round(low, sf), round(high, sf)) for low, high in res[y]]
+                    tables[l][indices[y]][indices[x] + 1] = ' and '.join(intervals)
 
             with open(os.path.join(config['outdir'], self.base + '.txt'), 'w') as f:
-                cell = '[{:.{p}f}, {:.{p}f}] / [{:.{p}f}, {:.{p}f}]'
-                table_headers = [""] + [x + ('' if self.dimensionless else '/Lambda^2') for x in headers[1:]]
+                headers = [""] + [x + ('' if self.dimensionless else '/Lambda^2') for x in coefficients]
                 for level, table in tables.items():
                     f.write('\n\n{line} cl={level} {line}\n{text}'.format(
                         line='#' * 20,
                         level=level,
-                        text=get_text(2, 6, table.tolist(), 'plain', cell, table_headers))
+                        text=tb.tabulate(table, headers=headers))
                     )
-                f.write('\n\n{line} best fit {line}\n{text}'.format(
-                    line='#' * 20,
-                    text=get_text(0, 2, table.tolist(), 'plain', '{:.{p}f} / {:.{p}f}', table_headers))
-                )
+
             with open(os.path.join(config['outdir'], self.base + '.tex'), 'w') as f:
-                cell = '\\diagbox{{[{:.{p}f}, {:.{p}f}]}}{{\\textcolor{{red}}{{[{:.{p}f}, {:.{p}f}]}}}}'
-                table_headers = [""] + [
-                    '\\textcolor{{red}}{{{}}}'.format(label[x] + ('' if self.dimensionless else '$/\Lambda^2$'))
-                    for x in headers[1:]
-                ]
+                headers = [""] + [x + ('' if self.dimensionless else '$/\Lambda^2$') for x in coefficients]
                 for level, table in tables.items():
-                    table[:, 0] = [label[x] for x in table[:, 0]]
                     f.write('\n\n{line} cl={level} {line}\n{text}'.format(
                         line='#' * 20,
                         level=level,
-                        text=get_text(2, 6, table.tolist(), 'latex_raw', cell, table_headers)
-                        )
+                        text=tb.tabulate(table, headers=headers, tablefmt='latex_raw'))
                     )
-                cell = '\\diagbox{{{:.{p}f}}}{{\\textcolor{{red}}{{{:.{p}f}}}}}'
-                f.write('\n\n{line} best fit {line}\n{text}'.format(
-                    line='#' * 20,
-                    text=get_text(0, 2, table.tolist(), 'plain', cell, table_headers)
-                    )
-                )
         else:
             table = []
             for coefficients in sorted_combos(config['coefficients'], self.dimension):
@@ -122,12 +101,12 @@ class CLIntervals(object):
                         data = root2array(
                             os.path.join(config['outdir'], 'cl_intervals/{}-{}.root'.format(tag, level))
                         )
-                        template = '[{:.{p}f}, {:.{p}f}]'
+                        template = '[{}, {}]'
                         conversion_factor = 1. if self.dimensionless else conversion[coefficient]
                         low = data[coefficient][(index + 1) * 2 - 1] * conversion_factor
                         high = data[coefficient][(index + 1) * 2] * conversion_factor
-                        row += [template.format(low, high, p=precision)]
-                    row += ['{:.{p}f}'.format(data[coefficient][0], p=precision + 1)]
+                        row += [template.format(round(low, sf), round(high, sf))]
+                    row += ['{}'.format(round(data[coefficient][0], sf + 1))]
                     table.append(row)
 
             headers = [''] + ['CL={}'.format(cl) for cl in self.levels] + ['best fit']
