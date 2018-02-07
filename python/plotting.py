@@ -19,7 +19,7 @@ import scipy.ndimage
 import seaborn as sns
 import tabulate
 from matplotlib.mlab import griddata
-from matplotlib.ticker import FormatStrFormatter, LogLocator
+from matplotlib.ticker import FormatStrFormatter, LogLocator, MultipleLocator
 from mpl_toolkits.axes_grid1 import ImageGrid
 from root_numpy import root2array
 from scipy.stats import chi2
@@ -36,7 +36,7 @@ from NPFitProduction.NPFitProduction.utils import (cartesian_product,
 
 tweaks = {
     "lines.markeredgewidth": 0.0,
-    "lines.linewidth": 7,
+    "lines.linewidth": 8,
     "lines.markersize": 23,
     "patch.edgecolor": "black",
     "legend.facecolor": "white",
@@ -49,12 +49,13 @@ tweaks = {
     "mathtext.it": "Bitstream Vera Sans:italic",
     "mathtext.bf": "Bitstream Vera Sans:bold",
     "axes.labelsize": "large",
-    "axes.titlesize": "medium",
-    "xtick.labelsize": "medium",
+    "axes.titlesize": "large",
+    "xtick.labelsize": "large",
     "xtick.major.size": 5,
     "ytick.major.size": 5,
     "xtick.direction": "in",
     "ytick.direction": "in",
+    "ytick.labelsize": "large",
 }
 sns.set(context="poster", style="white", font_scale=1.5, rc=tweaks)
 
@@ -140,7 +141,7 @@ class Plotter(object):
         tfile.close()
 
     @contextlib.contextmanager
-    def saved_figure(self, x_label, y_label, name, header=False, figsize=(11, 11)):
+    def saved_figure(self, x_label, y_label, name, header=False, figsize=(11, 11), dpi=None):
         fig, ax = plt.subplots(figsize=figsize)
         lumi = str(self.config['luminosity']) + ' fb$^{-1}$ (13 TeV)'
         if header:
@@ -156,7 +157,11 @@ class Plotter(object):
             logging.info('saving {}'.format(name))
             plt.xlabel(x_label, horizontalalignment='right', x=1.0)
             plt.ylabel(y_label, horizontalalignment='right', y=1.0)
-            plt.savefig(os.path.join(self.config['outdir'], 'plots', '{}.pdf'.format(name)), bbox_inches='tight')
+            if dpi is None:
+                plt.savefig(os.path.join(self.config['outdir'], 'plots', '{}.pdf'.format(name)), bbox_inches='tight')
+            else:
+                plt.savefig(os.path.join(self.config['outdir'], 'plots', '{}.pdf'.format(name)), bbox_inches='tight',
+                        dpi=dpi)
             plt.savefig(os.path.join(self.config['outdir'], 'plots', '{}.png'.format(name)), bbox_inches='tight')
             plt.close()
 
@@ -189,35 +194,30 @@ class Plot(object):
             pass  # the directory has already been made
 
 
-def get_errs(scan, dimension, processes, config):
-    res = None
+def get_errs(scan, dimension, processes, config, clip=None):
+    fits = None
+    mgs = None
     for coefficients in sorted_combos(config['coefficients'], dimension):
         for process in processes:
             if process in scan.points[coefficients]:
-                predicted = scan.evaluate(coefficients, scan.points[coefficients][process], process)
-                scales = scan.scales(coefficients, process)
-                print('scales shape ', scales.shape, scan.points[coefficients][process].shape, coefficients, process)
-                errs = (scales - predicted) / scales * 100
+                fit = scan.evaluate(coefficients, scan.points[coefficients][process], process)
+                mg = scan.scales(coefficients, process)
 
-                bad = scan.points[coefficients][process][np.abs(errs) > 5]
-                good = scan.points[coefficients][process][np.abs(errs) < 5]
-                try:
-                    print coefficients, process, 'len bad ', len(bad), 'len good ', len(good), len(bad) / float(len(good)) * 100
-                    # for row in bad:
-                    #     print row
-                    # for row in good:
-                    #     print row
-                except ZeroDivisionError:
-                    pass
-                if res is None:
-                    res = errs
+                if fits is None:
+                    fits = fit
+                    mgs = mg
                 else:
-                    res = np.concatenate([res, errs])
+                    fits = np.concatenate([fits, fit])
+                    mgs = np.concatenate([mgs, mg])
+    percent_errs = (mgs - fits) / mgs * 100
+    np.random.shuffle(percent_errs)
+    percent_errs = percent_errs[:clip]
+    avg_abs_percent_errs = sum(np.abs(percent_errs)) / len(mgs[:clip])
 
-    return res
+    return percent_errs, avg_abs_percent_errs
 
 
-class FitFailures(Plot):
+class FitQualityByPoints(Plot):
 
     def __init__(self, dimensions=[1], processes=['ttZ', 'ttH', 'ttW'], points=None, subdir='fit'):
         self.dimensions = dimensions
@@ -232,44 +232,44 @@ class FitFailures(Plot):
         spec.add(['cross_sections.npz'], [], ['run', 'plot', '--index', index, config['fn']])
 
     def write(self, config, plotter, args):
-        super(FitFailures, self).write(config)
+        super(FitQualityByPoints, self).write(config)
 
-        name = os.path.join(self.subdir, 'errors')
-        x_label = r'$(\mathrm{r}_{\mathrm{MG}} - \mathrm{r}_{\mathrm{fit}}) / \mathrm{r}_{\mathrm{MG}} * 100$'
-        maxtestpoints = None
-        for dimension in self.dimensions:
-            scan = load_fitted_scan(config, 'cross_sections.npz', maxpoints=max(self.fitpoints))
-            errs = get_errs(scan, dimension, self.processes, config)
-            if maxtestpoints is None:
-                maxtestpoints = len(errs)
-            else:
-                maxtestpoints = min(len(errs), maxtestpoints)
-        with plotter.saved_figure(x_label, 'counts', name) as ax:
+        name = os.path.join(self.subdir, 'fit_quality_by_points')
+        y_label = r'$\frac{100}{n}\sum^n_{i=1} |\frac{\mu_{\mathrm{MG}} - \mu_{\mathrm{fit}}}{\mu_{\mathrm{MG}}}|_i$'
+        loc = MultipleLocator(5)
+        with plotter.saved_figure('fit points', y_label, name,
+                figsize=(17, 11)) as ax:
             labels = []
             table = []
             scan = load_fitted_scan(config, 'cross_sections.npz')
-            failure_ratio = np.zeros(len(self.fitpoints))
+            testpoints = dict((dimension, 0) for dimension, _, _ in self.dimensions)
+            for dimension, _, _ in self.dimensions:
+                for k in scan.points.keys():
+                    if len(k) == dimension:
+                        testpoints[dimension] += sum([len(v) for v in scan.points[k].values()])
+            avg_abs_percent_errs = np.zeros(len(self.fitpoints))
 
-            for index, points in enumerate(self.fitpoints):
-                scan = load_fitted_scan(config, 'cross_sections.npz', maxpoints=points)
-                for dimension in self.dimensions:
-                    errs = get_errs(scan, dimension, self.processes, config)
-                    np.random.shuffle(errs)
-                    errs = errs[:maxtestpoints]
-                    bad = errs[np.abs(errs) > 5]
-                    table.append([points, len(bad), len(errs), '{:.1f} %'.format(100. * len(bad) / len(errs))])
-                    failure_ratio[index] = float(len(bad)) / len(errs)
-                    # residuals
+            for dimension, marker, color in self.dimensions:
+                for index, points in enumerate(self.fitpoints):
+                    scan = load_fitted_scan(config, 'cross_sections.npz', maxpoints=points, dimension=dimension)
+                    errs, avg_abs_percent_err = get_errs(scan, dimension, self.processes, config,
+                            clip=min(testpoints.values()))
 
-        name = os.path.join(self.subdir, 'failures')
-        with plotter.saved_figure('fit points', 'percent failure (|percent error| > 5%)', name) as ax:
-            ax.plot(self.fitpoints, failure_ratio * 100., marker='o', markersize=10, linewidth=1)
+                    table.append([points, avg_abs_percent_err, len(errs), dimension])
+                    avg_abs_percent_errs[index] = avg_abs_percent_err
 
-        headers = ['fit points', 'test points with |err| > 5%', 'total test points', 'percent failure']
-        with open(os.path.join(config['outdir'], 'failures.txt'), 'w') as f:
+                ax.plot(self.fitpoints, avg_abs_percent_errs, marker=marker, markersize=10, linewidth=1, linestyle='none',
+                        label='fit dimension {}'.format(dimension), color=color)
+            ax.set_yscale('log', subsy=range(10))
+            ax.xaxis.set_minor_locator(loc)
+            ax.tick_params(axis='x', length=5, which='minor')
+            plt.legend(fontsize='large')
+
+        headers = ['fit points', 'average absolute percent error', 'total test points', 'dimension']
+        with open(os.path.join(config['outdir'], 'fit_quality_by_points.txt'), 'w') as f:
             f.write(tabulate.tabulate(table, headers=headers) + '\n')
 
-class FitErrors(Plot):
+class FitQualityByDim(Plot):
 
     def __init__(self, fit_dimensions=[1], eval_dimensions=[1], processes=['ttZ', 'ttH', 'ttW'], fit_to_test_ratio=1,
             subdir='fit', xmin=-100, xmax=50):
@@ -285,10 +285,10 @@ class FitErrors(Plot):
         spec.add(['cross_sections.npz'], [], ['run', 'plot', '--index', index, config['fn']])
 
     def write(self, config, plotter, args):
-        super(FitErrors, self).write(config)
+        super(FitQualityByDim, self).write(config)
 
-        name = os.path.join(self.subdir, 'errors')
-        x_label = r'$(\mathrm{r}_{\mathrm{MG}} - \mathrm{r}_{\mathrm{fit}}) / \mathrm{r}_{\mathrm{MG}} * 100$'
+        name = os.path.join(self.subdir, 'fit_quality_by_dim')
+        x_label = r'$100 \frac{\mu_{\mathrm{MG}} - \mu_{\mathrm{fit}}}{\mu_{\mathrm{MG}}}$'
         maxpoints = None
         scan = CrossSectionScan(os.path.join(config['outdir'], 'cross_sections.npz'))
         for coefficients in scan.points:
@@ -305,25 +305,29 @@ class FitErrors(Plot):
             table = []
 
             for fit_dims in self.fit_dimensions:
+                # scan.fit(maxpoints=maxpoints, dimensions=fit_dims)
                 scan.fit(dimensions=fit_dims)
                 for eval_dim in self.eval_dimensions:
-                    errs = get_errs(scan, eval_dim, self.processes, config)
+                    # scan = CrossSectionScan(os.path.join(config['outdir'], 'cross_sections.npz'))
+                    # fit, mg = scan.fit(maxpoints=points, dimensions=[dimension], errs=True)
+                    # chi_square = sum((fit - mg) ** 2 / mg)
+                    errs, chi_square = get_errs(scan, eval_dim, self.processes, config)
                     errs[errs < self.xmin] = self.xmin
                     errs[errs > self.xmax] = self.xmax
-                    bad = errs[np.abs(errs) > 5]
                     label = '{} fit, {}d evaluation\n{:,} test points'.format(
                         ' and '.join(('{}d'.format(dim) for dim in fit_dims)),
                         eval_dim,
                         len(errs),
                     )
-                    ax.hist(errs, 70, histtype='step', fill=False, label=label)
+                    ax.hist(errs, 70, histtype='step', fill=False, label=label, linewidth=4)
                 ax.set_yscale('log', subsy=range(10))
-                ax.yaxis.set_tick_params('minor', size=5)
                 plt.ylim(ymin=0, ymax=10e5)
+                plt.xlim(xmin=-100)
+                ax.yaxis.set_tick_params('minor', size=5)
                 # box = ax.get_position()
                 # ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
                 # ax.legend(loc='center left', fontsize='small', bbox_to_anchor=(1, 0.5))
-                plt.legend(fontsize='x-small', loc='upper left')
+                plt.legend(loc='upper left')
 
 
 class NewPhysicsScaling2D(Plot):
@@ -338,8 +342,8 @@ class NewPhysicsScaling2D(Plot):
             match_zwindows=False,
             madgraph=False,
             numvalues=100,
-            numbins=80,
-            points=40000):
+            points=40000,
+            dpi=500):
         if dimension < 2:
             raise NotImplementedError('must have at least two dimensions')
         if maxnll is True and dimension is not 2:
@@ -354,8 +358,8 @@ class NewPhysicsScaling2D(Plot):
         self.match_zwindows = match_zwindows
         self.madgraph = madgraph
         self.numvalues = numvalues
-        self.numbins = numbins
         self.points = points
+        self.dpi = dpi
 
     def specify(self, config, spec, index):
         inputs = []
@@ -468,7 +472,8 @@ class NewPhysicsScaling2D(Plot):
                         s=msize,
                         marker=marker,
                         cmap=masked_map,
-                        edgecolors='face'
+                        edgecolors='face',
+                        rasterized=True
                 )
 
                 ax.scatter(
@@ -504,7 +509,7 @@ class NewPhysicsScaling2D(Plot):
 
             logging.info('saving {}'.format(name))
             ax.set_xlabel(x_label, horizontalalignment='right', x=1.0)
-            plt.savefig(os.path.join(config['outdir'], 'plots', '{}.pdf'.format(name)), bbox_inches='tight')
+            plt.savefig(os.path.join(config['outdir'], 'plots', '{}.pdf'.format(name)), bbox_inches='tight', dpi=self.dpi)
             plt.savefig(os.path.join(config['outdir'], 'plots', '{}.png'.format(name)), bbox_inches='tight')
             plt.close()
 
@@ -614,13 +619,14 @@ class NewPhysicsScaling(Plot):
 
 class NLL2D(Plot):
 
-    def __init__(self, subdir='nll2d', dimensionless=False, scatter=False, maxnll=12, vmin=0.02, points=40000):
+    def __init__(self, subdir='nll2d', dimensionless=False, scatter=False, maxnll=12, vmin=0.02, points=40000, dpi=500):
         self.subdir = subdir
         self.dimensionless = dimensionless
         self.scatter = scatter
         self.maxnll = maxnll
         self.vmin = vmin
         self.points = points
+        self.dpi = dpi
 
     def specify(self, config, spec, index):
         inputs = multidim_np(config, spec, 2, points=self.points)
@@ -659,7 +665,8 @@ class NLL2D(Plot):
                     y_label,
                     os.path.join(self.subdir, tag),
                     header=config['header'],
-                    figsize=(15, 11)) as ax:
+                    figsize=(15, 11),
+                    dpi=self.dpi) as ax:
 
                 contour = plt.tricontour(
                     xi[zi != 0],
@@ -704,7 +711,8 @@ class NLL2D(Plot):
                             [sns.light_palette("red", reverse=True, as_cmap=True), sns.light_palette("blue", as_cmap=True)],
                             interfaces=levels[:-1],
                             norm=matplotlib.colors.LogNorm(vmin=self.vmin, vmax=zi[window].max())
-                        )
+                        ),
+                        rasterized=True
                     )
                     bar = plt.colorbar(
                         scatter,
@@ -783,6 +791,7 @@ class NLL(Plot):
 
 
 def two_signal_best_fit(config, ax, signals, theory_errors, tag, contours):
+    # TODO switch this to mixin with to signal and contour method
     limits = root2array(os.path.join(config['outdir'], 'best-fit-{}.root'.format(tag)))
 
     x = limits['r_{}'.format(signals[0])] * nlo[signals[0]]
