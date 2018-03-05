@@ -49,8 +49,10 @@ plot_parser.set_defaults(func=plot)
 
 combine_parser = subparsers.add_parser('combine', help='run combine')
 combine_parser.add_argument('coefficients', nargs='+', help='coefficients to run on')
+combine_parser.add_argument('-f', '--freeze', action='store_true', help='freeze other Wilson ceofficients')
 combine_parser.add_argument('-i', '--index', type=int, help='index to run (for grid scans)')
 combine_parser.add_argument('-p', '--points', type=int, help='total number of points (for grid scans)')
+combine_parser.add_argument('-s', '--snapshot', action='store_true', help='save snapshot (for grid scans)')
 combine_parser.add_argument('--cl', type=float, help='calculate CL intervals')
 combine_parser.set_defaults(func=combine)
 
@@ -72,7 +74,7 @@ if 'outdir' in config:
 if 'indirs' in config:
     config['indirs'] = [os.path.abspath(os.path.expanduser(os.path.expandvars(x))) for x in config['indirs']]
 
-for path in ('cross_sections', 'workspaces', 'scans', 'plots', 'cl_intervals'):
+for path in ('cross_sections', 'workspaces', 'snapshots', 'scans', 'plots', 'cl_intervals'):
     if not os.path.exists(os.path.join(config['outdir'], path)):
         os.makedirs(os.path.join(config['outdir'], path))
 

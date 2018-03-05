@@ -15,7 +15,9 @@ from NPFitProduction.NPFitProduction.utils import sorted_combos
 class MakeflowSpecification(object):
 
     def __init__(self, config):
-        self.rules = []
+        self.ins = []
+        self.outs = []
+        self.cmd = []
         self.config = config
 
     def add(self, inputs, outputs, cmd='run'):
@@ -23,8 +25,9 @@ class MakeflowSpecification(object):
             inputs = [inputs]
         if isinstance(outputs, basestring):
             outputs = [outputs]
-        if isinstance(cmd, basestring):
-            cmd = shlex.split(cmd)
+        if isinstance(cmd, list):
+            cmd = ' '.join(cmd)
+        cmd = shlex.split(cmd)
 
         inputs = [self.config] + inputs
         inputs.sort()
@@ -38,13 +41,14 @@ class MakeflowSpecification(object):
         else:
             outs = ' '.join(outputs)
 
-        res = (outs, ins, cmd)
-        if res not in self.rules:
-            self.rules.append(res)
+        if (outs not in self.outs) or (outs == []):
+            self.ins.append(ins)
+            self.outs.append(outs)
+            self.cmd.append(cmd)
 
     def dump(self, makefile):
-        for outs, ins, cmd in self.rules:
-            frag = """\n{out}: {ins}\n\t{cmd}\n"""
+        frag = """\n{out}: {ins}\n\t{cmd}\n"""
+        for ins, outs, cmd in zip(self.ins, self.outs, self.cmd):
             with open(makefile, 'a') as f:
                 s = frag.format(
                     out=outs,
@@ -188,25 +192,27 @@ def multidim_grid(config, tag, points, chunksize, spec):
     return [outfile]
 
 
-def multidim_np(config, spec, dimension, points=None, cl=None):
+def multidim_np(config, spec, dimension, points=None, cl=None, freeze=False, fitdim=None):
     outfiles = []
+    freeze = ['--freeze'] if freeze is True else []
+    workspace = os.path.join(config['outdir'], 'workspaces', '{}.root'.format('_'.join(config['coefficients'])))
+    cmd = [
+        'text2workspace.py', os.path.join(config['outdir'], 'ttV_np.txt'),
+        '-P', 'NPFit.NPFit.models:eft',
+        '--PO', 'scan={}'.format(os.path.join(config['outdir'], 'cross_sections.npz')),
+        ' '.join(['--PO process={}'.format(x) for x in config['processes']]),
+        ' '.join(['--PO poi={}'.format(x) for x in config['coefficients']]),
+        '-o', workspace
+    ]
+    if fitdim is not None:
+        '-PO fitdimension={}'.format(fitdim),
+    spec.add(['cross_sections.npz'], workspace, cmd)
     for coefficients in sorted_combos(config['coefficients'], dimension):
-        label = '_'.join(coefficients)
-        workspace = os.path.join(config['outdir'], 'workspaces', '{}.root'.format(label))
-        cmd = [
-            'text2workspace.py', os.path.join(config['outdir'], 'ttV_np.txt'),
-            '-P', 'NPFit.NPFit.models:eft',
-            '--PO', 'scan={}'.format(os.path.join(config['outdir'], 'cross_sections.npz')),
-            ' '.join(['--PO process={}'.format(x) for x in config['processes']]),
-            ' '.join(['--PO poi={}'.format(x) for x in coefficients]),
-            '-o', workspace
-        ]
-
-        spec.add(['cross_sections.npz'], workspace, cmd)
+        label = '{}{}'.format('_'.join(coefficients), '_frozen' if freeze else '')
 
         best_fit = os.path.join(config['outdir'], 'best-fit-{}.root'.format(label))
         fit_result = os.path.join(config['outdir'], 'fit-result-{}.root'.format(label))
-        cmd = ['run', 'combine'] + list(coefficients) + [config['fn']]
+        cmd = ['run', 'combine'] + freeze + list(coefficients) + [config['fn']]
         if dimension == 1 and cl is None:
             spec.add([workspace], [best_fit, fit_result], cmd)
             outfiles += [best_fit, fit_result]
@@ -216,21 +222,25 @@ def multidim_np(config, spec, dimension, points=None, cl=None):
         elif cl is not None:
             for level in cl:
                 outfile = os.path.join(config['outdir'], 'cl_intervals/{}-{}.root'.format(label, level))
-                cmd = ['run', 'combine'] + list(coefficients) + ['--cl', str(level), config['fn']]
+                cmd = ['run', 'combine'] + freeze + list(coefficients) + ['--cl', str(level), config['fn']]
                 spec.add(['cross_sections.npz', workspace], outfile, cmd)
                 outfiles += [outfile]
         else:
+            cmd = ['run', 'combine', '--snapshot'] + freeze + list(coefficients) + [config['fn']]
+            snapshot = os.path.join(config['outdir'], 'snapshots', '{}.root'.format(label))
+            spec.add([workspace], snapshot, cmd)
+
             scans = []
             for index in range(int(np.ceil(points / config['np chunksize']))):
                 scan = os.path.join(config['outdir'], 'scans', '{}_{}.root'.format(label, index))
                 scans.append(scan)
-                cmd = ['run', 'combine'] + list(coefficients) + ['-i', str(index), '-p', str(points), config['fn']]
+                cmd = ['run', 'combine'] + freeze + list(coefficients) + ['-i', str(index), '-p', str(points), config['fn']]
 
-                spec.add(['cross_sections.npz', workspace], scan, cmd)
+                spec.add(['cross_sections.npz', snapshot], scan, cmd)
 
-            outfile = os.path.join(config['outdir'], 'scans', '{}.total.root'.format(label))
-            spec.add(scans, outfile, ['hadd', '-f', outfile] + scans)
-            outfiles += [outfile]
+            total = os.path.join(config['outdir'], 'scans', '{}.total.root'.format(label))
+            spec.add(scans, total, ['hadd', '-f', total] + scans)
+            outfiles += [total]
 
     return outfiles
 

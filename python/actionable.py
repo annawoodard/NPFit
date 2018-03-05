@@ -5,8 +5,10 @@ import os
 import shlex
 import shutil
 import subprocess
+import sys
 
 from NPFitProduction.NPFitProduction.cross_sections import CrossSectionScan, get_perimeter
+from NPFit.NPFit.parameters import conversion
 
 def annotate(args, config):
     """Annotate the output directory with a README
@@ -100,13 +102,6 @@ def concatenate(args, config):
                     files += [os.path.join(root, fn) for fn in filenames if fn.endswith('.npz')]
 
     result = CrossSectionScan(files)
-    for coefficients in result.points:
-        for process in result.points[coefficients]:
-            try:
-                result.deduplicate(coefficients, process)
-            except (RuntimeError, KeyError) as e:
-                print(e)
-                result.prune(process, coefficients)
     result.fit()
 
     outfile = os.path.join(config['outdir'], args.output)
@@ -114,33 +109,58 @@ def concatenate(args, config):
 
 
 def combine(args, config):
-    label = '_'.join(args.coefficients)
+    label = '{}{}'.format('_'.join(args.coefficients), '_frozen' if args.freeze else '')
 
+    all_coefficients = tuple(sorted(config['coefficients']))
     scan = CrossSectionScan([os.path.join(config['outdir'], 'cross_sections.npz')])
-    mins = np.amin(scan.points[tuple(args.coefficients)][config['processes'][-1]], axis=0)
-    maxes = np.amax(scan.points[tuple(args.coefficients)][config['processes'][-1]], axis=0)
+    mins = np.amin(scan.points[all_coefficients][config['processes'][-1]], axis=0)
+    maxes = np.amax(scan.points[all_coefficients][config['processes'][-1]], axis=0)
 
-    def call_combine(postfix):
+    def call_combine(postfix, wspace=None):
+        if wspace is None:
+            wspace = os.path.join(config['outdir'], 'workspaces', '{}.root'.format('_'.join(config['coefficients'])))
         cmd = [
-            'combine', '-M', 'MultiDimFit', '{}'.format(os.path.join(config['outdir'], 'workspaces', '{}.root'.format(label))),
-            '--setParameters', '{}'.format(','.join(['{}=0.0'.format(x) for x in args.coefficients])),
+            'combine',
+            '-M', 'MultiDimFit',
+            wspace,
+            '--setParameters', '{}'.format(','.join(['{}=0.0'.format(x) for x in config['coefficients']])),
+            '--floatOtherPOIs={}'.format(int(not args.freeze)),
+            '--robustFit=1',
+            '--setRobustFitTolerance=0.001',
+            '--cminApproxPreFitTolerance=0.1',
+            '--cminPreScan'
+        ] + ['-P {}'.format(p) for p in args.coefficients]
+        ranges = []
+        if tuple(args.coefficients) in config['scan window']:
+            x = args.coefficients[0]
+            y = args.coefficients[1]
+            xmin, xmax, ymin, ymax = [np.array(i) for i in config['scan window'][tuple(args.coefficients)]]
+            ranges += ['{c}={low},{high}'.format(c=x, low=xmin / conversion[x], high=xmax / conversion[x])]
+            ranges += ['{c}={low},{high}'.format(c=y, low=ymin / conversion[y], high=ymax / conversion[y])]
+        for c, low, high in zip(all_coefficients, mins, maxes):
+            if (tuple(args.coefficients) not in config['scan window']) \
+                    or (c not in args.coefficients) \
+                    or len(args.coefficients) is not 2:
+                ranges += ['{c}={low},{high}'.format(c=c, low=low * 10., high=high * 10.)]
+        cmd += [
+            # '--autoBoundsPOIs=*', '--autoMaxPOIs=*',# , '--verbose=1'
+            '--setParameterRanges', ':'.join(ranges)
         ]
-        if tuple(args.coefficients) in config['autorange']:
-            cmd += ['--autoRange={}'.format(config['autorange'][tuple(args.coefficients)])]
-        else:
-            cmd += [
-                '--setParameterRanges', ':'.join(['{c}={low},{high}'.format(c=c, low=low * 10, high=high * 10) for c, low, high in zip(args.coefficients, mins, maxes)]),
-                '--autoBoundsPOIs=*', '--autoMaxPOIs=*'# , '--verbose=1'
-            ]
         if config['asimov data']:
             cmd += ['-t', '-1']
 
         cmd += postfix
 
-        print 'calling ', ' '.join(cmd)
-        subprocess.call(' '.join(cmd), shell=True)
+        output = subprocess.check_output(' '.join(cmd), shell=True)
+        if "MultiDimFit failed" in output:
+            sys.exit(99)
 
-    if args.index is None:
+    if args.snapshot:
+        call_combine(['--saveWorkspace', '--saveInactivePOI=1'])
+        shutil.move(
+            'higgsCombineTest.MultiDimFit.mH120.root',
+            os.path.join(config['outdir'], 'snapshots', '{}.root'.format(label)))
+    elif args.index is None:
         if len(args.coefficients) == 1 and args.cl is None:
             call_combine(['--saveFitResult', '--algo=singles'])
             shutil.move(
@@ -160,16 +180,19 @@ def combine(args, config):
                 'higgsCombineTest.MultiDimFit.mH120.root',
                 os.path.join(config['outdir'], 'cl_intervals/{}-{}.root'.format(label, args.cl)))
     else:
+        wspace = os.path.join(config['outdir'], 'snapshots', '{}.root'.format(label))
         lowers = np.arange(1, args.points, config['np chunksize'])
         uppers = np.arange(config['np chunksize'], args.points + config['np chunksize'], config['np chunksize'])
         first, last = zip(lowers, uppers)[args.index]
         postfix = [
+            '-w', 'w',
+            '--snapshotName', 'MultiDimFit',
             '--algo=grid',
             '--points={}'.format(args.points),
             '--firstPoint={}'.format(first),
-            '--lastPoint={}'.format(last)
+            '--lastPoint={}'.format(last),
         ]
-        call_combine(postfix)
+        call_combine(postfix, wspace)
         shutil.move(
             'higgsCombineTest.MultiDimFit.mH120.root',
             os.path.join(config['outdir'], 'scans', '{}_{}.root'.format(label, args.index)))

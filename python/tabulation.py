@@ -12,23 +12,24 @@ def round(num, sig_figs):
     return str(float('{0:.{1}e}'.format(num, sig_figs - 1)))
 
 class CLIntervals(object):
-    def __init__(self, dimension, dimensionless=False, levels=[0.68, 0.95]):
+    def __init__(self, dimension, dimensionless=False, levels=[0.68, 0.95], freeze=False):
         self.dimension = dimension
         self.dimensionless = dimensionless
         self.levels = levels
-        self.base = 'cl_intervals_{}d_{}{}'.format(
+        self.base = 'cl_intervals_{}d_{}{}{}'.format(
             dimension,
             '_'.join(['cl{}'.format(x) for x in levels]),
-            '_dimensionless' if dimensionless else ''
+            '_dimensionless' if dimensionless else '',
+            '_non_pois_fixed_to_zero' if freeze else ''
         )
+        self.freeze = freeze
 
     def specify(self, config, spec, index):
-        inputs = multidim_np(config, spec, self.dimension, cl=self.levels)
+        inputs = multidim_np(config, spec, self.dimension, cl=self.levels, freeze=self.freeze)
         outputs = [os.path.join(config['outdir'], self.base + extension) for extension in ['.tex', '.txt']]
-        spec.add(inputs, outputs, ['run', 'tabulate', '-i', index, config['fn']])
+        spec.add(inputs, outputs, ['run', 'tabulate', '-i', str(index), config['fn']])
 
     def write(self, config, args):
-        precision = 3 if self.dimensionless else 2
         sf = 2
         if self.dimension == 2:
             def contiguous(segments):
@@ -40,7 +41,8 @@ class CLIntervals(object):
             indices = dict((i, c) for c, i in enumerate(coefficients))
             tables = dict((level, [[c] + ['-'] * len(coefficients) for c in coefficients]) for level in self.levels)
             for x, y in sorted_combos(config['coefficients'], 2):
-                data = root2array(os.path.join(config['outdir'], 'scans/{}_{}.total.root'.format(x, y)))
+                tag = '{}_{}{}'.format(x, y, '_frozen' if self.freeze else '')
+                data = root2array(os.path.join(config['outdir'], 'scans/{}.total.root'.format(tag)))
                 zi = 2 * data['deltaNLL']
                 xi = data[x]
                 yi = data[y]
@@ -97,7 +99,7 @@ class CLIntervals(object):
                 for index, coefficient in enumerate(sorted(coefficients)):
                     row = [coefficient]
                     for level in self.levels:
-                        tag = '_'.join(coefficients)
+                        tag = '{}{}'.format('_'.join(coefficients), '_frozen' if self.freeze else '')
                         data = root2array(
                             os.path.join(config['outdir'], 'cl_intervals/{}-{}.root'.format(tag, level))
                         )

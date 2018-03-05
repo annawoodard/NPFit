@@ -1,77 +1,118 @@
 import NPFit.NPFit.plotting as plotting
 import NPFit.NPFit.tabulation as tabulation
+from NPFit.NPFit.parameters import conversion
 
+scanpoints = 3000
 config = {
-    'indirs': [
-        '/hadoop/store/user/$USER/ttV/cross_sections/1',
-        '/hadoop/store/user/$USER/ttV/cross_sections/2',
-    ],
-    'outdir': '~/www/ttV/1',  # Output directory; iterate the version each time you make changes
-    'shared-fs': ['/afs', '/hadoop'],  # Declare filesystems the batch system can access-- files will not be copied (faster)
-    'coefficients': ['cuW', 'cuB', 'cH', 'tc3G', 'c3G', 'cHu', 'c2G', 'cuG'],
-    'plots': [
-        plotting.NewPhysicsScaling([('ttW', 'x', 'blue'), ('ttZ', '+', '#2fd164'), ('ttH', 'o', '#ff321a')]),
-        plotting.NLL(),
-        plotting.TwoProcessCrossSectionSM(
-            subdir='.',
-            signals=['ttW', 'ttZ'],
-            theory_errors={'ttW': (0.1173, 0.1316), 'ttZ': (0.1164, 0.10)},
-            numpoints=500, chunksize=250, contours=True),
-        plotting.TwoProcessCrossSectionSMAndNP(
-            subdir='.',
-            signals=['ttW', 'ttZ'],
-            theory_errors={'ttW': (0.1173, 0.1316), 'ttZ': (0.1164, 0.10)}),
-        plotting.FitErrors(fit_dimensions=[[2], [8], [2, 8]], eval_dimensions=[2, 8]),
-        plotting.FitFailures(dimensions=[2, 8]),
-        plotting.NewPhysicsScaling2D(subdir='scaling2d2dfit'),
-        plotting.NewPhysicsScaling2D(subdir='scaling2d2dfitmadgraph', madgraph=True),
-        plotting.NewPhysicsScaling2D(subdir='scaling2d8dfit', dimension=8),
-        plotting.NewPhysicsScaling2D(subdir='scaling2dmatchingwindow', maxnll=70),
-        plotting.NLL2D(scatter=True, maxnll=70),
-        plotting.NLL2D(scatter=True, subdir='nll2ddimensionless', maxnll=70, dimensionless=True)
-    ],
-    'tables': [
-        tabulation.CLIntervals(dimension=1),
-        tabulation.CLIntervals(dimension=2),
-        tabulation.CLIntervals(dimension=8)
-    ],
-    'asimov data': False,  # Calculate expected values with MC data only (Asimov dataset), false for real data.
-    'cards': {
-        < to be posted pending approval from the TOP conveners >
-    },
-    'luminosity': 36,
-    'scale window': 10,  # maximum scaling of any scaled process at which to set the scan boundaries
-    'autorange': {('c2G', 'c3G'): 2},  # set parameter ranges to +/- this many standard deviations for these coefficient groups instead of using the scan ranges-- mostly used as  a fallback when the usual guess does a bad job
-    'processes': ['ttH', 'ttZ', 'ttW'],  # processes to scale
-    'fluctuations': 10000,
-    'header': 'preliminary',
-    'interp points': 100,
-    'np chunksize': 300,
-    'systematics': {  # below, list any additional (NP-specific, beyond what is in `cards`) systematics to apply
-        'PDF_gg': {
-            'kappa': {  # https://arxiv.org/pdf/1610.07922.pdf page 160
-                'ttZ': {'-': 1.028, '+': 1.028},
-                'ttH': {'-': 1.03, '+': 1.03}
+        'indirs': [
+            '/hadoop/store/user/awoodard/ttV/cross_sections/29/merged/'
+            ],
+        'outdir': '~/www/.private/ttV/110/',  # Output directory; iterate the version each time you make changes
+        'shared-fs': ['/afs', '/hadoop'],  # Declare filesystems the batch system can access-- files will not be copied (faster)
+        'coefficients': ['cuW', 'cuB', 'cH', 'tc3G', 'c3G', 'cHu', 'c2G', 'cuG'],
+        'plots': [
+            plotting.NewPhysicsScaling([('ttW', 'x', 'blue'), ('ttZ', '+', '#2fd164'), ('ttH', 'o', '#ff321a')]),
+            plotting.NLL(),
+            plotting.TwoProcessCrossSectionSM(
+                subdir='.',
+                signals=['ttW', 'ttZ'],
+                theory_errors={'ttW': (0.1173, 0.1316), 'ttZ': (0.1164, 0.10)},
+                numpoints=500, chunksize=250, contours=True),
+            plotting.TwoProcessCrossSectionSMAndNP(
+                subdir='.',
+                signals=['ttW', 'ttZ'],
+                theory_errors={'ttW': (0.1173, 0.1316), 'ttZ': (0.1164, 0.10)}),
+            plotting.FitQualityByDim(fit_dimensions=[[2], [8]], eval_dimensions=[2, 8]),
+            plotting.FitQualityByPoints(dimensions=[(2, 'o', 'orchid'), (8, 's', 'navy')], points=range(1, 85, 1)),
+            plotting.NewPhysicsScaling2D(subdir='scaling-2d-8d-fit', dimensions=[8], maxnll=70, points=scanpoints),
+            plotting.NewPhysicsScaling2D(subdir='scaling-2d-2d-fit-frozen', dimensions=[2], maxnll=70,
+                points=scanpoints, profile=False),
+            plotting.NewPhysicsScaling2D(subdir='scaling-2d-2d-fit-frozen-madgraph', dimensions=[2], maxnll=70,
+                points=scanpoints, profile=False, madgraph=True),
+            plotting.NewPhysicsScaling2D(subdir='scaling-2d-128d-fit', dimensions=[1, 2, 8], maxnll=70, points=scanpoints),
+            plotting.NewPhysicsScaling2D(subdir='scaling-2d-128d-fit-frozen', dimensions=[1, 2, 8], maxnll=70,
+                points=scanpoints, profile=False),
+            plotting.NewPhysicsScaling2D(subdir='scaling-2d-8d-fit-frozen', dimensions=[8], maxnll=70,
+                points=scanpoints, profile=False),
+            # plotting.NewPhysicsScaling2D(subdir='scaling-2d-128d-fit', dimensions=[1, 2, 8], maxnll=70, points=scanpoints),
+            plotting.NLL2D(subdir='nll2dscatter', draw='scatter', maxnll=70, points=scanpoints, fitdim=2),
+            plotting.NLL2D(subdir='nll2dmesh', draw='mesh', maxnll=70, points=scanpoints, fitdim=2),
+            # plotting.NLL2D(scatter=True, subdir='nll2ddimensionless', maxnll=70, dimensionless=True)
+            ],
+        'tables': [
+              tabulation.CLIntervals(dimension=1),
+              tabulation.CLIntervals(dimension=2),
+              tabulation.CLIntervals(dimension=8),
+              tabulation.CLIntervals(dimension=8, freeze=True)
+        ],
+        'np chunksize': 100,
+        'asimov data': False,  # Calculate expected values with MC data only (Asimov dataset), false for real data.
+        'cards': {
+            # < to be posted pending approval from the TOP conveners >
+            '2l': '/afs/cern.ch/user/a/awoodard/public/TOP-17-005/2L',
+            '3l': '/afs/cern.ch/user/a/awoodard/public/TOP-17-005/3L',
+            '4l': '/afs/cern.ch/user/a/awoodard/public/TOP-17-005/4L.txt'
             },
-            'distribution': 'lnN'
+        'luminosity': 36,
+        'scale window': 10,  # maximum scaling of any scaled process at which to set the scan boundaries
+        'scan window': {
+            ('c2G', 'c3G'): [-14., 14., -13., 13.],
+            ('c2G', 'cH'): [-13., 13., -41., 70.],
+            ('c2G', 'cHu'): [-13., 13., -15., 15.],
+            ('c2G', 'cuB'): [-13., 13., -13., 11.],
+            ('c2G', 'cuG'): [-13., 13., -2.5, 2.],
+            ('c2G', 'cuW'): [-13., 13., -14., 14.],
+            ('c2G', 'tc3G'): [-13., 14., -2.3, 2.3],
+            ('c3G', 'cH'): [-13., 13., -41., 70.],
+            ('c3G', 'cHu'): [-13., 13., -29., 20.],
+            ('c3G', 'cuB'): [-13., 13., -13., 13.],
+            ('c3G', 'cuG'): [-13., 13., -2.5, 2.5],
+            ('c3G', 'cuW'): [-13., 13., -14., 14.],
+            ('c3G', 'tc3G'): [-13., 13., -2., 2.7],
+            ('cH', 'cHu'): [-41., 70., -29.1, 20.],
+            ('cH', 'cuB'): [-41., 69., -13.0, 13.],
+            ('cH', 'cuG'): [-41., 70., -2.5, 2.],
+            ('cH', 'cuW'): [-41., 70., -14., 14.2],
+            ('cH', 'tc3G'): [-41., 69., -2.3, 2.7],
+            ('cHu', 'cuB'): [-29., 20., -11., 13.],
+            ('cHu', 'cuG'): [-29., 21., -2.5, 2.5],
+            ('cHu', 'cuW'): [-28., 20., -14., 14.],
+            ('cHu', 'tc3G'):[ -29., 20., -2., 2.7],
+            ('cuB', 'cuG'): [-11., 13., -2.5, 2.],
+            ('cuB', 'cuW'): [-13., 11., -14., 14.],
+            ('cuB', 'tc3G'):[-13., 13., -2., 2.7],
+            ('cuG', 'cuW'): [-2., 3., -14.2, 14.2],
+            ('cuG', 'tc3G'): [-2., 2., -2.3, 2.7],
+            ('cuW', 'tc3G'): [-14., 14., -2., 2.7]
         },
-        'PDF_qq': {
-            'kappa': {'ttW': {'-': 1.0205, '+': 1.0205}},
-            'distribution': 'lnN'
-        },
-        'Q2_ttH': {
-            'kappa': {'ttH': {'-': 1.092, '+': 1.058}},
-            'distribution': 'lnN'
-        },
-        'Q2_ttZ': {
-            'kappa': {'ttZ': {'-': 1.113, '+': 1.096}},
-            'distribution': 'lnN'
-        },
-        'Q2_ttW': {
-            'kappa': {'ttW': {'-': 1.1155, '+': 1.13}},
-            'distribution': 'lnN'
-        }
-    },
-    'label': 'ttV_FTW',  # label to use for batch submission: no need to change this between runs
-    'batch type': 'condor',  # batch type for makeflow, can be local, wq, condor, sge, torque, moab, slurm, chirp, amazon, dryrun
+        'processes': ['ttH', 'ttZ', 'ttW'],  # processes to scale
+        'fluctuations': 10000,
+        'header': 'preliminary',
+        'systematics': {  # below, list any additional (NP-specific, beyond what is in `cards`) systematics to apply
+            'PDF_gg': {
+                'kappa': {  # https://arxiv.org/pdf/1610.07922.pdf page 160
+                    'ttZ': {'-': 1.028, '+': 1.028},
+                    'ttH': {'-': 1.03, '+': 1.03}
+                    },
+                'distribution': 'lnN'
+                },
+            'PDF_qq': {
+                'kappa': {'ttW': {'-': 1.0205, '+': 1.0205}},
+                'distribution': 'lnN'
+                },
+            'Q2_ttH': {
+                'kappa': {'ttH': {'-': 1.092, '+': 1.058}},
+                'distribution': 'lnN'
+                },
+            'Q2_ttZ': {
+                'kappa': {'ttZ': {'-': 1.113, '+': 1.096}},
+                'distribution': 'lnN'
+                },
+            'Q2_ttW': {
+                'kappa': {'ttW': {'-': 1.1155, '+': 1.13}},
+                'distribution': 'lnN'
+                }
+            },
+        'label': 'ttV_FTW',  # label to use for batch submission: no need to change this between runs
+'batch type': 'condor',  # batch type for makeflow, can be local, wq, condor, sge, torque, moab, slurm, chirp, amazon, dryrun
 }

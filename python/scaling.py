@@ -15,11 +15,11 @@ def load(config):
     return scan.points, scan.cross_sections
 
 
-def load_fitted_scan(config, fn='cross_sections.npz', maxpoints=None):
+def load_fitted_scan(config, fn='cross_sections.npz', maxpoints=None, dimension=None):
     fn = os.path.join(config['outdir'], fn)
     scan = CrossSectionScan(fn)
 
-    scan.fit(maxpoints)
+    scan.fit(maxpoints=maxpoints, dimensions=[dimension])
 
     return scan
 

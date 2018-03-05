@@ -6,9 +6,9 @@ import os
 import numpy as np
 import tabulate
 
-from EffectiveTTV.EffectiveTTV.nll import fit_nll
-from EffectiveTTV.EffectiveTTV.plotting import label
-from EffectiveTTV.EffectiveTTV.scaling import load
+from NPFit.NPFit.nll import fit_nll
+from NPFit.NPFit.plotting import label
+from NPFit.NPFit.scaling import load
 
 
 parser = argparse.ArgumentParser(description='extended interpretation for ttV')
@@ -32,7 +32,7 @@ def write(table, headers, name, **kwargs):
 
 config = imp.load_source('', args.config).config
 
-nll = fit_nll(config)
+nll = np.load('nll.npy')[()]
 scales = np.load(os.path.join(config['outdir'], 'scales.npy'))[()]
 coefficients, cross_sections = load(config)
 
