@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/73115191.svg)](https://zenodo.org/badge/latestdoi/73115191)
+
 This is the code used for the Effective Field Theory interpretation in the CMS TOP-17-005 analysis (paper submitted to JHEP.) The preprint is available [here](https://arxiv.org/abs/1711.02547). Code used for running Madgraph to calculate cross sections is located in a separate repository which can be found [here](https://github.com/annawoodard/NPFitProduction).
 
 ## Installation
