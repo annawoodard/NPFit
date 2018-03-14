@@ -5,9 +5,9 @@ from NPFit.NPFit.parameters import conversion
 scanpoints = 3000
 config = {
         'indirs': [
-            '/hadoop/store/user/awoodard/ttV/cross_sections/29/merged/'
-            ],
-        'outdir': '~/www/.private/ttV/110/',  # Output directory; iterate the version each time you make changes
+            'data/cross_sections/13-TeV/merged'
+        ],
+        'outdir': '~/www/ttV/1/',  # Output directory; iterate the version each time you make changes
         'shared-fs': ['/afs', '/hadoop'],  # Declare filesystems the batch system can access-- files will not be copied (faster)
         'coefficients': ['cuW', 'cuB', 'cH', 'tc3G', 'c3G', 'cHu', 'c2G', 'cuG'],
         'plots': [
@@ -40,18 +40,17 @@ config = {
             # plotting.NLL2D(scatter=True, subdir='nll2ddimensionless', maxnll=70, dimensionless=True)
             ],
         'tables': [
-              tabulation.CLIntervals(dimension=1),
-              tabulation.CLIntervals(dimension=2),
-              tabulation.CLIntervals(dimension=8),
-              tabulation.CLIntervals(dimension=8, freeze=True)
+        #     tabulation.CLIntervals(dimension=1),
+        #     tabulation.CLIntervals(dimension=2),
+            # tabulation.CLIntervals(dimension=8),
+            # tabulation.CLIntervals(dimension=8, freeze=True)
         ],
         'np chunksize': 100,
         'asimov data': False,  # Calculate expected values with MC data only (Asimov dataset), false for real data.
         'cards': {
-            # < to be posted pending approval from the TOP conveners >
-            '2l': '/afs/cern.ch/user/a/awoodard/public/TOP-17-005/2L',
-            '3l': '/afs/cern.ch/user/a/awoodard/public/TOP-17-005/3L',
-            '4l': '/afs/cern.ch/user/a/awoodard/public/TOP-17-005/4L.txt'
+            '2l': 'data/cards/TOP-17-005/2l',
+            '3l': 'data/cards/TOP-17-005/3l',
+            '4l': 'data/cards/TOP-17-005/4l.txt'
             },
         'luminosity': 36,
         'scale window': 10,  # maximum scaling of any scaled process at which to set the scan boundaries
