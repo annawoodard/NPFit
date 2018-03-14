@@ -24,26 +24,16 @@ config = {
                 theory_errors={'ttW': (0.1173, 0.1316), 'ttZ': (0.1164, 0.10)}),
             plotting.FitQualityByDim(fit_dimensions=[[2], [8]], eval_dimensions=[2, 8]),
             plotting.FitQualityByPoints(dimensions=[(2, 'o', 'orchid'), (8, 's', 'navy')], points=range(1, 85, 1)),
-            plotting.NewPhysicsScaling2D(subdir='scaling-2d-8d-fit', dimensions=[8], maxnll=70, points=scanpoints),
-            plotting.NewPhysicsScaling2D(subdir='scaling-2d-2d-fit-frozen', dimensions=[2], maxnll=70,
-                points=scanpoints, profile=False),
-            plotting.NewPhysicsScaling2D(subdir='scaling-2d-2d-fit-frozen-madgraph', dimensions=[2], maxnll=70,
-                points=scanpoints, profile=False, madgraph=True),
             plotting.NewPhysicsScaling2D(subdir='scaling-2d-128d-fit', dimensions=[1, 2, 8], maxnll=70, points=scanpoints),
             plotting.NewPhysicsScaling2D(subdir='scaling-2d-128d-fit-frozen', dimensions=[1, 2, 8], maxnll=70,
                 points=scanpoints, profile=False),
-            plotting.NewPhysicsScaling2D(subdir='scaling-2d-8d-fit-frozen', dimensions=[8], maxnll=70,
-                points=scanpoints, profile=False),
-            # plotting.NewPhysicsScaling2D(subdir='scaling-2d-128d-fit', dimensions=[1, 2, 8], maxnll=70, points=scanpoints),
-            plotting.NLL2D(subdir='nll2dscatter', draw='scatter', maxnll=70, points=scanpoints, fitdim=2),
-            plotting.NLL2D(subdir='nll2dmesh', draw='mesh', maxnll=70, points=scanpoints, fitdim=2),
-            # plotting.NLL2D(scatter=True, subdir='nll2ddimensionless', maxnll=70, dimensionless=True)
+            plotting.NLL2D(draw='mesh', maxnll=70, points=scanpoints, fitdim=2),
             ],
         'tables': [
-        #     tabulation.CLIntervals(dimension=1),
-        #     tabulation.CLIntervals(dimension=2),
-            # tabulation.CLIntervals(dimension=8),
-            # tabulation.CLIntervals(dimension=8, freeze=True)
+            tabulation.CLIntervals(dimension=1),
+            tabulation.CLIntervals(dimension=2),
+            tabulation.CLIntervals(dimension=8),
+            tabulation.CLIntervals(dimension=8, freeze=True)
         ],
         'np chunksize': 100,
         'asimov data': False,  # Calculate expected values with MC data only (Asimov dataset), false for real data.
