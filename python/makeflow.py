@@ -26,7 +26,7 @@ class MakeflowSpecification(object):
         if isinstance(outputs, basestring):
             outputs = [outputs]
         if isinstance(cmd, list):
-            cmd = ' '.join(cmd)
+            cmd = ' '.join([str(x) for x in cmd])
         cmd = shlex.split(cmd)
 
         inputs = [self.config] + inputs
