@@ -33,8 +33,12 @@ def annotate(args, config):
     # to run, go to your output directory:
     cd {outdir}
 
-    # if you are using a batch queue, start a factory to submit workers and execute the makeflow:
+    # if you are using a batch queue, start a factory to submit workers
+    # this does not need to be run every time; it can be left running in the background and will only
+    # submit workers as needed
     nohup work_queue_factory -T {batch_type} -M {label} -C {factory} >& factory.log &
+
+    # execute the makeflow
     makeflow -T wq -M {label} {shared}
 
     # alternatively, if you do not have much work to do, it may be faster to run locally instead:
