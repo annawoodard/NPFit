@@ -1,3 +1,5 @@
+import os
+
 import NPFit.NPFit.plotting as plotting
 import NPFit.NPFit.tabulation as tabulation
 from NPFit.NPFit.parameters import conversion
@@ -5,8 +7,8 @@ from NPFit.NPFit.parameters import conversion
 scanpoints = 3000
 config = {
         'indirs': [
-            'data/cross_sections/13-TeV/merged'
-        ],
+            os.path.join(os.environ['CMSSW_BASE'], 'src/NPFit/NPFit/data/cross_sections/13-TeV/merged')
+            ],
         'outdir': '~/www/ttV/1/',  # Output directory; iterate the version each time you make changes
         'shared-fs': ['/afs', '/hadoop'],  # Declare filesystems the batch system can access-- files will not be copied (faster)
         'coefficients': ['cuW', 'cuB', 'cH', 'tc3G', 'c3G', 'cHu', 'c2G', 'cuG'],
