@@ -37,7 +37,7 @@ git checkout master
 cd $CMSSW_BASE/src
 
 scramv1 b clean
-scramv1 b -j 16
+scramv1 b -j 2
 
 pip install --user tabulate
 pip install --user seaborn
