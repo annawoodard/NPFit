@@ -11,8 +11,9 @@ EOF
 set -e
 set -o xtrace
 
-if ! type "$makeflow" > /dev/null; then
+if ! type makeflow > /dev/null; then
    echo "cctools is required; for instructions please visit http://ccl.cse.nd.edu/software/downloadfiles.php"
+   exit 1
 fi
 
 export SCRAM_ARCH=slc6_amd64_gcc530
