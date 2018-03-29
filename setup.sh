@@ -11,8 +11,9 @@ EOF
 set -e
 set -o xtrace
 
-if ! type "$makeflow" > /dev/null; then
+if ! type makeflow > /dev/null; then
    echo "cctools is required; for instructions please visit http://ccl.cse.nd.edu/software/downloadfiles.php"
+   exit 1
 fi
 
 export SCRAM_ARCH=slc6_amd64_gcc530
@@ -36,7 +37,7 @@ git checkout master
 cd $CMSSW_BASE/src
 
 scramv1 b clean
-scramv1 b -j 16
+scramv1 b -j 2
 
 pip install --user tabulate
 pip install --user seaborn

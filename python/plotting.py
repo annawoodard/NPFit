@@ -623,7 +623,7 @@ class NewPhysicsScaling(Plot):
 
                 for process, marker, c in self.processes:
                     x = scan.points[coefficient][process]
-                    y = scan.scales(coefficient, process)
+                    y, errs = scan.scales(coefficient, process)
                     if self.match_nll_window:
                         xmin = nll[coefficient]['x'][nll[coefficient]['y'] < 13].min()
                         xmax = nll[coefficient]['x'][nll[coefficient]['y'] < 13].max()
@@ -632,7 +632,8 @@ class NewPhysicsScaling(Plot):
                         xmax = max(x * conv)
 
                     xi = np.linspace(xmin, xmax, 10000).reshape(10000, 1)
-                    ax.plot(xi * conv, scan.evaluate(coefficient, xi, process), color='#C6C6C6')
+                    yi = scan.evaluate(coefficient, xi, process)
+                    ax.plot(xi * conv, yi, color='#C6C6C6')
                     ax.plot(x * conv, y, marker, mfc='none', markeredgewidth=2, markersize=15, label=label[process],
                             color=c)
 
@@ -676,6 +677,7 @@ class NewPhysicsScaling(Plot):
                         )
 
                 plt.xlim(xmin=xmin, xmax=xmax)
+                plt.ylim(ymin=0, ymax=3)
                 plt.title(r'CMS Simulation', loc='left', fontweight='bold')
                 plt.title(r'MG5_aMC@NLO LO', loc='right', size=27)
                 ax.legend(loc='upper center')
@@ -686,7 +688,7 @@ class NewPhysicsScaling(Plot):
 class NLL2D(Plot):
 
     def __init__(self, subdir='nll2d', dimensionless=False, draw='mesh', maxnll=12, vmin=0.05, points=2000, dpi=400,
-            freeze=False, fitdim=None):
+            freeze=False):
         self.subdir = subdir
         self.dimensionless = dimensionless
         if draw not in ['mesh', 'scatter', None]:
@@ -697,10 +699,9 @@ class NLL2D(Plot):
         self.points = points
         self.dpi = dpi
         self.freeze = freeze
-        self.fitdim = fitdim
 
     def specify(self, config, spec, index):
-        multidim_np(config, spec, 2, points=self.points, freeze=self.freeze, fitdim=self.fitdim)
+        multidim_np(config, spec, 2, points=self.points, freeze=self.freeze)
 
         for coefficients in sorted_combos(config['coefficients'], 2):
             label = '{}{}'.format('_'.join(coefficients), '_frozen' if self.freeze else '')
@@ -1039,7 +1040,14 @@ class TwoProcessCrossSectionSM(Plot):
 
 class TwoProcessCrossSectionSMAndNP(Plot):
 
-    def __init__(self, subdir='.', signals=['ttW', 'ttZ'], theory_errors=None, tag=None, transform=True, dimensionless=False, points=300):
+    def __init__(self,
+             subdir='.',
+             signals=['ttW', 'ttZ'],
+             theory_errors=None,
+             tag=None,
+             transform=True,
+             dimensionless=False,
+             points=300):
         self.subdir = subdir
         self.signals = signals
         self.theory_errors = theory_errors

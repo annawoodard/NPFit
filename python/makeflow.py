@@ -26,7 +26,7 @@ class MakeflowSpecification(object):
         if isinstance(outputs, basestring):
             outputs = [outputs]
         if isinstance(cmd, list):
-            cmd = ' '.join(cmd)
+            cmd = ' '.join([str(x) for x in cmd])
         cmd = shlex.split(cmd)
 
         inputs = [self.config] + inputs
@@ -41,7 +41,7 @@ class MakeflowSpecification(object):
         else:
             outs = ' '.join(outputs)
 
-        if (outs not in self.outs) or (outs == []):
+        if (outs not in self.outs) or (outs == ''):
             self.ins.append(ins)
             self.outs.append(outs)
             self.cmd.append(cmd)
@@ -153,12 +153,11 @@ def multi_signal(signals, tag, spec, config):
     fit_result = os.path.join(config['outdir'], 'fit-result-{}.root'.format(tag))
     outputs = {
         'higgsCombineTest.MultiDimFit.mH120.root': best_fit,
-        'multidimfit.root': fit_result
     }
     cmd = 'combine -M MultiDimFit {} --autoBoundsPOIs=* --saveFitResult --algo=cross >& {}.fit.log'.format(workspace, card)
     spec.add(workspace, outputs, cmd)
 
-    return [best_fit, fit_result]
+    return [best_fit]
 
 
 def multidim_grid(config, tag, points, chunksize, spec):
@@ -192,23 +191,29 @@ def multidim_grid(config, tag, points, chunksize, spec):
     return [outfile]
 
 
-def multidim_np(config, spec, dimension, points=None, cl=None, freeze=False, fitdim=None):
+def multidim_np(config, spec, dimension, points=None, cl=None, freeze=True):
     outfiles = []
     freeze = ['--freeze'] if freeze is True else []
-    workspace = os.path.join(config['outdir'], 'workspaces', '{}.root'.format('_'.join(config['coefficients'])))
-    cmd = [
-        'text2workspace.py', os.path.join(config['outdir'], 'ttV_np.txt'),
-        '-P', 'NPFit.NPFit.models:eft',
-        '--PO', 'scan={}'.format(os.path.join(config['outdir'], 'cross_sections.npz')),
-        ' '.join(['--PO process={}'.format(x) for x in config['processes']]),
-        ' '.join(['--PO poi={}'.format(x) for x in config['coefficients']]),
-        '-o', workspace
-    ]
-    if fitdim is not None:
-        '-PO fitdimension={}'.format(fitdim),
-    spec.add(['cross_sections.npz'], workspace, cmd)
+    def make_workspace(coefficients):
+        workspace = os.path.join(config['outdir'], 'workspaces', '{}.root'.format('_'.join(coefficients)))
+        cmd = [
+            'text2workspace.py', os.path.join(config['outdir'], 'ttV_np.txt'),
+            '-P', 'NPFit.NPFit.models:eft',
+            '--PO', 'scan={}'.format(os.path.join(config['outdir'], 'cross_sections.npz')),
+            ' '.join(['--PO process={}'.format(x) for x in config['processes']]),
+            ' '.join(['--PO poi={}'.format(x) for x in coefficients]),
+            '-o', workspace
+        ]
+        spec.add(['cross_sections.npz'], workspace, cmd)
+
+        return workspace
+    outfiles += [make_workspace(config['coefficients'])]
     for coefficients in sorted_combos(config['coefficients'], dimension):
-        label = '{}{}'.format('_'.join(coefficients), '_frozen' if freeze else '')
+        workspace = make_workspace(coefficients)
+        if dimension == 1:
+            label = coefficients[0]
+        else:
+            label = '{}{}'.format('_'.join(coefficients), '_frozen' if freeze else '')
 
         best_fit = os.path.join(config['outdir'], 'best-fit-{}.root'.format(label))
         fit_result = os.path.join(config['outdir'], 'fit-result-{}.root'.format(label))
@@ -242,7 +247,7 @@ def multidim_np(config, spec, dimension, points=None, cl=None, freeze=False, fit
             spec.add(scans, total, ['hadd', '-f', total] + scans)
             outfiles += [total]
 
-    return outfiles
+    return list(set(outfiles))
 
 
 def fluctuate(config, spec):

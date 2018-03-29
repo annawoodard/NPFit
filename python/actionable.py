@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import sys
 
-from NPFitProduction.NPFitProduction.cross_sections import CrossSectionScan, get_perimeter
+from NPFitProduction.NPFitProduction.cross_sections import CrossSectionScan
 from NPFit.NPFit.parameters import conversion
 
 def annotate(args, config):
@@ -33,8 +33,12 @@ def annotate(args, config):
     # to run, go to your output directory:
     cd {outdir}
 
-    # if you are using a batch queue, start a factory to submit workers and execute the makeflow:
+    # if you are using a batch queue, start a factory to submit workers
+    # this does not need to be run every time; it can be left running in the background and will only
+    # submit workers as needed
     nohup work_queue_factory -T {batch_type} -M {label} -C {factory} >& factory.log &
+
+    # execute the makeflow
     makeflow -T wq -M {label} {shared}
 
     # alternatively, if you do not have much work to do, it may be faster to run locally instead:
@@ -109,7 +113,10 @@ def concatenate(args, config):
 
 
 def combine(args, config):
-    label = '{}{}'.format('_'.join(args.coefficients), '_frozen' if args.freeze else '')
+    if len(args.coefficients) == 1:
+        label = args.coefficients[0]
+    else:
+        label = '{}{}'.format('_'.join(args.coefficients), '_frozen' if args.freeze else '')
 
     all_coefficients = tuple(sorted(config['coefficients']))
     scan = CrossSectionScan([os.path.join(config['outdir'], 'cross_sections.npz')])
@@ -117,35 +124,43 @@ def combine(args, config):
     maxes = np.amax(scan.points[all_coefficients][config['processes'][-1]], axis=0)
 
     def call_combine(postfix, wspace=None):
-        if wspace is None:
-            wspace = os.path.join(config['outdir'], 'workspaces', '{}.root'.format('_'.join(config['coefficients'])))
-        cmd = [
-            'combine',
-            '-M', 'MultiDimFit',
-            wspace,
-            '--setParameters', '{}'.format(','.join(['{}=0.0'.format(x) for x in config['coefficients']])),
-            '--floatOtherPOIs={}'.format(int(not args.freeze)),
-            '--robustFit=1',
-            '--setRobustFitTolerance=0.001',
-            '--cminApproxPreFitTolerance=0.1',
-            '--cminPreScan'
-        ] + ['-P {}'.format(p) for p in args.coefficients]
-        ranges = []
-        if tuple(args.coefficients) in config['scan window']:
-            x = args.coefficients[0]
-            y = args.coefficients[1]
-            xmin, xmax, ymin, ymax = [np.array(i) for i in config['scan window'][tuple(args.coefficients)]]
-            ranges += ['{c}={low},{high}'.format(c=x, low=xmin / conversion[x], high=xmax / conversion[x])]
-            ranges += ['{c}={low},{high}'.format(c=y, low=ymin / conversion[y], high=ymax / conversion[y])]
-        for c, low, high in zip(all_coefficients, mins, maxes):
-            if (tuple(args.coefficients) not in config['scan window']) \
-                    or (c not in args.coefficients) \
-                    or len(args.coefficients) is not 2:
-                ranges += ['{c}={low},{high}'.format(c=c, low=low * 10., high=high * 10.)]
-        cmd += [
-            # '--autoBoundsPOIs=*', '--autoMaxPOIs=*',# , '--verbose=1'
-            '--setParameterRanges', ':'.join(ranges)
-        ]
+        cmd = ['combine', '-M', 'MultiDimFit']
+        if len(args.coefficients) == 1:
+            if wspace is None:
+                wspace = os.path.join(config['outdir'], 'workspaces', '{}.root'.format(args.coefficients[0]))
+            cmd += [
+                wspace,
+                '--setParameters {}=0.0'.format(args.coefficients[0]),
+                '--autoRange=20'
+            ]
+        else:
+            if wspace is None:
+                wspace = os.path.join(config['outdir'], 'workspaces', '{}.root'.format('_'.join(config['coefficients'])))
+            cmd += [
+                wspace,
+                '--setParameters', '{}'.format(','.join(['{}=0.0'.format(x) for x in config['coefficients']])),
+                '--floatOtherPOIs={}'.format(int(not args.freeze)),
+                '--robustFit=1',
+                '--setRobustFitTolerance=0.001',
+                '--cminApproxPreFitTolerance=0.1',
+                '--cminPreScan'
+            ] + ['-P {}'.format(p) for p in args.coefficients]
+            ranges = []
+            if tuple(args.coefficients) in config.get('scan window', []):
+                x = args.coefficients[0]
+                y = args.coefficients[1]
+                xmin, xmax, ymin, ymax = [np.array(i) for i in config['scan window'][tuple(args.coefficients)]]
+                ranges += ['{c}={low},{high}'.format(c=x, low=xmin / conversion[x], high=xmax / conversion[x])]
+                ranges += ['{c}={low},{high}'.format(c=y, low=ymin / conversion[y], high=ymax / conversion[y])]
+            for c, low, high in zip(all_coefficients, mins, maxes):
+                if (tuple(args.coefficients) not in config.get('scan window', [])) \
+                        or (c not in args.coefficients) \
+                        or (len(args.coefficients) != 2):
+                    ranges += ['{c}={low},{high}'.format(c=c, low=low * 10., high=high * 10.)]
+            cmd += [
+                # '--autoBoundsPOIs=*', '--autoMaxPOIs=*',# , '--verbose=1'
+                '--setParameterRanges', ':'.join(ranges)
+            ]
         if config['asimov data']:
             cmd += ['-t', '-1']
 
@@ -180,19 +195,22 @@ def combine(args, config):
                 'higgsCombineTest.MultiDimFit.mH120.root',
                 os.path.join(config['outdir'], 'cl_intervals/{}-{}.root'.format(label, args.cl)))
     else:
-        wspace = os.path.join(config['outdir'], 'snapshots', '{}.root'.format(label))
         lowers = np.arange(1, args.points, config['np chunksize'])
         uppers = np.arange(config['np chunksize'], args.points + config['np chunksize'], config['np chunksize'])
         first, last = zip(lowers, uppers)[args.index]
         postfix = [
-            '-w', 'w',
-            '--snapshotName', 'MultiDimFit',
             '--algo=grid',
             '--points={}'.format(args.points),
             '--firstPoint={}'.format(first),
             '--lastPoint={}'.format(last),
         ]
-        call_combine(postfix, wspace)
+        if len(args.coefficients) == 1:
+            call_combine(postfix)
+        else:
+            wspace = os.path.join(config['outdir'], 'snapshots', '{}.root'.format(label))
+            postfix += ['-w', 'w', '--snapshotName', 'MultiDimFit']
+            call_combine(postfix, wspace)
+
         shutil.move(
             'higgsCombineTest.MultiDimFit.mH120.root',
             os.path.join(config['outdir'], 'scans', '{}_{}.root'.format(label, args.index)))
