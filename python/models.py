@@ -20,7 +20,6 @@ class EFTScaling(PhysicsModel):
     def setPhysicsOptions(self, options):
         self.pois = []
         self.processes = []
-        self.dim = None
         for option, value in [x.split('=') for x in options]:
             if option == 'poi':
                 self.pois.append(value)
@@ -28,12 +27,10 @@ class EFTScaling(PhysicsModel):
                 self.processes.append(value)
             if option == 'scan':
                 self.scan = CrossSectionScan(value)
-            if option == 'fitdimension':
-                self.dim = [int(value)]
 
     def setup(self):
-        self.scan.fit(dimensions=[2])
-        # self.scan.fit()
+        # self.scan.fit(dimensions=[2])
+        self.scan.fit()
         for process in self.processes:
             if process not in self.scan.fit_constants:
                 raise RuntimeError('no fit provided for process {}'.format(process))
