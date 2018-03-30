@@ -21,7 +21,7 @@ If you are not running at Notre Dame, you will need to setup [cctools](https://c
 
 Now set up a working area:
 
-    curl https://raw.githubusercontent.com/annawoodard/NPFit/master/setup.sh|sh -
+    curl https://raw.githubusercontent.com/annawoodard/NPFit/master/setup.sh; source setup.sh
 
 ## Quick start
 
